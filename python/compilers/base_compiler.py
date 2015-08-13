@@ -1,3 +1,17 @@
+# This file is part of hdl-syntax-checker.
+#
+# hdl-syntax-checker is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# hdl-syntax-checker is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with hdl-syntax-checker.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging, os, re
 
@@ -24,7 +38,6 @@ def shell(cmd, exit_status = 0):
 class BaseCompiler(object):
     def __init__(self, target_folder):
         self._TARGET_FOLDER = os.path.expanduser(target_folder)
-
         self._MODELSIM_INI = os.path.join(self._TARGET_FOLDER, 'modelsim.ini')
 
         if not os.path.exists(self._TARGET_FOLDER):
@@ -47,64 +60,34 @@ class BaseCompiler(object):
             modelsimini=self._MODELSIM_INI, library=library, library_path=os.path.join(self._TARGET_FOLDER, library)))
 
     def preBuild(self, library, source):
+        if os.path.exists(os.path.join(self._TARGET_FOLDER, library)):
+            return
         if os.path.exists(self._MODELSIM_INI):
             self.mapLibrary(library)
         else:
             self.createLibrary(library)
     def postBuild(self, library, source):
         pass
-    def _doBuild(self, library, source):
-        pass
-    def build(self, library, source):
+    def getFlags(self, library, source):
+        return []
+    def _doBuild(self, library, source, flags=None):
+        if flags:
+            flags += self.getFlags(library, source)
+        else:
+            flags = self.getFlags(library, source)
+
+        cmd = 'vcom -modelsimini {modelsimini} -work {library} {flags} {source}'.format(
+            modelsimini=self._MODELSIM_INI, library=library, flags=" ".join(flags),
+            source=source)
+
+        self._logger.debug(cmd)
+        for l in os.popen(cmd).read().split("\n"):
+            if re.match(r"^\s*$", l):
+                continue
+            self._logger.debug(l)
+
+    def build(self, library, source, flags=None):
         self.preBuild(library, source)
-        self._doBuild(library, source)
+        self._doBuild(library, source, flags)
         self.postBuild(library, source)
-
-
-
-
-    #              sts = 1
-
-    #  #  if sts == exit_status:
-    #  #      _logger.debug(cmd)
-    #  #  else:
-    #  #      if sts == 512:
-    #  #          _logger.debug("'%s' returned %d (expected %d)", cmd, sts, exit_status)
-    #  #      else:
-    #  #          _logger.warning("'%s' returned %d (expected %d)", cmd, sts, exit_status)
-    #  #  return errors = []
-    #      warnings = []
-    #      log_line = []
-    #      for l in ret:
-    #          if RE_VCOM_COMPILER_EXITING.match(l):
-    #              continue
-    #          for re_obj, re_text in _VCOM_SUBS:
-    #              l = re_obj.sub(re_text, l)
-    #          log_line += [l]
-    #          if RE_VCOM_ERROR.match(l):
-    #              errors.append("\n".join(log_line))
-    #              log_line = []
-    #          elif RE_VCOM_WARNING.match(l):
-    #              warnings.append("\n".join(log_line))
-    #              log_line = []
-
-    #      if errors or warnings:
-    #          _logger.info("Messages found while running vcom")
-    #          _logger.info("'%s'", cmd)
-    #      if errors:
-    #          _logger.info("=== Errors ===")
-    #          for error in errors:
-    #              _logger.info(error)
-
-    #      if warnings:
-    #          _logger.info("=== Warnings ===")
-    #          for warning in warnings:
-    #              _logger.info(warning)
-
-    #      return errors, warnings
-
-    #  def build(self, *args, **kwargs):
-    #      self.preBuild(*args, **kwargs)
-    #      self._doBuild(*args, **kwargs)
-    #      self.postBuild(*args, **kwargs)
 

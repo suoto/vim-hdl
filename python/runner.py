@@ -1,6 +1,21 @@
 #!/usr/bin/env python
 # PYTHON_ARGCOMPLETE_OK
 
+# This file is part of hdl-syntax-checker.
+#
+# hdl-syntax-checker is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# hdl-syntax-checker is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with hdl-syntax-checker.  If not, see <http://www.gnu.org/licenses/>.
+
 import logging, sys, os
 from config import Config
 from compilers import msim
@@ -18,10 +33,10 @@ _LOG_LEVELS = {
 def parseArguments():
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('--verbose', '-v',  action='append_const', const=1)
-    parser.add_argument('--library', '-l', type=str, default='base_lib_pkg')
-    parser.add_argument('--source', '-s', type=str, default='~/git-svn/odf/branches/_all/fpga/src/base_lib/base_lib_pkg.vhd')
+    parser.add_argument('--verbose', '-v', action='append_const', const=1)
+    parser.add_argument('--library', '-l', type=str, default='common_lib')
     parser.add_argument('--clean', '-c', action='store_true')
+    parser.add_argument('sources', action='append', nargs='+')#--, default='~/hdl_lib/common_lib/common_pkg.vhd')
     #  parser.add_argument('--build-source',       '-c',                action='store')
     #  parser.add_argument('--build-until-stable', '-f',                action='store_true')
     #  parser.add_argument('--thread-limit',       action='store',      type=int)
@@ -33,13 +48,19 @@ def parseArguments():
     except ImportError:
         pass
     args = parser.parse_args()
+    print args
     if args.verbose:
         args.log_level = _LOG_LEVELS[len(args.verbose)]
 
     Config.updateFromArgparse(args)
     Config.setupBuild()
 
-    return args.clean, args.library, os.path.expanduser(args.source)
+    sources = []
+    for _a in args.sources:
+        for __a in _a:
+            sources.append(os.path.expanduser(__a))
+
+    return args.clean, args.library, sources
 
     #  Config.updateFromArgparse(args)
 
@@ -70,13 +91,14 @@ def parseArguments():
     #      tags_t.join()
 
 def main():
-    clean, library, source = parseArguments()
+    clean, library, sources = parseArguments()
     if clean:
         os.system('rm -rf ~/temp/builder')
     else:
-        _logger.info("Building (%s) %s", library, source)
         compiler = msim.MSim('~/temp/builder/')
-        compiler.build(library, source)
+        for source in sources:
+            _logger.info("Building (%s) %s", library, source)
+            compiler.build(library, source)
 
 if __name__ == '__main__':
     main()
