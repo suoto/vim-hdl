@@ -22,7 +22,8 @@ class Config(object):
     target_dir = '.build'
     log_file = os.path.join(target_dir, "build.log")
     log_level = logging.DEBUG
-    log_format = "%(asctime)s <<%(levelname)-8s @ %(name)s >> %(message)s"
+    #  log_format = "%(asctime)s <<%(levelname)-8s @ %(name)s >> %(message)s"
+    log_format = "%(levelname)-8s || %(name)s || %(message)s"
 
     _logger = logging.getLogger(__name__)
 

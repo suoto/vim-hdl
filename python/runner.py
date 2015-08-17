@@ -19,6 +19,9 @@
 import logging, sys, os
 from config import Config
 from compilers import msim
+from library import Library
+from utils import findVhdsInPath
+from project_builder import ProjectBuilder
 
 _logger = logging.getLogger(__name__)
 
@@ -34,9 +37,9 @@ def parseArguments():
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('--verbose', '-v', action='append_const', const=1)
-    parser.add_argument('--library', '-l', type=str, default='common_lib')
+    #  parser.add_argument('--library', '-l', type=str, default='common_lib')
     parser.add_argument('--clean', '-c', action='store_true')
-    parser.add_argument('sources', action='append', nargs='+')#--, default='~/hdl_lib/common_lib/common_pkg.vhd')
+    #  parser.add_argument('sources', action='append', nargs='+')#--, default='~/hdl_lib/common_lib/common_pkg.vhd')
     #  parser.add_argument('--build-source',       '-c',                action='store')
     #  parser.add_argument('--build-until-stable', '-f',                action='store_true')
     #  parser.add_argument('--thread-limit',       action='store',      type=int)
@@ -55,12 +58,12 @@ def parseArguments():
     Config.updateFromArgparse(args)
     Config.setupBuild()
 
-    sources = []
-    for _a in args.sources:
-        for __a in _a:
-            sources.append(os.path.expanduser(__a))
+    #  sources = []
+    #  for _a in args.sources:
+    #      for __a in _a:
+    #          sources.append(os.path.expanduser(__a))
 
-    return args.clean, args.library, sources
+    return args.clean #, args.library, sources
 
     #  Config.updateFromArgparse(args)
 
@@ -91,14 +94,35 @@ def parseArguments():
     #      tags_t.join()
 
 def main():
-    clean, library, sources = parseArguments()
+    #  clean, library, sources = parseArguments()
+    clean = parseArguments()
     if clean:
         os.system('rm -rf ~/temp/builder')
-    else:
-        compiler = msim.MSim('~/temp/builder/')
-        for source in sources:
-            _logger.info("Building (%s) %s", library, source)
-            compiler.build(library, source)
+
+    project = ProjectBuilder(builder=msim.MSim('~/temp/builder'))
+
+    for lib, path, flags in (
+            ('osvvm_lib', '~/hdl_lib/osvvm_lib/', ('-2008', )),
+            ('common_lib', '~/hdl_lib/common_lib/', ''),
+            ('pck_fio_lib', '~/hdl_lib/pck_fio_lib', ''),
+            ('memory', '~/hdl_lib/memory/', ''),
+        ):
+        project.addLibrary(lib, findVhdsInPath(path))
+        for flag in flags:
+            project.addBuildFlags(lib, flag)
+
+    project.build()
+
+    #  libraries = {}
+
+    #  for lib, lib_path in LIBS:
+    #      libraries[lib] = Library(builder=builder, name=lib, sources=list(findFilesInPath(lib_path, _is_vhd)), build_location='~/temp/builder/')
+    #      libraries[lib].build()
+
+    #      #  builder.build(lib, sources)
+    #      #  for source in sources:
+    #      #      _logger.info("Building (%s) %s", lib, source)
+    #      #      builder.build(lib, source)
 
 if __name__ == '__main__':
     main()

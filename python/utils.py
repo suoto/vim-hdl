@@ -36,3 +36,30 @@ def shell(cmd, exit_status = 0):
 def touch(arg):
     open(str(arg), 'a').close()
 
+def findFilesInPath(path, f, recursive=True):
+    """
+    Finds files that match f(_file_), where _file_ is the relative path to the item found.
+    """
+    path = os.path.expanduser(path)
+    if recursive:
+        for dirpath, _, filenames in os.walk(path):
+            for filename in filenames:
+                relpath_to_filename = os.path.sep.join([dirpath, filename])
+                if f(relpath_to_filename):
+                    yield os.path.normpath(relpath_to_filename)
+    else:
+        for l in os.listdir(path):
+            l = os.path.sep.join([path, l])
+            if not os.path.isfile(l):
+                continue
+            if f(l):
+                yield os.path.normpath(l)
+
+def findVhdsInPath(path, recursive=True):
+    return findFilesInPath(path, _is_vhd, recursive)
+
+def _is_vhd(p):
+    return os.path.basename(p).lower().endswith('vhd')
+
+def _is_makefile(f):
+    return os.path.basename(f) == 'Makefile'
