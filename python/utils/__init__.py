@@ -63,3 +63,4 @@ def _is_vhd(p):
 
 def _is_makefile(f):
     return os.path.basename(f) == 'Makefile'
+

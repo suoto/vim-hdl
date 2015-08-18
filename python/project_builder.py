@@ -31,7 +31,15 @@ class ProjectBuilder(object):
     def build(self):
         for lib_name, lib in self._libraries.iteritems():
             self._logger.debug("Building library %s", lib_name)
-            lib.build()
+            for source, errors, warnings in lib.build():
+                if errors:
+                    self._logger.info("%s (%s) error messages", source, lib_name)
+                    for error in errors:
+                        self._logger.info(" - " + error)
+                if warnings:
+                    self._logger.info("%s (%s) warning messages", source, lib_name)
+                    for warning in warnings:
+                        self._logger.info(" - " + warning)
 
 
 

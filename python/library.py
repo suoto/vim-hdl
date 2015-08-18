@@ -48,8 +48,11 @@ class Library(object):
                 self._extra_flags.append(flag)
 
     def build(self):
+        msg = []
         for source in self.sources:
-            errors, warnings = self.builder.build(self.name, source, self._extra_flags)
+            r = list(self.builder.build(self.name, source, self._extra_flags))
+            msg.append([source] + r)
+        return msg
 
     def _addSourceBuildWithSuccess(self, source):
         lib_path = os.path.sep.join([self.build_location, self.name])

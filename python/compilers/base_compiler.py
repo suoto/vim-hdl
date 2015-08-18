@@ -49,6 +49,24 @@ class BaseCompiler(object):
         self._re_error = re.compile(r"^\*\*\sError:", flags=re.I)
         self._re_warning = re.compile(r"^\*\*\sWarning:", flags=re.I)
 
+        self._re_ignored = re.compile('|'.join([
+                r"^\s*$",
+                r".*Unknown expanded name.\s*$",
+                r".*VHDL Compiler exiting\s*$",
+            ])
+        )
+    def _doBuild(self, library, source, flags=None):
+        if flags:
+            flags += self.getFlags(library, source)
+        else:
+            flags = self.getFlags(library, source)
+
+        cmd = 'vcom -modelsimini {modelsimini} -work {library} {flags} {source}'.format(
+            modelsimini=self._MODELSIM_INI, library=os.path.join(self._TARGET_FOLDER, library), flags=" ".join(flags),
+            source=source)
+
+        self._logger.debug(cmd)
+        return os.popen(cmd).read()
     def createLibrary(self, library):
         self._logger.info("Library %s not found, creating", library)
         shell('vlib {library}'.format(library=os.path.join(self._TARGET_FOLDER, library)))
@@ -68,9 +86,10 @@ class BaseCompiler(object):
         else:
             self.createLibrary(library)
     def postBuild(self, library, source, stdout):
-        errors = warnings = []
+        errors = []
+        warnings = []
         for l in stdout.split("\n"):
-            if re.match(r"^\s*$", l):
+            if self._re_ignored.match(l):
                 continue
             self._logger.debug(l)
             errors += self.getErrors(l)
@@ -88,51 +107,8 @@ class BaseCompiler(object):
         return []
     def getFlags(self, library, source):
         return []
-    def _doBuild(self, library, source, flags=None):
-        if flags:
-            flags += self.getFlags(library, source)
-        else:
-            flags = self.getFlags(library, source)
-
-        cmd = 'vcom -modelsimini {modelsimini} -work {library} {flags} {source}'.format(
-            modelsimini=self._MODELSIM_INI, library=os.path.join(self._TARGET_FOLDER, library), flags=" ".join(flags),
-            source=source)
-
-        self._logger.debug(cmd)
-        return os.popen(cmd).read()
-    def _doBatchBuild(self, library, sources, flags=None):
-        if flags:
-            flags += self.getFlags(library, sources)
-        else:
-            flags = self.getFlags(library, sources)
-
-        cmd = 'vcom -modelsimini {modelsimini} -work {library} {flags} {source}'.format(
-            modelsimini=self._MODELSIM_INI, library=os.path.join(self._TARGET_FOLDER, library), flags=" ".join(flags),
-            source=" ".join(sources))
-
-        self._logger.debug(cmd)
-        return os.popen(cmd).read()
-
     def build(self, library, source, flags=None):
         self.preBuild(library, source)
         stdout = self._doBuild(library, source, flags)
-        return self.postBuild(library, source, stdout)
-    def buildPackages(self, library, source, flags=None):
-        if flags:
-            flags += ['-just p']
-        else:
-            flags = ['-just p']
-        return self._doBatchBuild(library, source, flags)
-    def buildAllButPakcages(self, library, source, flags=None):
-        if flags:
-            flags += ['-skip p']
-        else:
-            flags = ['-skip p']
-        return self._doBatchBuild(library, source, flags)
-    def batchBuild(self, library, source, flags=None):
-        self.preBuild(library, source)
-        stdout = ''
-        stdout += self.buildPackages(library, source, flags)
-        stdout += self.buildAllButPakcages(library, source, flags)
         return self.postBuild(library, source, stdout)
 
