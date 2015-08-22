@@ -16,27 +16,24 @@
 import os, logging
 
 from utils import shell
+from source_file import VhdlSourceFile
 
 class Library(object):
 
     MODELSIM_INI_PATH = 'modelsim.ini'
 
-    def __init__(self, builder, sources, name='work', build_location='.'):
+    def __init__(self, builder, sources, name='work'):
         self.builder = builder
         self.name = name
-        self.sources = sources
-        self.build_location = build_location
-
-        self.tagfile = os.path.join(self.build_location, self.name + '.tags')
+        self.sources = [VhdlSourceFile(x) for x in sources]
 
         self._extra_flags = []
         self._logger = logging.getLogger("Library('%s')" % self.name)
 
-        self._compiled = []
-        self._failed = []
+        self._build_info_cache = {}
 
     def __str__(self):
-        return "Library(name='%s', build_location='%s')" % (self.name, self.build_location)
+        return "Library(name='%s')" % self.name
 
     def addBuildFlags(self, *flags):
         if type(flags) is str:
@@ -47,6 +44,43 @@ class Library(object):
             if flag not in self._extra_flags:
                 self._extra_flags.append(flag)
 
+    def _buildSource(self, source, forced=False):
+        if source.abspath() not in self._build_info_cache.keys():
+            self._build_info_cache[source.abspath()] = {'compile_time': 0, 'errors': (), 'warnings': ()}
+
+        if forced:
+            build = True
+        else:
+            build = False
+
+            if source.getmtime() > self._build_info_cache[source.abspath()]['compile_time']:
+                build = True
+            elif self._build_info_cache[source.abspath()]['errors']:
+                self._logger.debug("Rebuilding %s because it had errors in previous builds", source)
+                build = True
+
+        if build:
+            errors, warnings = self.builder.build(self.name, source, self._extra_flags)
+            self._build_info_cache[source.abspath()] = {'compile_time': source.getmtime(), 'errors': errors, 'warnings': warnings}
+
+        return self._build_info_cache[source.abspath()]['errors'], self._build_info_cache[source.abspath()]['warnings']
+
+    def buildPackages(self, forced=False):
+        msg = []
+        for source in self.sources:
+            if source.isPackage():
+                r = list(self._buildSource(source, forced))
+                msg.append([source] + r)
+        return msg
+
+    def buildAllButPackages(self, forced=False):
+        msg = []
+        for source in self.sources:
+            if not source.isPackage():
+                r = list(self._buildSource(source, forced))
+                msg.append([source] + r)
+        return msg
+
     def build(self):
         msg = []
         for source in self.sources:
@@ -54,23 +88,6 @@ class Library(object):
             msg.append([source] + r)
         return msg
 
-    def _addSourceBuildWithSuccess(self, source):
-        lib_path = os.path.sep.join([self.build_location, self.name])
-        ref_file = os.path.sep.join([lib_path, "." + os.path.basename(source)]) + ".ran_vcom"
-        if source not in self._compiled:
-            self._compiled.append(source)
-        if source in self._failed:
-            self._failed.remove(source)
-
-    def _addSourceBuildWithError(self, source):
-        if source in self._compiled:
-            self._compiled.remove(source)
-        if source not in self._failed:
-            self._failed.append(source)
-    def get_compiled(self):
-        return self._compiled
-    def get_failed(self):
-        return self._failed
     #  def buildTags(self):
     #      ctags = ['ctags-exuberant']
     #      ctags += [CTAGS_ARGS]

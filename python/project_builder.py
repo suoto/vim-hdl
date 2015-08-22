@@ -17,6 +17,8 @@ import logging
 from library import Library
 
 class ProjectBuilder(object):
+    MAX_ITERATIONS_UNTIL_STABLE = 20
+
     def __init__(self, builder):
         self.builder = builder
         self._libraries = {}
@@ -28,7 +30,16 @@ class ProjectBuilder(object):
     def addBuildFlags(self, library, flags):
         self._libraries[library].addBuildFlags(flags)
 
-    def build(self):
+    def buildPackages(self):
+        for lib_name, lib in self._libraries.iteritems():
+            for source, errors, warnings in lib.buildPackages():
+                yield lib_name, source, errors, warnings
+    def buildAllButPackages(self):
+        for lib_name, lib in self._libraries.iteritems():
+            for source, errors, warnings in lib.buildAllButPackages():
+                yield lib_name, source, errors, warnings
+
+    def buildAll(self):
         for lib_name, lib in self._libraries.iteritems():
             self._logger.debug("Building library %s", lib_name)
             for source, errors, warnings in lib.build():
@@ -40,11 +51,25 @@ class ProjectBuilder(object):
                     self._logger.info("%s (%s) warning messages", source, lib_name)
                     for warning in warnings:
                         self._logger.info(" - " + warning)
+    def build(self):
+        self._buildUntilStable(self.buildPackages)
+        self._buildUntilStable(self.buildAllButPackages)
+    def _buildUntilStable(self, f, *args, **kwargs):
+        failed_builds = []
+        previous_failed_builds = None
+        for iterations in range(self.MAX_ITERATIONS_UNTIL_STABLE):
+            for lib_name, source, errors, warnings in f(*args, **kwargs):
+                if errors:
+                    failed_builds.append((lib_name, source, errors))
 
+            if failed_builds == previous_failed_builds:
+                self._logger.info("Failed builds stable in %d after %d iterations", len(failed_builds), iterations)
+                break
 
+            previous_failed_builds = failed_builds
+            failed_builds = []
 
-
-
-
+            if iterations == self.MAX_ITERATIONS_UNTIL_STABLE - 1:
+                self._logger.error("Iteration limit of %d reached", self.MAX_ITERATIONS_UNTIL_STABLE)
 
 

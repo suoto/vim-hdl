@@ -36,6 +36,14 @@ def shell(cmd):
 
 
 class BaseCompiler(object):
+    _re_error = re.compile(r"^\*\*\sError:", flags=re.I)
+    _re_warning = re.compile(r"^\*\*\sWarning:", flags=re.I)
+    _re_ignored = re.compile('|'.join([
+        r"^\s*$",
+        r".*Unknown expanded name.\s*$",
+        r".*VHDL Compiler exiting\s*$",
+    ]))
+
     def __init__(self, target_folder):
         self._TARGET_FOLDER = os.path.expanduser(target_folder)
         self._MODELSIM_INI = os.path.join(self._TARGET_FOLDER, 'modelsim.ini')
@@ -46,20 +54,11 @@ class BaseCompiler(object):
         os.chdir(self._TARGET_FOLDER)
         self._logger = logging.getLogger(__name__)
 
-        self._re_error = re.compile(r"^\*\*\sError:", flags=re.I)
-        self._re_warning = re.compile(r"^\*\*\sWarning:", flags=re.I)
-
-        self._re_ignored = re.compile('|'.join([
-                r"^\s*$",
-                r".*Unknown expanded name.\s*$",
-                r".*VHDL Compiler exiting\s*$",
-            ])
-        )
     def _doBuild(self, library, source, flags=None):
         if flags:
-            flags += self.getFlags(library, source)
+            flags += self.getBuildFlags(library, source)
         else:
-            flags = self.getFlags(library, source)
+            flags = self.getBuildFlags(library, source)
 
         cmd = 'vcom -modelsimini {modelsimini} -work {library} {flags} {source}'.format(
             modelsimini=self._MODELSIM_INI, library=os.path.join(self._TARGET_FOLDER, library), flags=" ".join(flags),
@@ -92,20 +91,22 @@ class BaseCompiler(object):
             if self._re_ignored.match(l):
                 continue
             self._logger.debug(l)
-            errors += self.getErrors(l)
-            warnings += self.getWarnings(l)
+            if self.lineHasError(l):
+                errors.append(l)
+            if self.lineHasWarnings(l):
+                warnings.append(l)
         return errors, warnings
-    def getErrors(self, l):
+    def lineHasError(self, l):
         if self._re_error.match(l):
             #  self._logger.error(l)
             return [l]
         return []
-    def getWarnings(self, l):
+    def lineHasWarnings(self, l):
         if self._re_warning.match(l):
             #  self._logger.warning(l)
             return [l]
         return []
-    def getFlags(self, library, source):
+    def getBuildFlags(self, library, source):
         return []
     def build(self, library, source, flags=None):
         self.preBuild(library, source)
