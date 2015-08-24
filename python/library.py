@@ -13,9 +13,8 @@
 # You should have received a copy of the GNU General Public License
 # along with hdl-syntax-checker.  If not, see <http://www.gnu.org/licenses/>.
 
-import os, logging
+import logging, re
 
-from utils import shell
 from source_file import VhdlSourceFile
 
 class Library(object):
@@ -35,6 +34,38 @@ class Library(object):
     def __str__(self):
         return "Library(name='%s')" % self.name
 
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        state['_logger'] = self._logger.name
+        return state
+
+    def __setstate__(self, d):
+        self._logger = logging.getLogger(d['_logger'])
+        del d['_logger']
+        self.__dict__.update(d)
+
+    def _buildSource(self, source, forced=False):
+        if source.abspath() not in self._build_info_cache.keys():
+            self._build_info_cache[source.abspath()] = {'compile_time': 0, 'errors': (), 'warnings': ()}
+
+        if source.getmtime() > self._build_info_cache[source.abspath()]['compile_time'] or forced:
+            errors, warnings = self.builder.build(self.name, source, self._extra_flags)
+            self._build_info_cache[source.abspath()]['compile_time'] = source.getmtime()
+            self._build_info_cache[source.abspath()]['errors'] = errors
+            self._build_info_cache[source.abspath()]['warnings'] = warnings
+        else:
+            errors, warnings = self._build_info_cache[source.abspath()]['errors'], self._build_info_cache[source.abspath()]['warnings']
+
+        # TODO: msim vcom-1195 means something wasn't found. Since this something could be in some file not yet compiled, we'll leave the cached
+        # status clear, so we force recompile only in this case.
+        # This should be better studied because avoiding to recompile a file that had errors could be harmful
+        for error in errors:
+            if re.match(r"^.*\(vcom-1195\).*", error):
+                self._build_info_cache[source.abspath()]['compile_time'] = 0
+                break
+
+        return errors, warnings
+
     def addBuildFlags(self, *flags):
         if type(flags) is str:
             self._extra_flags.append(flags)
@@ -43,27 +74,6 @@ class Library(object):
         for flag in flags:
             if flag not in self._extra_flags:
                 self._extra_flags.append(flag)
-
-    def _buildSource(self, source, forced=False):
-        if source.abspath() not in self._build_info_cache.keys():
-            self._build_info_cache[source.abspath()] = {'compile_time': 0, 'errors': (), 'warnings': ()}
-
-        if forced:
-            build = True
-        else:
-            build = False
-
-            if source.getmtime() > self._build_info_cache[source.abspath()]['compile_time']:
-                build = True
-            elif self._build_info_cache[source.abspath()]['errors']:
-                self._logger.debug("Rebuilding %s because it had errors in previous builds", source)
-                build = True
-
-        if build:
-            errors, warnings = self.builder.build(self.name, source, self._extra_flags)
-            self._build_info_cache[source.abspath()] = {'compile_time': source.getmtime(), 'errors': errors, 'warnings': warnings}
-
-        return self._build_info_cache[source.abspath()]['errors'], self._build_info_cache[source.abspath()]['warnings']
 
     def buildPackages(self, forced=False):
         msg = []

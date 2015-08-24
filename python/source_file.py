@@ -17,9 +17,10 @@ import re, os
 
 RE_IS_PACKAGE = re.compile(r"^\s*package\s+\w+\s+is\b|^\s*package\s+body\s+\w+\s+is\b", flags=re.I)
 
-class VhdlSourceFile(object):
+class VhdlSourceFile(str):
     def __init__(self, filename):
         self.filename = filename
+        super(VhdlSourceFile, self).__init__(filename)
 
     def isPackage(self):
         r = False

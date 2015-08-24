@@ -18,27 +18,51 @@ from library import Library
 
 class ProjectBuilder(object):
     MAX_ITERATIONS_UNTIL_STABLE = 20
-
     def __init__(self, builder):
         self.builder = builder
         self._libraries = {}
         self._logger = logging.getLogger(__name__)
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        state['_logger'] = self._logger.name
+        return state
+    def __setstate__(self, d):
+        self._logger = logging.getLogger(d['_logger'])
+        del d['_logger']
+        self.__dict__.update(d)
+    def _buildUntilStable(self, f, *args, **kwargs):
+        failed_builds = []
+        previous_failed_builds = None
+        for iterations in range(self.MAX_ITERATIONS_UNTIL_STABLE):
+            r = []
+            for lib_name, source, errors, warnings in f(*args, **kwargs):
+                if errors:
+                    failed_builds.append((lib_name, source, errors))
+                if errors or warnings:
+                    r.append((lib_name, source, errors, warnings))
 
+            if failed_builds == previous_failed_builds:
+                self._logger.info("'%s' is stable in %d after %d iterations", f.func_name, len(failed_builds), iterations)
+                break
+
+            previous_failed_builds = failed_builds
+            failed_builds = []
+
+            if iterations == self.MAX_ITERATIONS_UNTIL_STABLE - 1:
+                self._logger.error("Iteration limit of %d reached", self.MAX_ITERATIONS_UNTIL_STABLE)
+        return r
     def addLibrary(self, library_name, sources):
         self._libraries[library_name] = Library(builder=self.builder, sources=sources, name=library_name)
-
     def addBuildFlags(self, library, flags):
         self._libraries[library].addBuildFlags(flags)
-
-    def buildPackages(self):
+    def buildPackages(self, forced=False):
         for lib_name, lib in self._libraries.iteritems():
-            for source, errors, warnings in lib.buildPackages():
+            for source, errors, warnings in lib.buildPackages(forced):
                 yield lib_name, source, errors, warnings
-    def buildAllButPackages(self):
+    def buildAllButPackages(self, forced=False):
         for lib_name, lib in self._libraries.iteritems():
-            for source, errors, warnings in lib.buildAllButPackages():
+            for source, errors, warnings in lib.buildAllButPackages(forced):
                 yield lib_name, source, errors, warnings
-
     def buildAll(self):
         for lib_name, lib in self._libraries.iteritems():
             self._logger.debug("Building library %s", lib_name)
@@ -51,25 +75,13 @@ class ProjectBuilder(object):
                     self._logger.info("%s (%s) warning messages", source, lib_name)
                     for warning in warnings:
                         self._logger.info(" - " + warning)
-    def build(self):
-        self._buildUntilStable(self.buildPackages)
-        self._buildUntilStable(self.buildAllButPackages)
-    def _buildUntilStable(self, f, *args, **kwargs):
-        failed_builds = []
-        previous_failed_builds = None
-        for iterations in range(self.MAX_ITERATIONS_UNTIL_STABLE):
-            for lib_name, source, errors, warnings in f(*args, **kwargs):
-                if errors:
-                    failed_builds.append((lib_name, source, errors))
-
-            if failed_builds == previous_failed_builds:
-                self._logger.info("Failed builds stable in %d after %d iterations", len(failed_builds), iterations)
-                break
-
-            previous_failed_builds = failed_builds
-            failed_builds = []
-
-            if iterations == self.MAX_ITERATIONS_UNTIL_STABLE - 1:
-                self._logger.error("Iteration limit of %d reached", self.MAX_ITERATIONS_UNTIL_STABLE)
+    def build(self, forced=False):
+        r = self._buildUntilStable(self.buildPackages, forced)
+        r += self._buildUntilStable(self.buildAllButPackages, forced)
+        for lib_name, source, errors, warnings in r:
+            if errors:
+                print "\n".join(errors)
+            if warnings:
+                print "\n".join(warnings)
 
 

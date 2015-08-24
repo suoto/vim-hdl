@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU General Public License
 # along with hdl-syntax-checker.  If not, see <http://www.gnu.org/licenses/>.
 
-import logging, os, re
+import logging, os, re, cPickle
 
 _logger = logging.getLogger(__name__)
 
@@ -54,6 +54,16 @@ class BaseCompiler(object):
         os.chdir(self._TARGET_FOLDER)
         self._logger = logging.getLogger(__name__)
 
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        state['_logger'] = self._logger.name
+        return state
+
+    def __setstate__(self, d):
+        self._logger = logging.getLogger(d['_logger'])
+        del d['_logger']
+        self.__dict__.update(d)
+
     def _doBuild(self, library, source, flags=None):
         if flags:
             flags += self.getBuildFlags(library, source)
@@ -66,6 +76,33 @@ class BaseCompiler(object):
 
         self._logger.debug(cmd)
         return os.popen(cmd).read()
+    def _lineHasError(self, l):
+        if self._re_error.match(l):
+            return True
+        return False
+    def _lineHasWarning(self, l):
+        if self._re_warning.match(l):
+            return True
+        return False
+    def _preBuild(self, library, source):
+        if os.path.exists(os.path.join(self._TARGET_FOLDER, library)):
+            return
+        if os.path.exists(self._MODELSIM_INI):
+            self.mapLibrary(library)
+        else:
+            self.createLibrary(library)
+    def _postBuild(self, library, source, stdout):
+        errors = []
+        warnings = []
+        for l in stdout.split("\n"):
+            if self._re_ignored.match(l):
+                continue
+            self._logger.debug(l)
+            if self._lineHasError(l):
+                errors.append(l)
+            if self._lineHasWarning(l):
+                warnings.append(l)
+        return errors, warnings
     def createLibrary(self, library):
         self._logger.info("Library %s not found, creating", library)
         shell('vlib {library}'.format(library=os.path.join(self._TARGET_FOLDER, library)))
@@ -77,39 +114,11 @@ class BaseCompiler(object):
         shell('vlib {library}'.format(library=os.path.join(self._TARGET_FOLDER, library)))
         shell('vmap -modelsimini {modelsimini} {library} {library_path}'.format(
             modelsimini=self._MODELSIM_INI, library=library, library_path=os.path.join(self._TARGET_FOLDER, library)))
-    def preBuild(self, library, source):
-        if os.path.exists(os.path.join(self._TARGET_FOLDER, library)):
-            return
-        if os.path.exists(self._MODELSIM_INI):
-            self.mapLibrary(library)
-        else:
-            self.createLibrary(library)
-    def postBuild(self, library, source, stdout):
-        errors = []
-        warnings = []
-        for l in stdout.split("\n"):
-            if self._re_ignored.match(l):
-                continue
-            self._logger.debug(l)
-            if self.lineHasError(l):
-                errors.append(l)
-            if self.lineHasWarnings(l):
-                warnings.append(l)
-        return errors, warnings
-    def lineHasError(self, l):
-        if self._re_error.match(l):
-            #  self._logger.error(l)
-            return [l]
-        return []
-    def lineHasWarnings(self, l):
-        if self._re_warning.match(l):
-            #  self._logger.warning(l)
-            return [l]
-        return []
     def getBuildFlags(self, library, source):
         return []
     def build(self, library, source, flags=None):
-        self.preBuild(library, source)
+        source = os.path.relpath(source)
+        self._preBuild(library, source)
         stdout = self._doBuild(library, source, flags)
-        return self.postBuild(library, source, stdout)
+        return self._postBuild(library, source, stdout)
 

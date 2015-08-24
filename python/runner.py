@@ -17,6 +17,7 @@
 # along with hdl-syntax-checker.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging, os
+from cPickle import load, dump
 from config import Config
 from compilers import msim
 from utils import findVhdsInPath
@@ -55,28 +56,42 @@ def parseArguments():
     return args.clean, args.build
 
 
+SAVE_FILE = os.path.expanduser("~/temp/builder.project")
+
 def main():
     #  clean, library, sources = parseArguments()
     clean, build = parseArguments()
     if clean:
-        os.system('rm -rf ~/temp/builder')
+        os.system('rm -rf ~/temp/builder ' + SAVE_FILE)
 
     if build:
-        project = ProjectBuilder(builder=msim.MSim('~/temp/builder'))
+        try:
+            project = load(open(SAVE_FILE, 'r'))
+        except (IOError, EOFError):
+            _logger.warning("Unable to recover save file")
 
-        for lib, path, flags in (
-                ('osvvm_lib', '~/hdl_lib/osvvm_lib/', ('-2008', )),
-                ('common_lib', '~/hdl_lib/common_lib/', ''),
-                ('pck_fio_lib', '~/hdl_lib/pck_fio_lib', ''),
-                ('memory', '~/hdl_lib/memory/', ''),
-            ):
-            project.addLibrary(lib, findVhdsInPath(path))
-            for flag in flags:
-                project.addBuildFlags(lib, flag)
+            project = ProjectBuilder(builder=msim.MSim('~/temp/builder'))
+
+            for lib, path, flags in (
+                    ('osvvm_lib',    '~/hdl_lib/osvvm_lib/',      ('-2008',  )),
+                    ('common_lib',   '~/hdl_lib/common_lib/',     ''),
+                    ('pck_fio_lib',  '~/hdl_lib/pck_fio_lib',     ''),
+                    ('memory',       '~/hdl_lib/memory/',         ''),
+                    ('cordic',       '~/opencores/cordic/',       ''),
+                    ('avs_aes_lib',  '~/opencores/avs_aes/',      ''),
+                    ('work',         '~/opencores/gecko3/',       ''),
+                    ('work',         '~/opencores/i2c/',          ('-2008',  )),
+                    ('work',         '~/opencores/pcie_sg_dma/',  '',        ),
+                    ('work',         '~/opencores/plasma/',       '',        ),
+                ):
+                project.addLibrary(lib, findVhdsInPath(path))
+                for flag in flags:
+                    project.addBuildFlags(lib, flag)
 
         project.build()
 
+        dump(project, open(SAVE_FILE, 'w'))
+
 if __name__ == '__main__':
     main()
-
 
