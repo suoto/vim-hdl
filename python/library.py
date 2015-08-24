@@ -60,7 +60,7 @@ class Library(object):
         # status clear, so we force recompile only in this case.
         # This should be better studied because avoiding to recompile a file that had errors could be harmful
         for error in errors:
-            if re.match(r"^.*\(vcom-1195\).*", error):
+            if re.match(r"^.*\(vcom-(1195|1136)\).*", error):
                 self._build_info_cache[source.abspath()]['compile_time'] = 0
                 break
 

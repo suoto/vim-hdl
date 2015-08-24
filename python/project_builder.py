@@ -37,7 +37,7 @@ class ProjectBuilder(object):
             r = []
             for lib_name, source, errors, warnings in f(*args, **kwargs):
                 if errors:
-                    failed_builds.append((lib_name, source, errors))
+                    failed_builds.append((lib_name, source, errors, warnings))
                 if errors or warnings:
                     r.append((lib_name, source, errors, warnings))
 
