@@ -14,6 +14,7 @@
 # along with hdl-syntax-checker.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging, os, re
+import subprocess
 
 _logger = logging.getLogger(__name__)
 
@@ -29,7 +30,7 @@ def shell(cmd):
     """
 
     _logger.debug(cmd)
-    for l in os.popen(cmd).read().split("\n"):
+    for l in subprocess.check_output(cmd, shell=True).split("\n"):
         if re.match(r"^\s*$", l):
             continue
         _logger.debug(l)
@@ -51,7 +52,6 @@ class BaseCompiler(object):
         if not os.path.exists(self._TARGET_FOLDER):
             os.mkdir(self._TARGET_FOLDER)
 
-        os.chdir(self._TARGET_FOLDER)
         self._logger = logging.getLogger(__name__)
 
     def __getstate__(self):
@@ -75,7 +75,7 @@ class BaseCompiler(object):
             source=source)
 
         self._logger.debug(cmd)
-        return os.popen(cmd).read()
+        return os.popen(cmd).read().split("\n")
     def _lineHasError(self, l):
         if self._re_error.match(l):
             return True
@@ -94,7 +94,7 @@ class BaseCompiler(object):
     def _postBuild(self, library, source, stdout):
         errors = []
         warnings = []
-        for l in stdout.split("\n"):
+        for l in stdout:
             if self._re_ignored.match(l):
                 continue
             self._logger.debug(l)
@@ -105,8 +105,9 @@ class BaseCompiler(object):
         return errors, warnings
     def createLibrary(self, library):
         self._logger.info("Library %s not found, creating", library)
-        shell('vlib {library}'.format(library=os.path.join(self._TARGET_FOLDER, library)))
-        shell('vmap {library} {library_path}'.format(
+        shell('cd {target_folder} && vlib {library}'.format(target_folder=self._TARGET_FOLDER, library=os.path.join(self._TARGET_FOLDER, library)))
+        shell('cd {target_folder} && vmap {library} {library_path}'.format(
+            target_folder=self._TARGET_FOLDER,
             library=library, library_path=os.path.join(self._TARGET_FOLDER, library)))
     def mapLibrary(self, library):
         self._logger.info("Library %s found, mapping", library)
