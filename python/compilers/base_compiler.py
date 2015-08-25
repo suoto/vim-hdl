@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU General Public License
 # along with hdl-syntax-checker.  If not, see <http://www.gnu.org/licenses/>.
 
-import logging, os, re, cPickle
+import logging, os, re
 
 _logger = logging.getLogger(__name__)
 

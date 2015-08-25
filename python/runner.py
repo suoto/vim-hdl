@@ -17,7 +17,7 @@
 # along with hdl-syntax-checker.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging, os
-from cPickle import load, dump
+import cPickle
 from config import Config
 from compilers import msim
 from utils import findVhdsInPath
@@ -36,9 +36,10 @@ _LOG_LEVELS = {
 def parseArguments():
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('--verbose', '-v', action='append_const', const=1)
-    parser.add_argument('--clean', '-c', action='store_true')
-    parser.add_argument('--build', '-b', action='store_true')
+    parser.add_argument('--verbose',  '-v',  action='append_const',  const=1)
+    parser.add_argument('--clean',    '-c',  action='store_true')
+    parser.add_argument('--build',    '-b',  action='store_true')
+    parser.add_argument('--target',   '-t',  action='store')
 
     try:
         import argcomplete
@@ -46,27 +47,26 @@ def parseArguments():
     except ImportError:
         pass
     args = parser.parse_args()
-    print args
     if args.verbose:
         args.log_level = _LOG_LEVELS[len(args.verbose)]
 
     Config.updateFromArgparse(args)
     Config.setupBuild()
 
-    return args.clean, args.build
+    return args.clean, args.build, args.target
 
 
 SAVE_FILE = os.path.expanduser("~/temp/builder.project")
 
 def main():
     #  clean, library, sources = parseArguments()
-    clean, build = parseArguments()
+    clean, build, target = parseArguments()
     if clean:
         os.system('rm -rf ~/temp/builder ' + SAVE_FILE)
 
-    if build:
+    if build or target:
         try:
-            project = load(open(SAVE_FILE, 'r'))
+            project = cPickle.load(open(SAVE_FILE, 'r'))
         except (IOError, EOFError):
             _logger.warning("Unable to recover save file")
 
@@ -90,7 +90,7 @@ def main():
 
         project.build()
 
-        dump(project, open(SAVE_FILE, 'w'))
+        cPickle.dump(project, open(SAVE_FILE, 'w'))
 
 if __name__ == '__main__':
     main()
