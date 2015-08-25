@@ -46,13 +46,16 @@ class BaseCompiler(object):
     ]))
 
     def __init__(self, target_folder):
-        self._TARGET_FOLDER = os.path.expanduser(target_folder)
+        self._logger = logging.getLogger(__name__)
+        self._TARGET_FOLDER = os.path.abspath(os.path.expanduser(target_folder))
         self._MODELSIM_INI = os.path.join(self._TARGET_FOLDER, 'modelsim.ini')
 
         if not os.path.exists(self._TARGET_FOLDER):
+            self._logger.info("%s doens't exists", self._TARGET_FOLDER)
             os.mkdir(self._TARGET_FOLDER)
+        else:
+            self._logger.info("%s already exists", self._TARGET_FOLDER)
 
-        self._logger = logging.getLogger(__name__)
 
     def __getstate__(self):
         state = self.__dict__.copy()
@@ -118,7 +121,7 @@ class BaseCompiler(object):
     def getBuildFlags(self, library, source):
         return []
     def build(self, library, source, flags=None):
-        source = os.path.relpath(source)
+        source = os.path.relpath(str(source))
         self._preBuild(library, source)
         stdout = self._doBuild(library, source, flags)
         return self._postBuild(library, source, stdout)

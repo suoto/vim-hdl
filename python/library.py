@@ -46,6 +46,7 @@ class Library(object):
 
     def _buildSource(self, source, forced=False):
         if source.abspath() not in self._build_info_cache.keys():
+            #  self._logger.warning("%s was not in our cache", source)
             self._build_info_cache[source.abspath()] = {'compile_time': 0, 'errors': (), 'warnings': ()}
 
         if source.getmtime() > self._build_info_cache[source.abspath()]['compile_time'] or forced:
@@ -56,11 +57,14 @@ class Library(object):
         else:
             errors, warnings = self._build_info_cache[source.abspath()]['errors'], self._build_info_cache[source.abspath()]['warnings']
 
+        #  if errors:
+        #      self._build_info_cache[source.abspath()]['compile_time'] = 0
         # TODO: msim vcom-1195 means something wasn't found. Since this something could be in some file not yet compiled, we'll leave the cached
         # status clear, so we force recompile only in this case.
         # This should be better studied because avoiding to recompile a file that had errors could be harmful
         for error in errors:
-            if re.match(r"^.*\(vcom-(1195|1136)\).*", error):
+            #  if re.match(r"^.*\(vcom-1195\).*", error):
+            if '(vcom-11)' in error:
                 self._build_info_cache[source.abspath()]['compile_time'] = 0
                 break
 
@@ -91,10 +95,10 @@ class Library(object):
                 msg.append([source] + r)
         return msg
 
-    def build(self):
+    def buildAll(self, forced=False):
         msg = []
         for source in self.sources:
-            r = list(self.builder.build(self.name, source, self._extra_flags))
+            r = list(self._buildSource(source, forced))
             msg.append([source] + r)
         return msg
 

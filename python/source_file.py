@@ -17,18 +17,30 @@ import re, os
 
 RE_IS_PACKAGE = re.compile(r"^\s*package\s+\w+\s+is\b|^\s*package\s+body\s+\w+\s+is\b", flags=re.I)
 
-class VhdlSourceFile(str):
+class VhdlSourceFile(object):
     def __init__(self, filename):
         self.filename = filename
-        super(VhdlSourceFile, self).__init__(filename)
+        self._isPkg = None
+
+    def __getstate__(self):
+        state = {'filename' : self.filename,
+                '_isPkg' : self._isPkg}
+        return state
+    def __setstate__(self, d):
+        self.__dict__.update(d)
+    def __getattr__(self, attr):
+        if hasattr(self.filename, attr):
+            return getattr(self.filename, attr)
 
     def isPackage(self):
-        r = False
-        for l in open(self.filename, 'r').read().split('\n'):
-            if RE_IS_PACKAGE.match(l):
-                r = True
-                break
-        return r
+        if self._isPkg is None:
+        #  if True:
+            self._isPkg = False
+            for l in open(self.filename, 'r').read().split('\n'):
+                if RE_IS_PACKAGE.match(l):
+                    self._isPkg = True
+                    break
+        return self._isPkg
 
     def __str__(self):
         return str(self.filename)

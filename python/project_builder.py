@@ -63,21 +63,16 @@ class ProjectBuilder(object):
         for lib_name, lib in self._libraries.iteritems():
             for source, errors, warnings in lib.buildAllButPackages(forced):
                 yield lib_name, source, errors, warnings
-    def buildAll(self):
+    def buildAll(self, forced=False):
         for lib_name, lib in self._libraries.iteritems():
-            self._logger.debug("Building library %s", lib_name)
-            for source, errors, warnings in lib.build():
-                if errors:
-                    self._logger.info("%s (%s) error messages", source, lib_name)
-                    for error in errors:
-                        self._logger.info(" - " + error)
-                if warnings:
-                    self._logger.info("%s (%s) warning messages", source, lib_name)
-                    for warning in warnings:
-                        self._logger.info(" - " + warning)
+            for source, errors, warnings in lib.buildAll(forced):
+                yield lib_name, source, errors, warnings
     def build(self, forced=False):
-        r = self._buildUntilStable(self.buildPackages, forced)
-        r += self._buildUntilStable(self.buildAllButPackages, forced)
+        #  r = self._buildUntilStable(self.buildPackages, forced)
+        #  r += self._buildUntilStable(self.buildAllButPackages, forced)
+
+        r = self._buildUntilStable(self.buildAll, forced)
+
         for lib_name, source, errors, warnings in r:
             if errors:
                 print "\n".join(errors)
