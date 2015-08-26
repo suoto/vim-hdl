@@ -37,14 +37,6 @@ def shell(cmd):
 
 
 class BaseCompiler(object):
-    _re_error = re.compile(r"^\*\*\sError:", flags=re.I)
-    _re_warning = re.compile(r"^\*\*\sWarning:", flags=re.I)
-    _re_ignored = re.compile('|'.join([
-        r"^\s*$",
-        r".*Unknown expanded name.\s*$",
-        r".*VHDL Compiler exiting\s*$",
-    ]))
-
     def __init__(self, target_folder):
         self._logger = logging.getLogger(__name__)
         self._TARGET_FOLDER = os.path.abspath(os.path.expanduser(target_folder))
@@ -79,6 +71,18 @@ class BaseCompiler(object):
 
         self._logger.debug(cmd)
         return os.popen(cmd).read().split("\n")
+    def _doBatchBuild(self, library, sources, flags=None):
+        if flags:
+            flags += self.getBuildFlags(library, sources)
+        else:
+            flags = self.getBuildFlags(library, sources)
+
+        cmd = 'vcom -modelsimini {modelsimini} -work {library} {flags} {sources}'.format(
+            modelsimini=self._MODELSIM_INI, library=os.path.join(self._TARGET_FOLDER, library), flags=" ".join(flags),
+            sources=" ".join(sources))
+
+        self._logger.debug(cmd)
+        return os.popen(cmd).read().split("\n")
     def _lineHasError(self, l):
         if self._re_error.match(l):
             return True
@@ -87,13 +91,16 @@ class BaseCompiler(object):
         if self._re_warning.match(l):
             return True
         return False
-    def _preBuild(self, library, source):
+    def createOrMapLibrary(self, library):
         if os.path.exists(os.path.join(self._TARGET_FOLDER, library)):
             return
         if os.path.exists(self._MODELSIM_INI):
             self.mapLibrary(library)
         else:
             self.createLibrary(library)
+
+    def _preBuild(self, library, source):
+        return self.createOrMapLibrary(library)
     def _postBuild(self, library, source, stdout):
         errors = []
         warnings = []
@@ -125,4 +132,18 @@ class BaseCompiler(object):
         self._preBuild(library, source)
         stdout = self._doBuild(library, source, flags)
         return self._postBuild(library, source, stdout)
+    def batchBuild(self, library, sources, flags=None):
+        self._preBuild(library, sources)
+        stdout = self._doBatchBuild(library, sources, flags)
+        errors, warnings = self._postBuild(library, sources, stdout)
+        if not errors:
+            return errors, warnings
+        errors = []
+        warnings = []
+        for source in sources:
+            _errors, _warnings = self.build(library, source, flags)
+            errors.append(_errors)
+            warnings.append(_warnings)
+        return errors, warnings
+
 

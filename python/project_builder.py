@@ -15,9 +15,12 @@
 
 import logging
 from library import Library
+from multiprocessing.pool import ThreadPool
 
 class ProjectBuilder(object):
     MAX_ITERATIONS_UNTIL_STABLE = 20
+    BUILD_WORKERS = 5
+
     def __init__(self, builder):
         self.builder = builder
         self._libraries = {}
@@ -30,7 +33,7 @@ class ProjectBuilder(object):
         self._logger = logging.getLogger(d['_logger'])
         del d['_logger']
         self.__dict__.update(d)
-    def _buildUntilStable(self, f, *args, **kwargs):
+    def _buildUntilStable(self, f, args=(), kwargs={}):
         failed_builds = []
         previous_failed_builds = None
         for iterations in range(self.MAX_ITERATIONS_UNTIL_STABLE):
@@ -42,7 +45,7 @@ class ProjectBuilder(object):
                     r.append((lib_name, source, errors, warnings))
 
             if failed_builds == previous_failed_builds:
-                self._logger.info("'%s' is stable in %d after %d iterations", f.func_name, len(failed_builds), iterations)
+                self._logger.info("'%s' is stable in %d after %d iterations", f.func_name, len(failed_builds), iterations + 1)
                 break
 
             previous_failed_builds = failed_builds
@@ -59,24 +62,94 @@ class ProjectBuilder(object):
         for lib_name, lib in self._libraries.iteritems():
             for source, errors, warnings in lib.buildPackages(forced):
                 yield lib_name, source, errors, warnings
+    def buildPackagesAsync(self, workers=None, forced=False):
+        if workers is None:
+            workers = self.BUILD_WORKERS
+
+        self._logger.info("Building packages with %d workers", workers)
+        pool = ThreadPool(workers)
+
+        f_args = []
+        for lib_name, lib in self._libraries.iteritems():
+            f_args.append((lib_name, lib, 'buildPackages', forced, ))
+
+        r = pool.map_async(runAsync, f_args)
+        r.ready()
+        r = r.get()
+
+        for _r in r:
+            for lib_name, source, errors, warnings in _r:
+                yield lib_name, source, errors, warnings
     def buildAllButPackages(self, forced=False):
         for lib_name, lib in self._libraries.iteritems():
             for source, errors, warnings in lib.buildAllButPackages(forced):
+                yield lib_name, source, errors, warnings
+    def buildAllButPackagesAsync(self, workers=None, forced=False):
+        if workers is None:
+            workers = self.BUILD_WORKERS
+        pool = ThreadPool(workers)
+
+        self._logger.info("Building all but packages with %d workers", workers)
+
+        f_args = []
+        for lib_name, lib in self._libraries.iteritems():
+            f_args.append((lib_name, lib, 'buildAllButPackages', forced, ))
+
+        r = pool.map_async(runAsync, f_args)
+        pool.close()
+        pool.join()
+        r.ready()
+        r = r.get()
+
+        for _r in r:
+            for lib_name, source, errors, warnings in _r:
+                if errors or warnings:
+                    self._logger.info("Messages for %s %s", lib_name, source)
+                if errors:
+                    self._logger.error("\n".join(errors))
+                if warnings:
+                    self._logger.warning("\n".join(warnings))
                 yield lib_name, source, errors, warnings
     def buildAll(self, forced=False):
         for lib_name, lib in self._libraries.iteritems():
             for source, errors, warnings in lib.buildAll(forced):
                 yield lib_name, source, errors, warnings
     def build(self, forced=False):
-        #  r = self._buildUntilStable(self.buildPackages, forced)
-        #  r += self._buildUntilStable(self.buildAllButPackages, forced)
-
-        r = self._buildUntilStable(self.buildAll, forced)
+        for lib in self._libraries.itervalues():
+            lib.createOrMapLibrary()
+        r = self._buildUntilStable(self.buildPackages, args=[forced,])
+        r += self._buildUntilStable(self.buildAllButPackages, args=[forced,])
 
         for lib_name, source, errors, warnings in r:
             if errors:
                 print "\n".join(errors)
             if warnings:
                 print "\n".join(warnings)
+    def buildAsync(self, workers=None, forced=False):
+        if workers is None:
+            workers = self.BUILD_WORKERS
+        for lib in self._libraries.itervalues():
+            lib.createOrMapLibrary()
 
+        for lib_name, source, errors, warnings in self._buildUntilStable(self.buildPackagesAsync, kwargs={'workers': workers, 'forced' : forced}):
+            if errors:
+                print "\n".join(errors)
+            if warnings:
+                print "\n".join(warnings)
 
+        for lib_name, source, errors, warnings in self._buildUntilStable(self.buildAllButPackagesAsync, kwargs={'workers': workers, 'forced' : forced}):
+            if errors:
+                print "\n".join(errors)
+            if warnings:
+                print "\n".join(warnings)
+
+def runAsync(args):
+    lib_name = args[0]
+    lib_obj = args[1]
+    meth = args[2]
+    f_args = args[3:]
+    r = []
+    for _r in getattr(lib_obj, meth)(*f_args):
+        r.append([lib_name] + _r)
+
+    return r

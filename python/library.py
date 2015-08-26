@@ -45,8 +45,9 @@ class Library(object):
         self.__dict__.update(d)
 
     def _buildSource(self, source, forced=False):
+        if forced:
+            self._logger.info("Forcing build of %s", forced)
         if source.abspath() not in self._build_info_cache.keys():
-            #  self._logger.warning("%s was not in our cache", source)
             self._build_info_cache[source.abspath()] = {'compile_time': 0, 'errors': (), 'warnings': ()}
 
         if source.getmtime() > self._build_info_cache[source.abspath()]['compile_time'] or forced:
@@ -86,6 +87,9 @@ class Library(object):
                 r = list(self._buildSource(source, forced))
                 msg.append([source] + r)
         return msg
+
+    def createOrMapLibrary(self):
+        return self.builder.createOrMapLibrary(self.name)
 
     def buildAllButPackages(self, forced=False):
         msg = []
