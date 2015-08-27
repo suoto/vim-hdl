@@ -48,26 +48,37 @@ class Library(object):
         if forced:
             self._logger.info("Forcing build of %s", forced)
         if source.abspath() not in self._build_info_cache.keys():
-            self._build_info_cache[source.abspath()] = {'compile_time': 0, 'errors': (), 'warnings': ()}
+            self._build_info_cache[source.abspath()] = {
+                'compile_time': 0, 'errors': (), 'warnings': ()
+            }
 
-        if source.getmtime() > self._build_info_cache[source.abspath()]['compile_time'] or forced:
-            errors, warnings = self.builder.build(self.name, source, self._extra_flags)
-            self._build_info_cache[source.abspath()]['compile_time'] = source.getmtime()
-            self._build_info_cache[source.abspath()]['errors'] = errors
-            self._build_info_cache[source.abspath()]['warnings'] = warnings
+        cached_info = self._build_info_cache[source.abspath()]
+
+        if source.getmtime() > cached_info['compile_time'] or forced:
+            errors, warnings = self.builder.build(
+                    self.name, source, self._extra_flags)
+
+            cached_info['compile_time'] = source.getmtime()
+            cached_info['errors'] = errors
+            cached_info['warnings'] = warnings
         else:
-            errors, warnings = self._build_info_cache[source.abspath()]['errors'], self._build_info_cache[source.abspath()]['warnings']
+            errors, warnings = cached_info['errors'], cached_info['warnings']
 
         #  if errors:
-        #      self._build_info_cache[source.abspath()]['compile_time'] = 0
-        # TODO: msim vcom-1195 means something wasn't found. Since this something could be in some file not yet compiled, we'll leave the cached
-        # status clear, so we force recompile only in this case.
-        # This should be better studied because avoiding to recompile a file that had errors could be harmful
+        #      cached_info['compile_time'] = 0
+
+        #  TODO: msim vcom-1195 means something wasn't found. Since this
+        # something could be in some file not yet compiled, we'll leave the
+        # cached status clear, so we force recompile only in this case.  This
+        # should be better studied because avoiding to recompile a file that
+        # had errors could be harmful
         for error in errors:
             #  if re.match(r"^.*\(vcom-1195\).*", error):
             if '(vcom-11)' in error:
-                self._build_info_cache[source.abspath()]['compile_time'] = 0
+                cached_info['compile_time'] = 0
                 break
+
+        #  self._build_info_cache[source.abspath()] = cached_info
 
         return errors, warnings
 

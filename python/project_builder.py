@@ -25,14 +25,17 @@ class ProjectBuilder(object):
         self.builder = builder
         self._libraries = {}
         self._logger = logging.getLogger(__name__)
+
     def __getstate__(self):
         state = self.__dict__.copy()
         state['_logger'] = self._logger.name
         return state
+
     def __setstate__(self, d):
         self._logger = logging.getLogger(d['_logger'])
         del d['_logger']
         self.__dict__.update(d)
+
     def _buildUntilStable(self, f, args=(), kwargs={}):
         failed_builds = []
         previous_failed_builds = None
@@ -45,23 +48,30 @@ class ProjectBuilder(object):
                     r.append((lib_name, source, errors, warnings))
 
             if failed_builds == previous_failed_builds:
-                self._logger.info("'%s' is stable in %d after %d iterations", f.func_name, len(failed_builds), iterations + 1)
+                self._logger.info("'%s' is stable in %d after %d iterations",
+                        f.func_name, len(failed_builds), iterations + 1)
                 break
 
             previous_failed_builds = failed_builds
             failed_builds = []
 
             if iterations == self.MAX_ITERATIONS_UNTIL_STABLE - 1:
-                self._logger.error("Iteration limit of %d reached", self.MAX_ITERATIONS_UNTIL_STABLE)
+                self._logger.error("Iteration limit of %d reached",
+                        self.MAX_ITERATIONS_UNTIL_STABLE)
         return r
+
     def addLibrary(self, library_name, sources):
-        self._libraries[library_name] = Library(builder=self.builder, sources=sources, name=library_name)
+        self._libraries[library_name] = \
+                Library(builder=self.builder, sources=sources, name=library_name)
+
     def addBuildFlags(self, library, flags):
         self._libraries[library].addBuildFlags(flags)
+
     def buildPackages(self, forced=False):
         for lib_name, lib in self._libraries.iteritems():
             for source, errors, warnings in lib.buildPackages(forced):
                 yield lib_name, source, errors, warnings
+
     def buildPackagesAsync(self, workers=None, forced=False):
         if workers is None:
             workers = self.BUILD_WORKERS
@@ -80,10 +90,12 @@ class ProjectBuilder(object):
         for _r in r:
             for lib_name, source, errors, warnings in _r:
                 yield lib_name, source, errors, warnings
+
     def buildAllButPackages(self, forced=False):
         for lib_name, lib in self._libraries.iteritems():
             for source, errors, warnings in lib.buildAllButPackages(forced):
                 yield lib_name, source, errors, warnings
+
     def buildAllButPackagesAsync(self, workers=None, forced=False):
         if workers is None:
             workers = self.BUILD_WORKERS
@@ -110,10 +122,12 @@ class ProjectBuilder(object):
                 if warnings:
                     self._logger.warning("\n".join(warnings))
                 yield lib_name, source, errors, warnings
+
     def buildAll(self, forced=False):
         for lib_name, lib in self._libraries.iteritems():
             for source, errors, warnings in lib.buildAll(forced):
                 yield lib_name, source, errors, warnings
+
     def build(self, forced=False):
         for lib in self._libraries.itervalues():
             lib.createOrMapLibrary()
@@ -125,19 +139,26 @@ class ProjectBuilder(object):
                 print "\n".join(errors)
             if warnings:
                 print "\n".join(warnings)
+
     def buildAsync(self, workers=None, forced=False):
         if workers is None:
             workers = self.BUILD_WORKERS
         for lib in self._libraries.itervalues():
             lib.createOrMapLibrary()
 
-        for lib_name, source, errors, warnings in self._buildUntilStable(self.buildPackagesAsync, kwargs={'workers': workers, 'forced' : forced}):
+        for lib_name, source, errors, warnings in \
+                self._buildUntilStable(
+                        self.buildPackagesAsync,
+                        kwargs={'workers': workers, 'forced' : forced}):
             if errors:
                 print "\n".join(errors)
             if warnings:
                 print "\n".join(warnings)
 
-        for lib_name, source, errors, warnings in self._buildUntilStable(self.buildAllButPackagesAsync, kwargs={'workers': workers, 'forced' : forced}):
+        for lib_name, source, errors, warnings in \
+                self._buildUntilStable(
+                        self.buildAllButPackagesAsync,
+                        kwargs={'workers': workers, 'forced' : forced}):
             if errors:
                 print "\n".join(errors)
             if warnings:
