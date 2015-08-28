@@ -17,13 +17,19 @@ import logging
 from library import Library
 from multiprocessing.pool import ThreadPool
 
+# pylint: disable=star-args, missing-docstring
+
 class ProjectBuilder(object):
+    "hdl-synchecker project class"
     MAX_ITERATIONS_UNTIL_STABLE = 20
+    MAX_BUILD_STEPS = 10
     BUILD_WORKERS = 5
 
     def __init__(self, builder):
         self.builder = builder
         self._libraries = {}
+        self._dependency_rev_map = {}
+        self._dependency_map = {}
         self._logger = logging.getLogger(__name__)
 
     def __getstate__(self):
@@ -31,25 +37,27 @@ class ProjectBuilder(object):
         state['_logger'] = self._logger.name
         return state
 
-    def __setstate__(self, d):
-        self._logger = logging.getLogger(d['_logger'])
-        del d['_logger']
-        self.__dict__.update(d)
+    def __setstate__(self, state):
+        self._logger = logging.getLogger(state['_logger'])
+        del state['_logger']
+        self.__dict__.update(state)
 
     def _buildUntilStable(self, f, args=(), kwargs={}):
         failed_builds = []
         previous_failed_builds = None
         for iterations in range(self.MAX_ITERATIONS_UNTIL_STABLE):
-            r = []
+            ret = []
             for lib_name, source, errors, warnings in f(*args, **kwargs):
                 if errors:
                     failed_builds.append((lib_name, source, errors, warnings))
                 if errors or warnings:
-                    r.append((lib_name, source, errors, warnings))
+                    ret.append((lib_name, source, errors, warnings))
 
             if failed_builds == previous_failed_builds:
                 self._logger.info("'%s' is stable in %d after %d iterations",
-                        f.func_name, len(failed_builds), iterations + 1)
+                                  f.func_name,
+                                  len(failed_builds),
+                                  iterations + 1)
                 break
 
             previous_failed_builds = failed_builds
@@ -57,12 +65,20 @@ class ProjectBuilder(object):
 
             if iterations == self.MAX_ITERATIONS_UNTIL_STABLE - 1:
                 self._logger.error("Iteration limit of %d reached",
-                        self.MAX_ITERATIONS_UNTIL_STABLE)
-        return r
+                                   self.MAX_ITERATIONS_UNTIL_STABLE)
+        return ret
 
     def addLibrary(self, library_name, sources):
         self._libraries[library_name] = \
-                Library(builder=self.builder, sources=sources, name=library_name)
+                Library(builder=self.builder,
+                        sources=sources,
+                        name=library_name)
+
+    def hasLibrary(self, library_name):
+        return library_name.lower() in self._libraries.keys()
+
+    def addLibrarySources(self, library_name, sources):
+        self._libraries[library_name].addSources(sources)
 
     def addBuildFlags(self, library, flags):
         self._libraries[library].addBuildFlags(flags)
@@ -83,12 +99,11 @@ class ProjectBuilder(object):
         for lib_name, lib in self._libraries.iteritems():
             f_args.append((lib_name, lib, 'buildPackages', forced, ))
 
-        r = pool.map_async(runAsync, f_args)
-        r.ready()
-        r = r.get()
+        pool_results = pool.map_async(runAsync, f_args)
+        pool_results.ready()
 
-        for _r in r:
-            for lib_name, source, errors, warnings in _r:
+        for pool_result in pool_results.get():
+            for lib_name, source, errors, warnings in pool_result:
                 yield lib_name, source, errors, warnings
 
     def buildAllButPackages(self, forced=False):
@@ -107,14 +122,13 @@ class ProjectBuilder(object):
         for lib_name, lib in self._libraries.iteritems():
             f_args.append((lib_name, lib, 'buildAllButPackages', forced, ))
 
-        r = pool.map_async(runAsync, f_args)
+        pool_results = pool.map_async(runAsync, f_args)
         pool.close()
         pool.join()
-        r.ready()
-        r = r.get()
+        pool_results.ready()
 
-        for _r in r:
-            for lib_name, source, errors, warnings in _r:
+        for pool_result in pool_results:
+            for lib_name, source, errors, warnings in pool_result:
                 if errors or warnings:
                     self._logger.info("Messages for %s %s", lib_name, source)
                 if errors:
@@ -134,7 +148,7 @@ class ProjectBuilder(object):
         r = self._buildUntilStable(self.buildPackages, args=[forced,])
         r += self._buildUntilStable(self.buildAllButPackages, args=[forced,])
 
-        for lib_name, source, errors, warnings in r:
+        for _, _, errors, warnings in r:
             if errors:
                 print "\n".join(errors)
             if warnings:
@@ -146,23 +160,126 @@ class ProjectBuilder(object):
         for lib in self._libraries.itervalues():
             lib.createOrMapLibrary()
 
-        for lib_name, source, errors, warnings in \
-                self._buildUntilStable(
-                        self.buildPackagesAsync,
-                        kwargs={'workers': workers, 'forced' : forced}):
+        for _, _, errors, warnings in \
+                self._buildUntilStable(self.buildPackagesAsync,
+                                       kwargs={'workers': workers,
+                                               'forced' : forced}):
             if errors:
                 print "\n".join(errors)
             if warnings:
                 print "\n".join(warnings)
 
-        for lib_name, source, errors, warnings in \
-                self._buildUntilStable(
-                        self.buildAllButPackagesAsync,
-                        kwargs={'workers': workers, 'forced' : forced}):
+        for _, _, errors, warnings in \
+                self._buildUntilStable(self.buildAllButPackagesAsync,
+                                       kwargs={'workers': workers,
+                                               'forced' : forced}):
             if errors:
                 print "\n".join(errors)
             if warnings:
                 print "\n".join(warnings)
+
+    def _dependencyRevMap(self):
+        for lib in self._libraries.values():
+            for src_file, src_deps in lib.getDependencies():
+                for src_dep in src_deps:
+                    dep_lib, dep_pkgs = src_dep
+                    for dep_pkg in dep_pkgs:
+                        dep_key = "%s.%s" % (dep_lib, dep_pkg)
+                        if dep_key not in self._dependency_rev_map.keys():
+                            self._dependency_rev_map[dep_key] = []
+                        self._dependency_rev_map[dep_key].append(src_file.filename)
+
+    def _dependencyMap(self):
+        for lib_name, lib in self._libraries.items():
+            this_lib_map = {}
+            for src_file, src_deps in lib.getDependencies():
+                if src_file not in this_lib_map.keys():
+                    this_lib_map[src_file] = []
+                for dep_lib, dep_pkgs in src_deps:
+                    for dep_pkg in dep_pkgs:
+                        this_lib_map[src_file].append((dep_lib, dep_pkg))
+
+            self._dependency_map[lib_name] = this_lib_map
+
+    def _getBuildSteps(self):
+        #  self._dependencyRevMap()
+        self._dependencyMap()
+
+        this_build = []
+        units_built = []
+        build_steps = []
+
+        for step in range(self.MAX_BUILD_STEPS):
+            units_built += list(set(this_build) - set(units_built))
+
+            this_build = []
+            this_step = {}
+            for lib_name, lib_deps in self._dependency_map.iteritems():
+                for src, src_deps in lib_deps.iteritems():
+                    if (lib_name, src.getUnitName()) in units_built:
+                        continue
+                    if set(src_deps).issubset(units_built):
+                        this_build.append((lib_name, src.getUnitName()))
+                        if lib_name not in this_step.keys():
+                            this_step[lib_name] = []
+                        this_step[lib_name].append(src)
+
+            if not this_build:
+                break
+
+            build_steps.append(this_step)
+
+            if step == self.MAX_BUILD_STEPS:
+                self._logger.error("Max build steps of %d reached, stopping",
+                                   self.MAX_BUILD_STEPS)
+
+        for lib_name, lib_deps in self._dependency_map.iteritems():
+            for src, src_deps in lib_deps.iteritems():
+                if (lib_name, src.getUnitName()) not in units_built:
+                    self._logger.warning("Source %s not built", src)
+                    missing_deps = []
+                    for lib_name, unit_name in set(src_deps) - set(units_built):
+                        missing_deps.append("(%s) %s" % (lib_name, unit_name))
+                    self._logger.warning(
+                        "Missing dependencies are %s", ", ".join(missing_deps))
+        return build_steps
+
+    def buildByDependency(self):
+        build_steps = self._getBuildSteps()
+        for lib in self._libraries.itervalues():
+            lib.createOrMapLibrary()
+
+        pool = ThreadPool(self.BUILD_WORKERS)
+
+        step_cnt = 0
+        for step in build_steps:
+            step_cnt += 1
+            self._logger.debug("Step %d", step_cnt)
+
+            f_args = []
+
+            for lib_name, sources in step.iteritems():
+                self._logger.debug("  - %s", lib_name)
+                for source in sources:
+                    self._logger.debug("    - %s", str(source))
+
+                f_args.append((lib_name,
+                               self._libraries[lib_name],
+                               'buildSources',
+                               sources))
+
+            pool_results = pool.map_async(runAsync, f_args)
+            pool_results.ready()
+
+            for pool_result in pool_results.get():
+                for lib_name, source, errors, warnings in pool_result:
+                    if errors or warnings:
+                        self._logger.info("Messages for %s %s",
+                                          lib_name, source)
+                    if errors:
+                        self._logger.error("\n".join(errors))
+                    if warnings:
+                        self._logger.warning("\n".join(warnings))
 
 def runAsync(args):
     lib_name = args[0]

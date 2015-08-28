@@ -19,11 +19,18 @@ _RE_IS_PACKAGE = re.compile(
     r"^\s*package\s+\w+\s+is\b|^\s*package\s+body\s+\w+\s+is\b",
     flags=re.I)
 
+_RE_IS_ENTITY = re.compile(
+    r"^\s*entity\s+\w+\s+is\b",
+    flags=re.I)
+
 _RE_LIBRARY_DECLARATION = re.compile(r"^\s*library\s.*", flags=re.I)
 _RE_LIBRARY_EXTRACT = re.compile(r"^\s*library\s+|\s*;.*", flags=re.I)
 
 _RE_USE_CLAUSE = re.compile(r"^\s*use\s+[\w\.]+.*", flags=re.I)
 _RE_USE_EXTRACT = re.compile(r"^\s*use\s+|\s*;.*", flags=re.I)
+
+_RE_ENTITY_CLAUSE = re.compile(r"^\s*\w+\s*:\s*entity\s+\w+\.\w+.*", flags=re.I)
+_RE_ENTITY_EXTRACT = re.compile(r"^\s*\w+\s*:\s*entity\s+|\s*$", flags=re.I)
 
 # FIXME: Built-in libraries should be defined via Vim configuration interface
 # and thus be in a specific Python package from which we should import
@@ -34,45 +41,69 @@ class VhdlSourceFile(object):
     def __init__(self, filename):
         self.filename = filename
         self._is_package = None
-        self._package_name = None
+        self._is_entity = None
+        self._design_unit_name = None
+        self._deps = None
 
     def __getattr__(self, attr):
         if hasattr(str, attr):
             return getattr(self.filename, attr)
         raise AttributeError()
 
+    def _parse(self):
+        deps = {}
+        for line in open(self.filename, 'r').read().split('\n'):
+            line = re.sub(r"\s*--.*", "", line).lower()
+            if re.match(r"^\s*$", line):
+                continue
+            if _RE_LIBRARY_DECLARATION.match(line):
+                lib = _RE_LIBRARY_EXTRACT.sub("", line)
+                if lib not in BUILTIN_LIBRARIES and lib not in deps.keys():
+                    deps[lib] = []
+            if _RE_USE_CLAUSE.match(line):
+                lib, package = \
+                        _RE_USE_EXTRACT.sub("", line).lower().split('.')[:2]
+                if package == 'all':
+                    if lib not in BUILTIN_LIBRARIES and lib not in deps.keys():
+                        deps[lib] = []
+                else:
+                    if lib not in BUILTIN_LIBRARIES:
+                        if lib not in deps.keys():
+                            deps[lib] = []
+                        deps[lib].append(package)
+            if _RE_ENTITY_CLAUSE.match(line):
+                lib, package = \
+                        _RE_ENTITY_EXTRACT.sub("", line).lower().split('.')[:2]
+                if lib not in deps.keys():
+                    deps[lib] = []
+                deps[lib].append(package)
+
+            if self._design_unit_name is None:
+                if _RE_IS_PACKAGE.match(line):
+                    self._is_package = True
+                    self._design_unit_name = \
+                            re.sub(r"^\s*package\s+|\s+is.*$", "", line)
+                if _RE_IS_ENTITY.match(line):
+                    self._is_entity = True
+                    self._design_unit_name = \
+                            re.sub(r"^\s*entity\s+|\s+is.*$", "", line)
+
+        self._deps = zip(deps.keys(), deps.values())
+
     def isPackage(self):
         if self._is_package is None:
-            self._is_package = False
-            for l in open(self.filename, 'r').read().split('\n'):
-                if _RE_IS_PACKAGE.match(l):
-                    self._is_package = True
-                    break
+            self._parse()
         return self._is_package
 
-    def getPackageName(self):
-        if self._package_name is None:
-            for l in open(self.filename, 'r').read().split('\n'):
-                if _RE_IS_PACKAGE.match(l):
-                    self._package_name = \
-                            re.sub(r"^\s*package\s+|\s+is.*$", "", l)
-                    break
-        return self._package_name
+    def getUnitName(self):
+        if self._design_unit_name is None:
+            self._parse()
+        return self._design_unit_name
 
     def getDependencies(self):
-        libs = []
-        packages = []
-        for l in open(self.filename, 'r').read().split('\n'):
-            l = re.sub(r"\s*--.*", "", l)
-            if _RE_LIBRARY_DECLARATION.match(l):
-                lib = _RE_LIBRARY_EXTRACT.sub("", l)
-                if lib not in BUILTIN_LIBRARIES:
-                    libs.append(lib)
-            if _RE_USE_CLAUSE.match(l):
-                lib, package = _RE_USE_EXTRACT.sub("", l).split('.')[:2]
-                if lib not in BUILTIN_LIBRARIES:
-                    packages.append((lib, package))
-        return libs, packages
+        if self._deps is None:
+            self._parse()
+        return self._deps
 
     def __str__(self):
         return str(self.filename)

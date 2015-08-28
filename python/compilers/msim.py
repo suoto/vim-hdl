@@ -119,7 +119,6 @@ class MSim(BaseCompiler):
         return []
 
     def build(self, library, source, flags=None):
-        source = os.path.relpath(str(source))
         self._preBuild(library, source)
         stdout = self._doBuild(library, source, flags)
         return self._postBuild(library, source, stdout)

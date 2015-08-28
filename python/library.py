@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU General Public License
 # along with hdl-syntax-checker.  If not, see <http://www.gnu.org/licenses/>.
 
-import logging, re
+import logging
 
 from source_file import VhdlSourceFile
 
@@ -82,6 +82,14 @@ class Library(object):
 
         return errors, warnings
 
+    def addSources(self, sources):
+        if hasattr(sources, '__iter__'):
+            for source in sources:
+                self.sources.append(VhdlSourceFile(source))
+        else:
+            self.sources.append(VhdlSourceFile(sources))
+
+
     def addBuildFlags(self, *flags):
         if type(flags) is str:
             self._extra_flags.append(flags)
@@ -113,6 +121,30 @@ class Library(object):
     def buildAll(self, forced=False):
         msg = []
         for source in self.sources:
+            r = list(self._buildSource(source, forced))
+            msg.append([source] + r)
+        return msg
+
+    def getDependencies(self):
+        deps = []
+        for source in self.sources:
+            source_deps = []
+            for dep_lib, dep_unit in source.getDependencies():
+                # Work library means 'this' library, not a library named work.
+                if dep_lib == 'work':
+                    dep_lib = self.name
+                source_deps.append((dep_lib, dep_unit))
+            deps.append((source, source_deps))
+        return deps
+
+    def buildSources(self, sources, forced=False):
+        if not hasattr(sources, '__iter__'):
+            sources = [sources]
+        msg = []
+        abs_sources = [x.abspath() for x in self.sources]
+        for source in sources:
+            if source.abspath() not in abs_sources:
+                raise RuntimeError("Source %s not found in library %s" % (source, self.name))
             r = list(self._buildSource(source, forced))
             msg.append([source] + r)
         return msg

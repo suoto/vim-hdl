@@ -72,7 +72,9 @@ def main():
 
             project = ProjectBuilder(builder=msim.MSim('~/temp/builder'))
 
+            # pylint: disable=bad-whitespace
             for lib, path, flags in (
+                    ('unisim',    '~/hdl_lib/unisim/',  '',),
                     ('osvvm_lib',    '~/hdl_lib/osvvm_lib/',      ('-2008',  )),
                     ('common_lib',   '~/hdl_lib/common_lib/',     ''),
                     ('pck_fio_lib',  '~/hdl_lib/pck_fio_lib',     ''),
@@ -80,15 +82,19 @@ def main():
                     ('cordic',       '~/opencores/cordic/',       ''),
                     ('avs_aes_lib',  '~/opencores/avs_aes/',      ''),
                     ('work',         '~/opencores/gecko3/',       ''),
-                    ('work',         '~/opencores/i2c/',          ('-2008',  )),
-                    ('work',         '~/opencores/pcie_sg_dma/',  '',        ),
-                    ('work',         '~/opencores/plasma/',       '',        ),
+                    ('i2c',         '~/opencores/i2c/',          ('-2008',  )),
+                    ('pcie_sg_dma',         '~/opencores/pcie_sg_dma/',  '',        ),
+                    ('plasma',         '~/opencores/plasma/',       '',        ),
                 ):
-                project.addLibrary(lib, findVhdsInPath(path))
+                if not project.hasLibrary(lib):
+                    project.addLibrary(lib, findVhdsInPath(path))
+                else:
+                    project.addLibrarySources(lib, findVhdsInPath(path))
                 for flag in flags:
                     project.addBuildFlags(lib, flag)
 
-        project.build()
+        #  project.build()
+        project.buildByDependency()
 
         cPickle.dump(project, open(SAVE_FILE, 'w'))
 
