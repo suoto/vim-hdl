@@ -32,6 +32,8 @@ class ProjectBuilder(object):
         self._dependency_map = {}
         self._logger = logging.getLogger(__name__)
 
+        self._cache = {}
+
     def __getstate__(self):
         state = self.__dict__.copy()
         state['_logger'] = self._logger.name
@@ -42,6 +44,18 @@ class ProjectBuilder(object):
         del state['_logger']
         self.__dict__.update(state)
 
+    # pylint: disable=E0213,W0212,E1102
+    def _memoid(f):
+        def _memoid_w(self, *args, **kwargs):
+            k = str((f, args, kwargs))
+            if not hasattr(self, '_cache'):
+                self._cache = {}
+            if k not in self._cache.keys():
+                self._cache[k] = f(self, *args, **kwargs)
+            return self._cache[k]
+        return _memoid_w
+
+    # pylint: enable=E0213,W0212,E1102
     def _buildUntilStable(self, f, args=(), kwargs={}):
         failed_builds = []
         previous_failed_builds = None
@@ -178,6 +192,7 @@ class ProjectBuilder(object):
             if warnings:
                 print "\n".join(warnings)
 
+    @_memoid
     def _dependencyRevMap(self):
         for lib in self._libraries.values():
             for src_file, src_deps in lib.getDependencies():
@@ -189,6 +204,7 @@ class ProjectBuilder(object):
                             self._dependency_rev_map[dep_key] = []
                         self._dependency_rev_map[dep_key].append(src_file.filename)
 
+    @_memoid
     def _dependencyMap(self):
         for lib_name, lib in self._libraries.items():
             this_lib_map = {}
@@ -201,6 +217,7 @@ class ProjectBuilder(object):
 
             self._dependency_map[lib_name] = this_lib_map
 
+    @_memoid
     def _getBuildSteps(self):
         #  self._dependencyRevMap()
         self._dependencyMap()
@@ -233,15 +250,27 @@ class ProjectBuilder(object):
                 self._logger.error("Max build steps of %d reached, stopping",
                                    self.MAX_BUILD_STEPS)
 
+        this_step = {}
         for lib_name, lib_deps in self._dependency_map.iteritems():
             for src, src_deps in lib_deps.iteritems():
                 if (lib_name, src.getUnitName()) not in units_built:
-                    self._logger.warning("Source %s not built", src)
                     missing_deps = []
-                    for lib_name, unit_name in set(src_deps) - set(units_built):
-                        missing_deps.append("(%s) %s" % (lib_name, unit_name))
-                    self._logger.warning(
-                        "Missing dependencies are %s", ", ".join(missing_deps))
+                    for dep_lib_name, unit_name in set(src_deps) - set(units_built):
+                        missing_deps.append("%s.%s" % (dep_lib_name, unit_name))
+                    if missing_deps:
+                        self._logger.warning(
+                            "Missing dependencies for '%s': %s", src, ", ".join(missing_deps))
+
+                    if lib_name not in this_step.keys():
+                        this_step[lib_name] = []
+                    this_step[lib_name].append(src)
+
+        #  if this_step:
+        #      for lib_name, lib_srcs in this_step.iteritems():
+        #          self._logger.debug("Adding step: %s %s", lib_name, [str(x) for x in lib_srcs])
+        #      build_steps.append(this_step)
+
+
         return build_steps
 
     def buildByDependency(self):
@@ -250,6 +279,28 @@ class ProjectBuilder(object):
             lib.createOrMapLibrary()
 
         pool = ThreadPool(self.BUILD_WORKERS)
+
+        step_cnt = 0
+        for step in build_steps:
+            step_cnt += 1
+            self._logger.debug("Step %d", step_cnt)
+
+            f_args = []
+
+            for lib_name, sources in step.iteritems():
+                self._logger.debug("  - %s", lib_name)
+                for source in sources:
+                    self._logger.debug("    - %s", str(source))
+
+                self._libraries[lib_name].buildSources(sources)
+
+    def buildByDependencyWithThreads(self, threads=None):
+        threads = threads or self.BUILD_WORKERS
+        build_steps = self._getBuildSteps()
+        for lib in self._libraries.itervalues():
+            lib.createOrMapLibrary()
+
+        pool = ThreadPool(threads)
 
         step_cnt = 0
         for step in build_steps:
@@ -276,10 +327,8 @@ class ProjectBuilder(object):
                     if errors or warnings:
                         self._logger.info("Messages for %s %s",
                                           lib_name, source)
-                    if errors:
-                        self._logger.error("\n".join(errors))
-                    if warnings:
-                        self._logger.warning("\n".join(warnings))
+                    for msg in errors + warnings:
+                        print msg
 
 def runAsync(args):
     lib_name = args[0]
