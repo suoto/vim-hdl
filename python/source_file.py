@@ -30,7 +30,10 @@ _RE_LIBRARY_EXTRACT = re.compile(r"^\s*library\s+|\s*;.*", flags=re.I)
 _RE_USE_CLAUSE = re.compile(r"^\s*use\s+[\w\.]+.*", flags=re.I)
 _RE_USE_EXTRACT = re.compile(r"^\s*use\s+|\..*", flags=re.I)
 
+_RE_LIB_DOT_UNIT = re.compile(r"\b\w+\.\w+\b")
+
 _RE_VALID_NAME_CHECK = re.compile(r"^[a-z]\w*$", flags=re.I)
+_RE_LINE_PREPARE = re.compile(r"^\s*|\s*$|\s*--.*")
 
 # FIXME: Built-in libraries should be defined via Vim configuration interface
 # and thus be in a specific Python package from which we should import
@@ -39,16 +42,13 @@ BUILTIN_LIBRARIES = ('ieee', 'std', 'altera', 'modelsim_lib', 'unisim',
 
 class VhdlSourceFile(object):
     def __init__(self, filename):
-        self.filename = filename
+        self.filename = os.path.normpath(filename)
         self._is_package = None
         self._is_entity = None
         self._design_unit_name = None
         self._deps = None
 
-    def __getattr__(self, attr):
-        if hasattr(str, attr):
-            return getattr(self.filename, attr)
-        raise AttributeError()
+        self._parse()
 
     def _parse(self):
         deps = {}
@@ -56,26 +56,27 @@ class VhdlSourceFile(object):
         lib_units = []
 
         for line in open(self.filename, 'r').read().split('\n'):
-            line = re.sub(r"^\s*|\s*$|\s*--.*", "", line).lower()
-            if re.match(r"^\s*$", line):
+            line = _RE_LINE_PREPARE.sub('', line).lower()
+            if line == '':
                 continue
 
             lib = ''
-            if _RE_LIBRARY_DECLARATION.match(line):
-                lib = _RE_LIBRARY_EXTRACT.sub("", line)
-            elif _RE_USE_CLAUSE.match(line):
-                lib = _RE_USE_EXTRACT.sub("", line)
+            if ';' in line:
+                if _RE_LIBRARY_DECLARATION.match(line):
+                    lib = _RE_LIBRARY_EXTRACT.sub("", line)
+                elif _RE_USE_CLAUSE.match(line):
+                    lib = _RE_USE_EXTRACT.sub("", line)
 
-            if lib:
-                if lib not in BUILTIN_LIBRARIES and lib not in deps.keys():
-                    deps[lib] = []
+                if lib:
+                    if lib not in BUILTIN_LIBRARIES and lib not in deps.keys():
+                        deps[lib] = []
 
-                    lib_units.append(r"\b%s\.\w+" % lib)
+                        lib_units.append(r"\b%s\.\w+" % lib)
 
-                    lib_units_regex = re.compile('|'.join(lib_units), flags=re.I)
+                        lib_units_regex = re.compile('|'.join(lib_units), flags=re.I)
 
             if lib_units and lib_units_regex.findall(line):
-                for lib_unit in re.findall(r"\b\w+\.\w+\b", line):
+                for lib_unit in _RE_LIB_DOT_UNIT.findall(line):
                     lib, unit = lib_unit.split('.')
                     if unit != 'all':
                         deps[lib].append(unit)

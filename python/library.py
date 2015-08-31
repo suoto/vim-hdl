@@ -150,11 +150,15 @@ class Library(object):
             deps.append((source, source_deps))
         return deps
 
+    @_memoid
+    def _getAbsPathOfSources(self):
+        return [x.abspath() for x in self.sources]
+
     def buildSources(self, sources, forced=False):
         if not hasattr(sources, '__iter__'):
             sources = [sources]
         msg = []
-        abs_sources = [x.abspath() for x in self.sources]
+        abs_sources = self._getAbsPathOfSources()
         for source in sources:
             if source.abspath() not in abs_sources:
                 raise RuntimeError("Source %s not found in library %s" % (source, self.name))
