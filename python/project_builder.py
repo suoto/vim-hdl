@@ -292,7 +292,9 @@ class ProjectBuilder(object):
                 for source in sources:
                     self._logger.debug("    - %s", str(source))
 
-                self._libraries[lib_name].buildSources(sources)
+                for source, errors, warnings in self._libraries[lib_name].buildSources(sources):
+                    for msg in errors + warnings:
+                        print msg
 
     def buildByDependencyWithThreads(self, threads=None):
         threads = threads or self.BUILD_WORKERS

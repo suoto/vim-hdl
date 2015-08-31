@@ -75,8 +75,8 @@ class Library(object):
         else:
             errors, warnings = cached_info['errors'], cached_info['warnings']
 
-        if errors:
-            cached_info['compile_time'] = 0
+        #  if errors:
+        #      cached_info['compile_time'] = 0
 
         #  TODO: msim vcom-1195 means something wasn't found. Since this
         # something could be in some file not yet compiled, we'll leave the
