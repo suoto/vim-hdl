@@ -31,6 +31,16 @@ class Library(object):
 
         self._build_info_cache = {}
 
+    def _memoid(f):
+        def _memoid_w(self, *args, **kwargs):
+            k = str((f, args, kwargs))
+            if not hasattr(self, '_cache'):
+                self._cache = {}
+            if k not in self._cache.keys():
+                self._cache[k] = f(self, *args, **kwargs)
+            return self._cache[k]
+        return _memoid_w
+
     def __str__(self):
         return "Library(name='%s')" % self.name
 
@@ -44,6 +54,7 @@ class Library(object):
         del d['_logger']
         self.__dict__.update(d)
 
+    # TODO: Check file modification time to invalidate cached info
     def _buildSource(self, source, forced=False):
         if forced:
             self._logger.info("Forcing build of %s", forced)
@@ -64,19 +75,19 @@ class Library(object):
         else:
             errors, warnings = cached_info['errors'], cached_info['warnings']
 
-        #  if errors:
-        #      cached_info['compile_time'] = 0
+        if errors:
+            cached_info['compile_time'] = 0
 
         #  TODO: msim vcom-1195 means something wasn't found. Since this
         # something could be in some file not yet compiled, we'll leave the
         # cached status clear, so we force recompile only in this case.  This
         # should be better studied because avoiding to recompile a file that
         # had errors could be harmful
-        for error in errors:
-            #  if re.match(r"^.*\(vcom-1195\).*", error):
-            if '(vcom-11)' in error:
-                cached_info['compile_time'] = 0
-                break
+        #  for error in errors:
+        #      #  if re.match(r"^.*\(vcom-1195\).*", error):
+        #      if '(vcom-11)' in error:
+        #          cached_info['compile_time'] = 0
+        #          break
 
         #  self._build_info_cache[source.abspath()] = cached_info
 
@@ -125,6 +136,8 @@ class Library(object):
             msg.append([source] + r)
         return msg
 
+    # TODO: Check file modification time to invalidate cached info
+    @_memoid
     def getDependencies(self):
         deps = []
         for source in self.sources:
