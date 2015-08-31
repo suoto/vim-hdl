@@ -15,22 +15,22 @@
 
 import re, os
 
-_RE_IS_PACKAGE = re.compile(
-    r"^\s*package\s+\w+\s+is\b|^\s*package\s+body\s+\w+\s+is\b",
-    flags=re.I)
+_RE_IS_PACKAGE = re.compile(r"^\s*package\s+\w+\s+is\b", flags=re.I)
+_RE_PACKAGE_EXTRACT = re.compile(r"^\s*package\s+|\s+is.*$", flags=re.I)
 
-_RE_IS_ENTITY = re.compile(
-    r"^\s*entity\s+\w+\s+is\b",
-    flags=re.I)
+_RE_IS_PACKAGE_BODY = re.compile(r"^\s*package\s+body\s+\w+\s+is\b", flags=re.I)
+_RE_PACKAGE_BODY_EXTRACT = re.compile(r"^\s*package\s+body\s+|\s+is.*$", flags=re.I)
+
+_RE_IS_ENTITY = re.compile(r"^\s*entity\s+\w+\s+is\b", flags=re.I)
+_RE_ENTITY_UNIT_EXTRACT = re.compile(r"^\s*entity\s+|\s+is.*$", flags=re.I)
 
 _RE_LIBRARY_DECLARATION = re.compile(r"^\s*library\s.*", flags=re.I)
 _RE_LIBRARY_EXTRACT = re.compile(r"^\s*library\s+|\s*;.*", flags=re.I)
 
 _RE_USE_CLAUSE = re.compile(r"^\s*use\s+[\w\.]+.*", flags=re.I)
-_RE_USE_EXTRACT = re.compile(r"^\s*use\s+|\s*;.*", flags=re.I)
+_RE_USE_EXTRACT = re.compile(r"^\s*use\s+|\..*", flags=re.I)
 
-_RE_ENTITY_CLAUSE = re.compile(r"^\s*\w+\s*:\s*entity\s+\w+\.\w+.*", flags=re.I)
-_RE_ENTITY_EXTRACT = re.compile(r"^\s*\w+\s*:\s*entity\s+|\s*$", flags=re.I)
+_RE_VALID_NAME_CHECK = re.compile(r"^[a-z]\w*$", flags=re.I)
 
 # FIXME: Built-in libraries should be defined via Vim configuration interface
 # and thus be in a specific Python package from which we should import
@@ -52,41 +52,44 @@ class VhdlSourceFile(object):
 
     def _parse(self):
         deps = {}
+
+        lib_units = []
+
         for line in open(self.filename, 'r').read().split('\n'):
-            line = re.sub(r"\s*--.*", "", line).lower()
+            line = re.sub(r"^\s*|\s*$|\s*--.*", "", line).lower()
             if re.match(r"^\s*$", line):
                 continue
+
+            lib = ''
             if _RE_LIBRARY_DECLARATION.match(line):
                 lib = _RE_LIBRARY_EXTRACT.sub("", line)
+            elif _RE_USE_CLAUSE.match(line):
+                lib = _RE_USE_EXTRACT.sub("", line)
+
+            if lib:
                 if lib not in BUILTIN_LIBRARIES and lib not in deps.keys():
                     deps[lib] = []
-            if _RE_USE_CLAUSE.match(line):
-                lib, package = \
-                        _RE_USE_EXTRACT.sub("", line).lower().split('.')[:2]
-                if package == 'all':
-                    if lib not in BUILTIN_LIBRARIES and lib not in deps.keys():
-                        deps[lib] = []
-                else:
-                    if lib not in BUILTIN_LIBRARIES:
-                        if lib not in deps.keys():
-                            deps[lib] = []
-                        deps[lib].append(package)
-            if _RE_ENTITY_CLAUSE.match(line):
-                lib, package = \
-                        _RE_ENTITY_EXTRACT.sub("", line).lower().split('.')[:2]
-                if lib not in deps.keys():
-                    deps[lib] = []
-                deps[lib].append(package)
+
+                    lib_units.append(r"\b%s\.\w+" % lib)
+
+                    lib_units_regex = re.compile('|'.join(lib_units), flags=re.I)
+
+            if lib_units and lib_units_regex.findall(line):
+                for lib_unit in re.findall(r"\b\w+\.\w+\b", line):
+                    lib, unit = lib_unit.split('.')
+                    if unit != 'all':
+                        deps[lib].append(unit)
 
             if self._design_unit_name is None:
                 if _RE_IS_PACKAGE.match(line):
                     self._is_package = True
-                    self._design_unit_name = \
-                            re.sub(r"^\s*package\s+|\s+is.*$", "", line)
+                    self._design_unit_name = _RE_PACKAGE_EXTRACT.sub("", line)
+                if _RE_IS_PACKAGE_BODY.match(line):
+                    self._is_package = True
+                    self._design_unit_name = _RE_PACKAGE_BODY_EXTRACT.sub("", line)
                 if _RE_IS_ENTITY.match(line):
                     self._is_entity = True
-                    self._design_unit_name = \
-                            re.sub(r"^\s*entity\s+|\s+is.*$", "", line)
+                    self._design_unit_name = _RE_ENTITY_UNIT_EXTRACT.sub("", line)
 
         self._deps = zip(deps.keys(), deps.values())
 
@@ -98,11 +101,20 @@ class VhdlSourceFile(object):
     def getUnitName(self):
         if self._design_unit_name is None:
             self._parse()
+            if not _RE_VALID_NAME_CHECK.match(self._design_unit_name):
+                raise RuntimeError("Unit name %s is invalid" % self._design_unit_name)
         return self._design_unit_name
 
     def getDependencies(self):
         if self._deps is None:
             self._parse()
+            for dep_lib, dep_units in self._deps:
+                if not _RE_VALID_NAME_CHECK.match(dep_lib):
+                    raise RuntimeError("Dependency library %s is invalid" % dep_lib)
+                for dep_unit in dep_units:
+                    if not _RE_VALID_NAME_CHECK.match(dep_unit):
+                        raise RuntimeError("Dependency unit %s is invalid" % dep_unit)
+
         return self._deps
 
     def __str__(self):
