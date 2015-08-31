@@ -1,20 +1,20 @@
 #!/usr/bin/env python
 # PYTHON_ARGCOMPLETE_OK
 
-# This file is part of hdl-syntax-checker.
+# This file is part of hdl-check-o-matic.
 #
-# hdl-syntax-checker is free software: you can redistribute it and/or modify
+# hdl-check-o-matic is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 #
-# hdl-syntax-checker is distributed in the hope that it will be useful,
+# hdl-check-o-matic is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with hdl-syntax-checker.  If not, see <http://www.gnu.org/licenses/>.
+# along with hdl-check-o-matic.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging, os
 import cPickle
@@ -74,7 +74,6 @@ def main():
 
             # pylint: disable=bad-whitespace
             for lib, path, flags in (
-                    ('unisim',    '~/hdl_lib/unisim/',  '',),
                     ('osvvm_lib',    '~/hdl_lib/osvvm_lib/',      ('-2008',  )),
                     ('common_lib',   '~/hdl_lib/common_lib/',     ''),
                     ('pck_fio_lib',  '~/hdl_lib/pck_fio_lib',     ''),
