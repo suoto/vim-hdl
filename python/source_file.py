@@ -38,7 +38,8 @@ _RE_LINE_PREPARE = re.compile(r"^\s*|\s*$|\s*--.*")
 # FIXME: Built-in libraries should be defined via Vim configuration interface
 # and thus be in a specific Python package from which we should import
 BUILTIN_LIBRARIES = ('ieee', 'std', 'altera', 'modelsim_lib', 'unisim',
-                     'xilinxcorelib', 'synplify', 'synopsis', 'altera_mf')
+                     'xilinxcorelib', 'synplify', 'synopsis', 'altera_mf',
+                     'maxii', 'family_support',)
 
 class VhdlSourceFile(object):
     def __init__(self, filename):
@@ -78,22 +79,31 @@ class VhdlSourceFile(object):
             if lib_units and lib_units_regex.findall(line):
                 for lib_unit in _RE_LIB_DOT_UNIT.findall(line):
                     lib, unit = lib_unit.split('.')
-                    if unit != 'all':
-                        deps[lib].append(unit)
+                    #  if unit != 'all':
+                    deps[lib].append(unit)
 
+            design_unit = ''
             if _RE_IS_PACKAGE.match(line):
                 self._is_package = True
-                self._design_units += [_RE_PACKAGE_EXTRACT.sub("", line)]
+                design_unit = _RE_PACKAGE_EXTRACT.sub("", line)
             elif _RE_IS_PACKAGE_BODY.match(line):
                 self._is_package = True
-                self._design_units += [_RE_PACKAGE_BODY_EXTRACT.sub("", line)]
+                design_unit = _RE_PACKAGE_BODY_EXTRACT.sub("", line)
             elif _RE_IS_ENTITY.match(line):
                 self._is_entity = True
-                self._design_units += [_RE_ENTITY_UNIT_EXTRACT.sub("", line)]
+                design_unit = _RE_ENTITY_UNIT_EXTRACT.sub("", line)
+
+            if design_unit and design_unit not in self._design_units:
+                self._design_units.append(design_unit)
+
 
         assert self._design_units, \
             "Unable to find design unit name in source %s" % self.filename
 
+        #  self._deps = []
+        #  for k, v in deps.iteritems():
+        #      if v:
+        #          self._deps.append((k, v))
         self._deps = zip(deps.keys(), deps.values())
 
     def isPackage(self):
@@ -104,8 +114,9 @@ class VhdlSourceFile(object):
     def getDesignUnits(self):
         if self._design_units is None:
             self._parse()
-            #  if not _RE_VALID_NAME_CHECK.match(self._design_units):
-            #      raise RuntimeError("Unit name %s is invalid" % self._design_units)
+            for unit in self._design_units:
+                if not _RE_VALID_NAME_CHECK.match(unit):
+                    raise RuntimeError("Unit name %s is invalid" % unit)
         return self._design_units
 
     def getDependencies(self):
@@ -114,8 +125,12 @@ class VhdlSourceFile(object):
             for dep_lib, dep_units in self._deps:
                 if not _RE_VALID_NAME_CHECK.match(dep_lib):
                     raise RuntimeError("Dependency library %s is invalid" % dep_lib)
+                if not len(dep_lib):
+                    raise RuntimeError("Dependency library %s is invalid" % dep_lib)
                 for dep_unit in dep_units:
                     if not _RE_VALID_NAME_CHECK.match(dep_unit):
+                        raise RuntimeError("Dependency unit %s is invalid" % dep_unit)
+                    if not len(dep_unit):
                         raise RuntimeError("Dependency unit %s is invalid" % dep_unit)
 
         return self._deps
