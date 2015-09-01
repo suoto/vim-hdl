@@ -37,14 +37,12 @@ class MSim(BaseCompiler):
         else:
             flags = self.getBuildFlags(library, source)
 
-        cmd = 'vcom -modelsimini {modelsimini} -work {library} {flags} {source}'.format(
-            modelsimini=self._MODELSIM_INI,
-            library=os.path.join(self._TARGET_FOLDER, library),
-            flags=" ".join(flags),
-            source=source)
+        cmd = ['vcom', '-modelsimini', self._MODELSIM_INI, '-work', os.path.join(self._TARGET_FOLDER, library)]
+        cmd += flags
+        cmd += [source.filename]
 
         try:
-            r = list(subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT).split("\n"))
+            r = list(subprocess.check_output(cmd, stderr=subprocess.STDOUT).split("\n"))
         except subprocess.CalledProcessError as e:
             r = list(e.output.split("\n"))
         return r
