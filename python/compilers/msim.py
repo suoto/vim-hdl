@@ -16,6 +16,7 @@
 import os, re
 from compilers.base_compiler import BaseCompiler
 from utils import shell
+import subprocess
 
 class MSim(BaseCompiler):
     _re_error = re.compile(r"^\*\*\sError:", flags=re.I)
@@ -42,8 +43,11 @@ class MSim(BaseCompiler):
             flags=" ".join(flags),
             source=source)
 
-        self._logger.debug(cmd)
-        return os.popen(cmd).read().split("\n")
+        try:
+            r = list(subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT).split("\n"))
+        except subprocess.CalledProcessError as e:
+            r = list(e.output.split("\n"))
+        return r
 
     def _doBatchBuild(self, library, sources, flags=None):
         if flags:
@@ -88,11 +92,15 @@ class MSim(BaseCompiler):
         for l in stdout:
             if self._re_ignored.match(l):
                 continue
-            self._logger.debug(l)
             if self._lineHasError(l):
                 errors.append(l)
             if self._lineHasWarning(l):
                 warnings.append(l)
+
+        if errors:
+            self._logger.debug("Messages for (%s) %s:", library, source)
+            for msg in errors + warnings:
+                self._logger.debug(msg)
         return errors, warnings
 
     def createLibrary(self, library):
