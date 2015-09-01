@@ -34,6 +34,9 @@ class ProjectBuilder(object):
 
         self._cache = {}
 
+        self._sources_with_errors = []
+        self._sources_with_warnings = []
+
     def __getstate__(self):
         state = self.__dict__.copy()
         state['_logger'] = self._logger.name
@@ -217,14 +220,11 @@ class ProjectBuilder(object):
 
             self._dependency_map[lib_name] = this_lib_map
 
-    @_memoid
     def _getBuildSteps(self):
-        #  self._dependencyRevMap()
         self._dependencyMap()
 
         this_build = []
         units_built = []
-        build_steps = []
 
         for step in range(self.MAX_BUILD_STEPS):
             units_built += list(set(this_build) - set(units_built))
@@ -236,8 +236,11 @@ class ProjectBuilder(object):
                     for design_unit in src.getDesignUnits():
                         if (lib_name, design_unit) in units_built:
                             continue
+                        if (lib_name, 'all') not in this_build:
+                            this_build.append((lib_name, 'all'))
                         if set(src_deps).issubset(units_built):
-                            this_build.append((lib_name, design_unit))
+                            if (lib_name, design_unit) not in this_build:
+                                this_build.append((lib_name, design_unit))
                             if lib_name not in this_step.keys():
                                 this_step[lib_name] = []
                             if src not in this_step[lib_name]:
@@ -246,12 +249,15 @@ class ProjectBuilder(object):
             if not this_build:
                 break
 
-            build_steps.append(this_step)
+            yield this_step
 
             if step == self.MAX_BUILD_STEPS:
                 self._logger.error("Max build steps of %d reached, stopping",
                                    self.MAX_BUILD_STEPS)
 
+        self._logMissingDependencies(units_built)
+
+    def _logMissingDependencies(self, units_built):
         this_step = {}
         for lib_name, lib_deps in self._dependency_map.iteritems():
             for src, src_deps in lib_deps.iteritems():
@@ -270,27 +276,14 @@ class ProjectBuilder(object):
                             this_step[lib_name] = []
                         this_step[lib_name].append(src)
 
-        #  if this_step:
-        #      for lib_name, lib_srcs in this_step.iteritems():
-        #          self._logger.debug("Adding step: %s %s", lib_name, [str(x) for x in lib_srcs])
-        #      build_steps.append(this_step)
-
-
-        return build_steps
-
     def buildByDependency(self):
-        build_steps = self._getBuildSteps()
         for lib in self._libraries.itervalues():
             lib.createOrMapLibrary()
 
-        pool = ThreadPool(self.BUILD_WORKERS)
-
         step_cnt = 0
-        for step in build_steps:
+        for step in self._getBuildSteps():
             step_cnt += 1
             self._logger.debug("Step %d", step_cnt)
-
-            f_args = []
 
             for lib_name, sources in step.iteritems():
                 self._logger.debug("  - %s", lib_name)
@@ -303,39 +296,68 @@ class ProjectBuilder(object):
 
     def buildByDependencyWithThreads(self, threads=None):
         threads = threads or self.BUILD_WORKERS
-        build_steps = self._getBuildSteps()
         for lib in self._libraries.itervalues():
             lib.createOrMapLibrary()
 
-        pool = ThreadPool(threads)
+        sources_with_errors = []
+        sources_with_warnings = []
 
         step_cnt = 0
-        for step in build_steps:
+        for step in self._getBuildSteps():
             step_cnt += 1
             self._logger.debug("Step %d", step_cnt)
 
             f_args = []
 
+            fd = open('.build/step_%d.log' % step_cnt, 'w')
             for lib_name, sources in step.iteritems():
                 self._logger.debug("  - %s", lib_name)
                 for source in sources:
                     self._logger.debug("    - %s", str(source))
 
+                fd.write("library %s\n" % lib_name)
+                for source in sources:
+                    fd.write("  - %s\n" % source)
                 f_args.append((lib_name,
                                self._libraries[lib_name],
                                'buildSources',
                                sources))
 
+            if not f_args:
+                break
+            fd.write("Pool has %d workers\n" % min(threads, len(f_args)))
+            fd.close()
+            pool = ThreadPool(min(threads, len(f_args)))
             pool_results = pool.map_async(runAsync, f_args)
+            pool_results.wait()
             pool_results.ready()
+            pool.close()
+            pool.join()
+
+            for worker in pool._pool:
+                assert not worker.is_alive()
 
             for pool_result in pool_results.get():
                 for lib_name, source, errors, warnings in pool_result:
-                    if errors or warnings:
-                        self._logger.info("Messages for %s %s",
-                                          lib_name, source)
+                    if errors:
+                        if (lib_name, source) not in sources_with_errors:
+                            sources_with_errors.append((lib_name, source))
+                    if warnings:
+                        if (lib_name, source) not in sources_with_warnings:
+                            sources_with_warnings.append((lib_name, source))
                     for msg in errors + warnings:
                         print msg
+
+        print "Sources with errors: %d, sources with warnings: %d" % (len(sources_with_errors), len(sources_with_warnings))
+        if self._sources_with_errors:
+            diff = list(set(self._sources_with_errors) - set(sources_with_errors))
+            if diff:
+                self._logger.debug("Sources that previously had errors:")
+            for lib, src in diff:
+                self._logger.debug("(%s) %s", lib, src)
+
+        self._sources_with_errors = sources_with_errors
+        self._sources_with_warnings = sources_with_warnings
 
 def runAsync(args):
     lib_name = args[0]
