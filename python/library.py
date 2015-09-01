@@ -81,13 +81,9 @@ class Library(object):
         # cached status clear, so we force recompile only in this case.  This
         # should be better studied because avoiding to recompile a file that
         # had errors could be harmful
-        #  for error in errors:
-        #      #  if re.match(r"^.*\(vcom-1195\).*", error):
-        #      if '(vcom-11)' in error:
-        #          cached_info['compile_time'] = 0
-        #          break
-
-        #  self._build_info_cache[source.abspath()] = cached_info
+        for error in errors:
+            if '(vcom-11)' in error:
+                self._logger.error("(%s) %s %s", self.name, str(source), error)
 
         return errors, warnings
 
@@ -97,7 +93,6 @@ class Library(object):
                 self.sources.append(VhdlSourceFile(source))
         else:
             self.sources.append(VhdlSourceFile(sources))
-
 
     def addBuildFlags(self, *flags):
         if type(flags) is str:
@@ -163,39 +158,3 @@ class Library(object):
             r = list(self._buildSource(source, forced))
             msg.append([source] + r)
         return msg
-
-    #  def buildTags(self):
-    #      ctags = ['ctags-exuberant']
-    #      ctags += [CTAGS_ARGS]
-    #      ctags += ['-f ' + self.tagfile]
-
-    #      if os.path.exists(self.tagfile):
-    #          ctags_mtime = os.path.getmtime(self.tagfile)
-    #      else:
-    #          ctags_mtime = 0
-
-    #      rebuild = False
-
-    #      sources = []
-
-    #      for source in self.sources:
-    #          if source == '':
-    #              continue
-    #          if not os.path.exists(source):
-    #              # _logger.warning("Source file '%s' doesn't exists", source)
-    #              continue
-
-    #          sources.append(os.path.abspath(source))
-
-    #          if os.path.getmtime(source) > ctags_mtime:
-    #              rebuild = True
-
-    #      if rebuild and sources:
-    #          cmd = " ".join(ctags + sources) + ' 2>&1 &'
-    #          self._logger.info(cmd)
-
-    #          for _l in os.popen(cmd).read().split("\n"):
-    #              if not RE_CTAGS_IGNORE_LINE.match(_l):
-    #                  self._logger.info(_l)
-
-
