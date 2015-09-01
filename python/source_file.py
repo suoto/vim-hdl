@@ -45,7 +45,7 @@ class VhdlSourceFile(object):
         self.filename = os.path.normpath(filename)
         self._is_package = None
         self._is_entity = None
-        self._design_unit_name = None
+        self._design_units = []
         self._deps = None
 
         self._parse()
@@ -61,19 +61,19 @@ class VhdlSourceFile(object):
                 continue
 
             lib = ''
-            if ';' in line:
-                if _RE_LIBRARY_DECLARATION.match(line):
-                    lib = _RE_LIBRARY_EXTRACT.sub("", line)
-                elif _RE_USE_CLAUSE.match(line):
-                    lib = _RE_USE_EXTRACT.sub("", line)
+            if _RE_LIBRARY_DECLARATION.match(line):
+                lib = _RE_LIBRARY_EXTRACT.sub("", line)
+            elif _RE_USE_CLAUSE.match(line):
+                lib = _RE_USE_EXTRACT.sub("", line)
 
-                if lib:
-                    if lib not in BUILTIN_LIBRARIES and lib not in deps.keys():
-                        deps[lib] = []
+            if lib:
+                if lib not in BUILTIN_LIBRARIES and lib not in deps.keys():
+                    deps[lib] = []
 
-                        lib_units.append(r"\b%s\.\w+" % lib)
+                    lib_units.append(r"\b%s\.\w+" % lib)
 
-                        lib_units_regex = re.compile('|'.join(lib_units), flags=re.I)
+                    lib_units_regex = re.compile('|'.join(lib_units),
+                                                 flags=re.I)
 
             if lib_units and lib_units_regex.findall(line):
                 for lib_unit in _RE_LIB_DOT_UNIT.findall(line):
@@ -81,16 +81,18 @@ class VhdlSourceFile(object):
                     if unit != 'all':
                         deps[lib].append(unit)
 
-            if self._design_unit_name is None:
-                if _RE_IS_PACKAGE.match(line):
-                    self._is_package = True
-                    self._design_unit_name = _RE_PACKAGE_EXTRACT.sub("", line)
-                if _RE_IS_PACKAGE_BODY.match(line):
-                    self._is_package = True
-                    self._design_unit_name = _RE_PACKAGE_BODY_EXTRACT.sub("", line)
-                if _RE_IS_ENTITY.match(line):
-                    self._is_entity = True
-                    self._design_unit_name = _RE_ENTITY_UNIT_EXTRACT.sub("", line)
+            if _RE_IS_PACKAGE.match(line):
+                self._is_package = True
+                self._design_units += [_RE_PACKAGE_EXTRACT.sub("", line)]
+            elif _RE_IS_PACKAGE_BODY.match(line):
+                self._is_package = True
+                self._design_units += [_RE_PACKAGE_BODY_EXTRACT.sub("", line)]
+            elif _RE_IS_ENTITY.match(line):
+                self._is_entity = True
+                self._design_units += [_RE_ENTITY_UNIT_EXTRACT.sub("", line)]
+
+        assert self._design_units, \
+            "Unable to find design unit name in source %s" % self.filename
 
         self._deps = zip(deps.keys(), deps.values())
 
@@ -99,12 +101,12 @@ class VhdlSourceFile(object):
             self._parse()
         return self._is_package
 
-    def getUnitName(self):
-        if self._design_unit_name is None:
+    def getDesignUnits(self):
+        if self._design_units is None:
             self._parse()
-            if not _RE_VALID_NAME_CHECK.match(self._design_unit_name):
-                raise RuntimeError("Unit name %s is invalid" % self._design_unit_name)
-        return self._design_unit_name
+            #  if not _RE_VALID_NAME_CHECK.match(self._design_units):
+            #      raise RuntimeError("Unit name %s is invalid" % self._design_units)
+        return self._design_units
 
     def getDependencies(self):
         if self._deps is None:

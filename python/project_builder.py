@@ -233,13 +233,15 @@ class ProjectBuilder(object):
             this_step = {}
             for lib_name, lib_deps in self._dependency_map.iteritems():
                 for src, src_deps in lib_deps.iteritems():
-                    if (lib_name, src.getUnitName()) in units_built:
-                        continue
-                    if set(src_deps).issubset(units_built):
-                        this_build.append((lib_name, src.getUnitName()))
-                        if lib_name not in this_step.keys():
-                            this_step[lib_name] = []
-                        this_step[lib_name].append(src)
+                    for design_unit in src.getDesignUnits():
+                        if (lib_name, design_unit) in units_built:
+                            continue
+                        if set(src_deps).issubset(units_built):
+                            this_build.append((lib_name, design_unit))
+                            if lib_name not in this_step.keys():
+                                this_step[lib_name] = []
+                            if src not in this_step[lib_name]:
+                                this_step[lib_name].append(src)
 
             if not this_build:
                 break
@@ -253,17 +255,20 @@ class ProjectBuilder(object):
         this_step = {}
         for lib_name, lib_deps in self._dependency_map.iteritems():
             for src, src_deps in lib_deps.iteritems():
-                if (lib_name, src.getUnitName()) not in units_built:
-                    missing_deps = []
-                    for dep_lib_name, unit_name in set(src_deps) - set(units_built):
-                        missing_deps.append("%s.%s" % (dep_lib_name, unit_name))
-                    if missing_deps:
-                        self._logger.warning(
-                            "Missing dependencies for '%s': %s", src, ", ".join(missing_deps))
+                for design_unit in src.getDesignUnits():
+                    if (lib_name, design_unit) not in units_built:
+                        missing_deps = []
+                        for dep_lib_name, unit_name in set(src_deps) - set(units_built):
+                            if "%s.%s" % (dep_lib_name, unit_name) not in missing_deps:
+                                missing_deps.append(
+                                    "%s.%s" % (dep_lib_name, unit_name))
+                        if missing_deps:
+                            self._logger.warning(
+                                "Missing dependencies for '%s': %s", src, ", ".join(missing_deps))
 
-                    if lib_name not in this_step.keys():
-                        this_step[lib_name] = []
-                    this_step[lib_name].append(src)
+                        if lib_name not in this_step.keys():
+                            this_step[lib_name] = []
+                        this_step[lib_name].append(src)
 
         #  if this_step:
         #      for lib_name, lib_srcs in this_step.iteritems():
