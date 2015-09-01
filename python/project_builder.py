@@ -299,6 +299,8 @@ class ProjectBuilder(object):
         for lib in self._libraries.itervalues():
             lib.createOrMapLibrary()
 
+        pool = ThreadPool()
+
         sources_with_errors = []
         sources_with_warnings = []
 
@@ -327,17 +329,9 @@ class ProjectBuilder(object):
                 break
             fd.write("Pool has %d workers\n" % min(threads, len(f_args)))
             fd.close()
-            pool = ThreadPool(min(threads, len(f_args)))
-            pool_results = pool.map_async(runAsync, f_args)
-            pool_results.wait()
-            pool_results.ready()
-            pool.close()
-            pool.join()
+            pool_results = pool.imap(runAsync, f_args)
 
-            for worker in pool._pool:
-                assert not worker.is_alive()
-
-            for pool_result in pool_results.get():
+            for pool_result in pool_results:
                 for lib_name, source, errors, warnings in pool_result:
                     if errors:
                         if (lib_name, source) not in sources_with_errors:
@@ -347,14 +341,15 @@ class ProjectBuilder(object):
                             sources_with_warnings.append((lib_name, source))
                     for msg in errors + warnings:
                         print msg
-
+        pool.close()
+        pool.join()
         print "Sources with errors: %d, sources with warnings: %d" % (len(sources_with_errors), len(sources_with_warnings))
         if self._sources_with_errors:
             diff = list(set(self._sources_with_errors) - set(sources_with_errors))
             if diff:
-                self._logger.debug("Sources that previously had errors:")
+                self._logger.info("Sources that previously had errors:")
             for lib, src in diff:
-                self._logger.debug("(%s) %s", lib, src)
+                self._logger.info("(%s) %s", lib, src)
 
         self._sources_with_errors = sources_with_errors
         self._sources_with_warnings = sources_with_warnings
