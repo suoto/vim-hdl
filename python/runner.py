@@ -80,10 +80,10 @@ def main():
                     ('memory',       '~/hdl_lib/memory/',         ''),
                     ('cordic',       '~/opencores/cordic/',       ''),
                     ('avs_aes_lib',  '~/opencores/avs_aes/',      ''),
-                    ('work',         '~/opencores/gecko3/',       ''),
-                    ('i2c',         '~/opencores/i2c/',          ('-2008',  )),
-                    ('pcie_sg_dma',         '~/opencores/pcie_sg_dma/',  '',        ),
-                    ('plasma',         '~/opencores/plasma/',       '',        ),
+                    #  ('work',         '~/opencores/gecko3/',       ''),
+                    #  ('i2c',         '~/opencores/i2c/',          ('-2008',  )),
+                    #  ('pcie_sg_dma',         '~/opencores/pcie_sg_dma/',  '',        ),
+                    #  ('plasma',         '~/opencores/plasma/',       '',        ),
                 ):
                 if not project.hasLibrary(lib):
                     project.addLibrary(lib, findVhdsInPath(path))
@@ -94,6 +94,7 @@ def main():
 
         #  project.build()
         project.buildByDependency()
+        #  project.buildByDependencyWithThreads()
 
         cPickle.dump(project, open(SAVE_FILE, 'w'))
 

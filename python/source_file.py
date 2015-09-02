@@ -97,8 +97,8 @@ class VhdlSourceFile(object):
                 self._design_units.append(design_unit)
 
 
-        assert self._design_units, \
-            "Unable to find design unit name in source %s" % self.filename
+        #  assert self._design_units, \
+        #      "Unable to find design unit name in source %s" % self.filename
 
         #  self._deps = []
         #  for k, v in deps.iteritems():
