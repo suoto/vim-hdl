@@ -27,7 +27,7 @@ class ProjectBuilder(object):
 
     def __init__(self, builder):
         self.builder = builder
-        self._libraries = {}
+        self.libraries = {}
         self._logger = logging.getLogger(__name__)
 
         self._cache = {}
@@ -59,29 +59,29 @@ class ProjectBuilder(object):
 
     def addLibrary(self, library_name, sources):
         "Adds a library with the given sources"
-        self._libraries[library_name] = \
+        self.libraries[library_name] = \
                 Library(builder=self.builder,
                         sources=sources,
                         name=library_name)
 
     def hasLibrary(self, library_name):
         "Returns True is library_name has been added"
-        return library_name.lower() in self._libraries.keys()
+        return library_name.lower() in self.libraries.keys()
 
     def addLibrarySources(self, library_name, sources):
         "Adds sources to library_name"
-        self._libraries[library_name].addSources(sources)
+        self.libraries[library_name].addSources(sources)
 
     def addBuildFlags(self, library, flags):
         "Adds build flags to the given library"
-        self._libraries[library].addBuildFlags(flags)
+        self.libraries[library].addBuildFlags(flags)
 
     @_memoid
     def _getReverseDependencyMap(self):
         """Returns a dict that relates which source files depend on a
         given library/unit"""
         result = {}
-        for lib in self._libraries.values():
+        for lib in self.libraries.values():
             for src_file, src_deps in lib.getDependencies():
                 for src_dep in src_deps:
                     dep_lib, dep_pkgs = src_dep
@@ -97,7 +97,7 @@ class ProjectBuilder(object):
         """Returns a dict which library/units a given source file
         depens on"""
         result = {}
-        for lib_name, lib in self._libraries.items():
+        for lib_name, lib in self.libraries.items():
             this_lib_map = {}
             for src_file, src_deps in lib.getDependencies():
                 if src_file not in this_lib_map.keys():
@@ -172,7 +172,7 @@ class ProjectBuilder(object):
 
     def buildByDependency(self):
         "Build the project by checking source file dependencies"
-        for lib in self._libraries.itervalues():
+        for lib in self.libraries.itervalues():
             lib.createOrMapLibrary()
 
         step_cnt = 0
@@ -185,7 +185,7 @@ class ProjectBuilder(object):
                 for source in sources:
                     self._logger.debug("    - %s", str(source))
 
-                for source, errors, warnings in self._libraries[lib_name].buildSources(sources):
+                for source, errors, warnings in self.libraries[lib_name].buildSources(sources):
                     for msg in errors + warnings:
                         print msg
 
@@ -193,7 +193,7 @@ class ProjectBuilder(object):
         """Same as buildByDependency, only that each library of each
         step is built in parallel"""
         threads = threads or self.BUILD_WORKERS
-        for lib in self._libraries.itervalues():
+        for lib in self.libraries.itervalues():
             lib.createOrMapLibrary()
 
         pool = ThreadPool()
@@ -218,7 +218,7 @@ class ProjectBuilder(object):
                 for source in sources:
                     fd.write("  - %s\n" % source)
                 f_args.append((lib_name,
-                               self._libraries[lib_name],
+                               self.libraries[lib_name],
                                'buildSources',
                                sources))
 
@@ -245,6 +245,12 @@ class ProjectBuilder(object):
             diff = list(set(self._sources_with_errors) - set(sources_with_errors))
             if diff:
                 self._logger.info("Sources that previously had errors:")
+            for lib, src in diff:
+                self._logger.info("(%s) %s", lib, src)
+
+            diff = list(set(sources_with_errors) - set(self._sources_with_errors))
+            if diff:
+                self._logger.info("Sources that previously had NO errors:")
             for lib, src in diff:
                 self._logger.info("(%s) %s", lib, src)
 
