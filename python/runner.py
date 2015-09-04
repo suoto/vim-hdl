@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with hdl-check-o-matic.  If not, see <http://www.gnu.org/licenses/>.
 
-import logging, os
+import logging, os, re
 import cPickle
 from config import Config
 from compilers import msim
@@ -33,13 +33,19 @@ _LOG_LEVELS = {
 }
 
 
+SAVE_FILE = os.path.expanduser("~/temp/builder.project")
+
 def parseArguments():
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('--verbose',  '-v',  action='append_const',  const=1)
-    parser.add_argument('--clean',    '-c',  action='store_true')
-    parser.add_argument('--build',    '-b',  action='store_true')
-    parser.add_argument('--target',   '-t',  action='store')
+    # pylint: disable=bad-whitespace
+    parser.add_argument('--verbose',       '-v',  action='append_const',  const=1)
+    parser.add_argument('--clean',         '-c',  action='store_true')
+    parser.add_argument('--build',         '-b',  action='store_true')
+    parser.add_argument('--library-file',  '-l',  action='store')
+    parser.add_argument('--target',        '-t',  action='store')
+    parser.add_argument('--threads',       '-m',  action='store', default=10)
+    # pylint: enable=bad-whitespace
 
     try:
         import argcomplete
@@ -53,48 +59,49 @@ def parseArguments():
     Config.updateFromArgparse(args)
     Config.setupBuild()
 
-    return args.clean, args.build, args.target
+    return args
 
+_RE_LIBRARY_NAME = re.compile(r"(?<=\[)\w+(?=\])")
+_RE_COMMENTS = re.compile(r"\s*#.*$")
+_RE_BLANK_LINE = re.compile(r"^\s*$")
 
-SAVE_FILE = os.path.expanduser("~/temp/builder.project")
+def _readLibrariesFromFile(filename):
+    library = ''
+    for line in open(filename, 'r').read().split("\n"):
+        line = _RE_COMMENTS.sub("", line)
+        if _RE_BLANK_LINE.match(line):
+            continue
+
+        if re.match(r"^\s*\[\w+\]", line):
+            library = _RE_LIBRARY_NAME.findall(line)
+            library = library[0]
+        else:
+            yield library, re.sub(r"^\s*|\s*$", "", line)
 
 def main():
-    #  clean, library, sources = parseArguments()
-    clean, build, target = parseArguments()
-    if clean:
+    args = parseArguments()
+
+    if args.clean:
         os.system('rm -rf ~/temp/builder ' + SAVE_FILE)
 
-    if build or target:
+    if args.build or args.target:
         try:
             project = cPickle.load(open(SAVE_FILE, 'r'))
         except (IOError, EOFError):
-            _logger.warning("Unable to recover save file")
+            _logger.info("Unable to recover save file")
 
             project = ProjectBuilder(builder=msim.MSim('~/temp/builder'))
 
-            # pylint: disable=bad-whitespace
-            for lib, path, flags in (
-                    ('osvvm_lib',    '~/hdl_lib/osvvm_lib/',      ('-2008',  )),
-                    ('common_lib',   '~/hdl_lib/common_lib/',     ''),
-                    ('pck_fio_lib',  '~/hdl_lib/pck_fio_lib',     ''),
-                    ('memory',       '~/hdl_lib/memory/',         ''),
-                    ('cordic',       '~/opencores/cordic/',       ''),
-                    ('avs_aes_lib',  '~/opencores/avs_aes/',      ''),
-                    #  ('work',         '~/opencores/gecko3/',       ''),
-                    #  ('i2c',         '~/opencores/i2c/',          ('-2008',  )),
-                    #  ('pcie_sg_dma',         '~/opencores/pcie_sg_dma/',  '',        ),
-                    #  ('plasma',         '~/opencores/plasma/',       '',        ),
-                ):
-                if not project.hasLibrary(lib):
-                    project.addLibrary(lib, findVhdsInPath(path))
+            for lib_name, sources in _readLibrariesFromFile(args.library_file):
+                if lib_name not in project.libraries.keys():
+                    project.addLibrary(lib_name, sources)
                 else:
-                    project.addLibrarySources(lib, findVhdsInPath(path))
-                for flag in flags:
-                    project.addBuildFlags(lib, flag)
+                    project.addLibrarySources(lib_name, sources)
 
-        #  project.build()
-        project.buildByDependency()
-        #  project.buildByDependencyWithThreads()
+        if args.threads:
+            project.buildByDependencyWithThreads()
+        else:
+            project.buildByDependency()
 
         cPickle.dump(project, open(SAVE_FILE, 'w'))
 
