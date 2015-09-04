@@ -19,10 +19,12 @@ from source_file import VhdlSourceFile
 
 class Library(object):
 
-    def __init__(self, builder, sources, name='work'):
+    def __init__(self, builder, sources=None, name='work'):
         self.builder = builder
         self.name = name
-        self.sources = [VhdlSourceFile(x) for x in sources]
+        self.sources = []
+        if sources is not None:
+            self.addSources(sources)
 
         self._extra_flags = []
         self._logger = logging.getLogger("Library('%s')" % self.name)
@@ -88,11 +90,16 @@ class Library(object):
         return errors, warnings
 
     def addSources(self, sources):
+        assert self.sources is not None
         if hasattr(sources, '__iter__'):
             for source in sources:
-                self.sources.append(VhdlSourceFile(source))
+                source = VhdlSourceFile(source)
+                assert source not in self.sources
+                self.sources.append(source)
         else:
-            self.sources.append(VhdlSourceFile(sources))
+            source = VhdlSourceFile(sources)
+            assert source not in self.sources
+            self.sources.append(source)
 
     def addBuildFlags(self, *flags):
         if type(flags) is str:
