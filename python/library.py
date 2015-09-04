@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU General Public License
 # along with hdl-check-o-matic.  If not, see <http://www.gnu.org/licenses/>.
 
-import logging
+import logging, os
 
 from source_file import VhdlSourceFile
 
@@ -91,15 +91,20 @@ class Library(object):
 
     def addSources(self, sources):
         assert self.sources is not None
+
+        filenames = [x.abspath() for x in self.sources]
+
         if hasattr(sources, '__iter__'):
             for source in sources:
-                source = VhdlSourceFile(source)
-                assert source not in self.sources
-                self.sources.append(source)
+                if os.path.abspath(source) not in filenames:
+                    self.sources.append(VhdlSourceFile(source))
+                else:
+                    self._logger.warning("Source %s was already added", source)
         else:
-            source = VhdlSourceFile(sources)
-            assert source not in self.sources
-            self.sources.append(source)
+            if os.path.abspath(sources) not in filenames:
+                self.sources.append(VhdlSourceFile(sources))
+            else:
+                self._logger.warning("Source %s was already added", sources)
 
     def addBuildFlags(self, *flags):
         if type(flags) is str:
