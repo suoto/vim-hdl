@@ -73,6 +73,7 @@ def readLibrariesFromFile(filename):
 
         if _RE_BUILD_OPTIONS.match(line):
             build_flags = _RE_BUILD_OPTIONS.sub('', line)
+            build_flags = re.split(r"\s+", build_flags)
             continue
 
         if re.match(r"^\s*\[\w+\]", line):

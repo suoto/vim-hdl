@@ -16,8 +16,11 @@
 # You should have received a copy of the GNU General Public License
 # along with hdl-check-o-matic.  If not, see <http://www.gnu.org/licenses/>.
 
-import logging, os
+import logging
+import os
 import cPickle
+import ConfigParser
+
 from config import Config
 from compilers import msim
 from utils import readLibrariesFromFile
@@ -44,7 +47,7 @@ def parseArguments():
     parser.add_argument('--build',        '-b',  action='store_true')
     parser.add_argument('--library-file', '-l',  action='store')
     parser.add_argument('--target',       '-t',  action='store')
-    parser.add_argument('--threads',      '-m',  action='store', default=10)
+    parser.add_argument('--threads',      '-m',  action='store', default=10, type=int)
     # pylint: enable=bad-whitespace
 
     try:
@@ -75,13 +78,20 @@ def main():
 
             project = ProjectBuilder(builder=msim.MSim('~/temp/builder'))
 
-            for lib_name, sources, flags in readLibrariesFromFile(args.library_file):
-                if lib_name not in project.libraries.keys():
-                    project.addLibrary(lib_name, sources)
+            parser = ConfigParser.SafeConfigParser()
+            parser.read(args.library_file)
+            for section in parser.sections():
+                if section == 'info':
+                    continue
+                sources = eval(parser.get(section, 'sources'))
+                flags = eval(parser.get(section, 'build_flags'))
+
+                if section not in project.libraries.keys():
+                    project.addLibrary(section, sources)
                 else:
-                    project.addLibrarySources(lib_name, sources)
+                    project.addLibrarySources(section, sources)
                 if flags:
-                    project.addBuildFlags(lib_name, flags)
+                    project.addBuildFlags(section, flags)
 
     if args.build:
         if args.threads:

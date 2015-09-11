@@ -109,7 +109,7 @@ class Library(object):
             else:
                 self._logger.warning("Source %s was already added", sources)
 
-    def addBuildFlags(self, *flags):
+    def addBuildFlags(self, flags):
         """Adds a flag or a list of flags to be used when building
         source files for this library"""
         if not hasattr(flags, '__iter__'):

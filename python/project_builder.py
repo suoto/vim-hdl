@@ -205,6 +205,7 @@ class ProjectBuilder(object):
 
         sources_with_errors = []
         sources_with_warnings = []
+        sources_built_ok = []
 
         step_cnt = 0
         for step in self._getBuildSteps():
@@ -238,15 +239,20 @@ class ProjectBuilder(object):
                     if errors:
                         if (lib_name, source) not in sources_with_errors:
                             sources_with_errors.append((lib_name, source))
-                    if warnings:
-                        if (lib_name, source) not in sources_with_warnings:
-                            sources_with_warnings.append((lib_name, source))
+                    else:
+                        if warnings:
+                            if (lib_name, source) not in sources_with_warnings:
+                                sources_with_warnings.append((lib_name, source))
+                        elif (lib_name, source) not in sources_built_ok:
+                            sources_built_ok.append((lib_name, source))
                     for msg in errors + warnings:
                         print msg
         pool.close()
         pool.join()
-        print "Sources with errors: %d, sources with warnings: %d" \
-                % (len(sources_with_errors), len(sources_with_warnings))
+        print "Sources with errors: %d" % len(sources_with_errors)
+        print "Sources with warnings: %d" % len(sources_with_warnings)
+        print "Sources built OK: %d" % len(sources_built_ok)
+
         if self._sources_with_errors:
             diff = list(set(self._sources_with_errors) - set(sources_with_errors))
             if diff:
