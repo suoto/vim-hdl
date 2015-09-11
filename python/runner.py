@@ -16,11 +16,11 @@
 # You should have received a copy of the GNU General Public License
 # along with hdl-check-o-matic.  If not, see <http://www.gnu.org/licenses/>.
 
-import logging, os, re
+import logging, os
 import cPickle
 from config import Config
 from compilers import msim
-from utils import findVhdsInPath
+from utils import readLibrariesFromFile
 from project_builder import ProjectBuilder
 
 _logger = logging.getLogger(__name__)
@@ -39,12 +39,12 @@ def parseArguments():
     import argparse
     parser = argparse.ArgumentParser()
     # pylint: disable=bad-whitespace
-    parser.add_argument('--verbose',       '-v',  action='append_const',  const=1)
-    parser.add_argument('--clean',         '-c',  action='store_true')
-    parser.add_argument('--build',         '-b',  action='store_true')
-    parser.add_argument('--library-file',  '-l',  action='store')
-    parser.add_argument('--target',        '-t',  action='store')
-    parser.add_argument('--threads',       '-m',  action='store', default=10)
+    parser.add_argument('--verbose',      '-v',  action='append_const',  const=1)
+    parser.add_argument('--clean',        '-c',  action='store_true')
+    parser.add_argument('--build',        '-b',  action='store_true')
+    parser.add_argument('--library-file', '-l',  action='store')
+    parser.add_argument('--target',       '-t',  action='store')
+    parser.add_argument('--threads',      '-m',  action='store', default=10)
     # pylint: enable=bad-whitespace
 
     try:
@@ -61,30 +61,13 @@ def parseArguments():
 
     return args
 
-_RE_LIBRARY_NAME = re.compile(r"(?<=\[)\w+(?=\])")
-_RE_COMMENTS = re.compile(r"\s*#.*$")
-_RE_BLANK_LINE = re.compile(r"^\s*$")
-
-def _readLibrariesFromFile(filename):
-    library = ''
-    for line in open(filename, 'r').read().split("\n"):
-        line = _RE_COMMENTS.sub("", line)
-        if _RE_BLANK_LINE.match(line):
-            continue
-
-        if re.match(r"^\s*\[\w+\]", line):
-            library = _RE_LIBRARY_NAME.findall(line)
-            library = library[0]
-        else:
-            yield library, re.sub(r"^\s*|\s*$", "", line)
-
 def main():
     args = parseArguments()
 
     if args.clean:
         os.system('rm -rf ~/temp/builder ' + SAVE_FILE)
 
-    if args.build or args.target:
+    if args.library_file:
         try:
             project = cPickle.load(open(SAVE_FILE, 'r'))
         except (IOError, EOFError):
@@ -92,18 +75,24 @@ def main():
 
             project = ProjectBuilder(builder=msim.MSim('~/temp/builder'))
 
-            for lib_name, sources in _readLibrariesFromFile(args.library_file):
+            for lib_name, sources, flags in readLibrariesFromFile(args.library_file):
                 if lib_name not in project.libraries.keys():
                     project.addLibrary(lib_name, sources)
                 else:
                     project.addLibrarySources(lib_name, sources)
+                if flags:
+                    project.addBuildFlags(lib_name, flags)
 
+    if args.build:
         if args.threads:
             project.buildByDependencyWithThreads()
         else:
             project.buildByDependency()
 
         cPickle.dump(project, open(SAVE_FILE, 'w'))
+
+    if args.target:
+        project.buildByPath(args.target)
 
 if __name__ == '__main__':
     main()

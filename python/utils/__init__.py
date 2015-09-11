@@ -57,3 +57,28 @@ def _is_vhd(p):
 def _is_makefile(f):
     return os.path.basename(f) == 'Makefile'
 
+_RE_LIBRARY_NAME = re.compile(r"(?<=\[)\w+(?=\])")
+_RE_BUILD_OPTIONS = re.compile(r"^\s*build_flags\s*=\s*")
+_RE_COMMENTS = re.compile(r"\s*#.*$")
+_RE_BLANK_LINE = re.compile(r"^\s*$")
+
+def readLibrariesFromFile(filename):
+    "Parse a file and return library names, sources and build flags"
+    library = ''
+    build_flags = ''
+    for line in open(filename, 'r').read().split("\n"):
+        line = _RE_COMMENTS.sub("", line)
+        if _RE_BLANK_LINE.match(line):
+            continue
+
+        if _RE_BUILD_OPTIONS.match(line):
+            build_flags = _RE_BUILD_OPTIONS.sub('', line)
+            continue
+
+        if re.match(r"^\s*\[\w+\]", line):
+            library = _RE_LIBRARY_NAME.findall(line)
+            library = library[0]
+            build_flags = ''
+        else:
+            yield library, re.sub(r"^\s*|\s*$", "", line), build_flags
+
