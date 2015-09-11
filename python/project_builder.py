@@ -12,15 +12,17 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with hdl-check-o-matic.  If not, see <http://www.gnu.org/licenses/>.
+"hdl-check-o-matic project bulider class"
 
 import logging
+import os
 from library import Library
 from multiprocessing.pool import ThreadPool
 
 # pylint: disable=star-args
 
 class ProjectBuilder(object):
-    "hdl-synchecker project class"
+    "hdl-check-o-matic project bulider class"
     MAX_ITERATIONS_UNTIL_STABLE = 20
     MAX_BUILD_STEPS = 10
     BUILD_WORKERS = 5
@@ -46,9 +48,11 @@ class ProjectBuilder(object):
         self.__dict__.update(state)
 
     # pylint: disable=E0213,W0212,E1102
+    # pylint: disable=invalid-name
     def _memoid(meth):
         "Store method result in cache to speed thins up"
         def _memoid_w(self, *args, **kwargs):
+            "Memorize a result"
             k = str((meth, args, kwargs))
             if not hasattr(self, '_cache'):
                 self._cache = {}
@@ -185,7 +189,8 @@ class ProjectBuilder(object):
                 for source in sources:
                     self._logger.debug("    - %s", str(source))
 
-                for source, errors, warnings in self.libraries[lib_name].buildSources(sources):
+                for source, errors, warnings in \
+                        self.libraries[lib_name].buildSources(sources):
                     for msg in errors + warnings:
                         print msg
 
@@ -226,7 +231,7 @@ class ProjectBuilder(object):
                 break
             fd.write("Pool has %d workers\n" % min(threads, len(f_args)))
             fd.close()
-            pool_results = pool.imap(runAsync, f_args)
+            pool_results = pool.imap(threadPoolRunnerAdapter, f_args)
 
             for pool_result in pool_results:
                 for lib_name, source, errors, warnings in pool_result:
@@ -240,7 +245,8 @@ class ProjectBuilder(object):
                         print msg
         pool.close()
         pool.join()
-        print "Sources with errors: %d, sources with warnings: %d" % (len(sources_with_errors), len(sources_with_warnings))
+        print "Sources with errors: %d, sources with warnings: %d" \
+                % (len(sources_with_errors), len(sources_with_warnings))
         if self._sources_with_errors:
             diff = list(set(self._sources_with_errors) - set(sources_with_errors))
             if diff:
@@ -257,13 +263,28 @@ class ProjectBuilder(object):
         self._sources_with_errors = sources_with_errors
         self._sources_with_warnings = sources_with_warnings
 
-def runAsync(args):
+    def buildByPath(self, target):
+        "Finds the library of a given path and builds it"
+        if not os.path.exists(target):
+            raise OSError("Path %s doesn't exists" % target)
+        for lib in self.libraries.values():
+            if lib.hasSource(target):
+                print "Source %s is at library %s" % (target, lib.name)
+                errors, warnings = lib.buildByPath(target, forced=True)
+                for msg in errors + warnings:
+                    print msg
+                return
+        raise RuntimeError("Source %s not found" % target)
+
+def threadPoolRunnerAdapter(args):
+    """Run a method from some import object via ThreadPool.
+    This is ugly and will be replaced"""
     lib_name = args[0]
     lib_obj = args[1]
     meth = args[2]
     f_args = args[3:]
-    r = []
-    for _r in getattr(lib_obj, meth)(*f_args):
-        r.append([lib_name] + _r)
+    result = []
+    for _result in getattr(lib_obj, meth)(*f_args):
+        result.append([lib_name] + _result)
 
-    return r
+    return result
