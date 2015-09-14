@@ -41,11 +41,15 @@ class MSim(BaseCompiler):
         cmd += flags
         cmd += [source.filename]
 
+        #  print repr(cmd)
+
+        self._logger.debug(repr(cmd))
+
         try:
-            r = list(subprocess.check_output(cmd, stderr=subprocess.STDOUT).split("\n"))
-        except subprocess.CalledProcessError as e:
-            r = list(e.output.split("\n"))
-        return r
+            result = list(subprocess.check_output(cmd, stderr=subprocess.STDOUT).split("\n"))
+        except subprocess.CalledProcessError as exc:
+            result = list(exc.output.split("\n"))
+        return result
 
     def _doBatchBuild(self, library, sources, flags=None):
         if flags:
@@ -54,9 +58,9 @@ class MSim(BaseCompiler):
             flags = self.getBuildFlags(library, sources)
 
         cmd = 'vcom -modelsimini {modelsimini} -work {library} {flags} {sources}'.format(
-                modelsimini=self._MODELSIM_INI,
-                library=os.path.join(self._TARGET_FOLDER, library),
-                flags=" ".join(flags),
+            modelsimini=self._MODELSIM_INI,
+            library=os.path.join(self._TARGET_FOLDER, library),
+            flags=" ".join(flags),
 
             sources=" ".join(sources))
 
@@ -110,6 +114,14 @@ class MSim(BaseCompiler):
             target_folder=self._TARGET_FOLDER,
             library=library,
             library_path=os.path.join(self._TARGET_FOLDER, library)))
+
+    def deleteLibrary(self, library):
+        if not os.path.exists(os.path.join(self._TARGET_FOLDER, library)):
+            self._logger.warning("Library %s doesn't exists", library)
+            return
+        shell('vdel -modelsimini {modelsimini} -lib {library} -all'.format(
+            modelsimini=self._MODELSIM_INI, library=library
+            ))
 
     def mapLibrary(self, library):
         self._logger.info("Library %s found, mapping", library)
