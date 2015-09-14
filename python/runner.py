@@ -18,22 +18,16 @@
 
 import logging
 import os
-import cPickle
+try:
+    import cPickle as pickle
+except ImportError:
+    import pickle
 import ConfigParser
 from config import Config
 from compilers import msim
-from utils import readLibrariesFromFile
 from project_builder import ProjectBuilder
 
 _logger = logging.getLogger(__name__)
-
-_LOG_LEVELS = {
-    3 : logging.DEBUG,
-    2 : logging.INFO,
-    1 : logging.WARNING,
-    0 : logging.ERROR
-}
-
 
 SAVE_FILE = os.path.expanduser("~/temp/builder.project")
 
@@ -56,7 +50,17 @@ def parseArguments():
         pass
     args = parser.parse_args()
     if args.verbose:
-        args.log_level = _LOG_LEVELS[len(args.verbose)]
+        if len(args.verbose) == 0:
+            args.log_level = logging.ERROR
+        elif len(args.verbose) == 1:
+            args.log_level = logging.WARNING
+        elif len(args.verbose) == 2:
+            args.log_level = logging.INFO
+        elif len(args.verbose) == 3:
+            args.log_level = logging.DEBUG
+        else:
+            args.log_level = logging.INFO
+
 
     Config.updateFromArgparse(args)
     Config.setupBuild()
@@ -66,39 +70,16 @@ def parseArguments():
 def main():
     args = parseArguments()
 
+    project = ProjectBuilder(library_file=args.library_file, builder=msim.MSim('~/temp/builder'))
+
     if args.clean:
-        os.system('rm -rf ~/temp/builder ' + SAVE_FILE)
-
-    if args.library_file:
-        try:
-            project = cPickle.load(open(SAVE_FILE, 'r'))
-        except (IOError, EOFError):
-            _logger.info("Unable to recover save file")
-
-            project = ProjectBuilder(builder=msim.MSim('~/temp/builder'))
-
-            parser = ConfigParser.SafeConfigParser()
-            parser.read(args.library_file)
-            for section in parser.sections():
-                if section == 'info':
-                    continue
-                sources = eval(parser.get(section, 'sources'))
-                flags = eval(parser.get(section, 'build_flags'))
-
-                if section not in project.libraries.keys():
-                    project.addLibrary(section, sources)
-                else:
-                    project.addLibrarySources(section, sources)
-                if flags:
-                    project.addBuildFlags(section, flags)
+        project.cleanCache()
 
     if args.build:
         if args.threads:
             project.buildByDependencyWithThreads()
         else:
             project.buildByDependency()
-
-        cPickle.dump(project, open(SAVE_FILE, 'w'))
 
     if args.target:
         project.buildByPath(args.target)
