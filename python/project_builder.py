@@ -16,10 +16,22 @@
 
 import logging
 import os
-from library import Library
+import re
+import ConfigParser
+import atexit
 from multiprocessing.pool import ThreadPool
+try:
+    import cPickle as pickle
+except ImportError:
+    import pickle
+
+from library import Library
+from utils import memoid
 
 # pylint: disable=star-args
+
+def saveCache(obj, fname):
+    pickle.dump(obj, open(fname, 'w'))
 
 class ProjectBuilder(object):
     "hdl-check-o-matic project bulider class"
@@ -27,15 +39,86 @@ class ProjectBuilder(object):
     MAX_BUILD_STEPS = 10
     BUILD_WORKERS = 5
 
-    def __init__(self, builder):
+    def __init__(self, library_file, builder):
         self.builder = builder
         self.libraries = {}
         self._logger = logging.getLogger(__name__)
+        self._conf_file_timestamp = 0
+        self._library_file = library_file
+
+        self.batch_build_flags = []
+        self.single_build_flags = []
+
+        if os.path.exists(library_file):
+            self.readConfFile()
 
         self._cache = {}
 
-        self._sources_with_errors = []
-        self._sources_with_warnings = []
+    def cleanCache(self):
+        cache_fname = os.path.join(os.path.dirname(self._library_file), \
+            '.' + os.path.basename(self._library_file))
+        os.remove(cache_fname)
+        while self.libraries:
+            self.libraries.popitem()[1].deleteLibrary()
+        self._conf_file_timestamp = 0
+
+    def readConfFile(self):
+        cache_fname = os.path.join(os.path.dirname(self._library_file),
+                '.' + os.path.basename(self._library_file))
+
+        if os.path.exists(cache_fname):
+            obj = pickle.load(open(cache_fname, 'r'))
+            self.__dict__.update(obj.__dict__)
+
+        atexit.register(saveCache, self, cache_fname)
+
+        if os.path.getmtime(self._library_file) <= self._conf_file_timestamp:
+            return
+
+        self._conf_file_timestamp = os.path.getmtime(self._library_file)
+
+        defaults = {'build_flags' : '',
+                    'global_build_flags' : '',
+                    'batch_build_flags' : '',
+                    'single_build_flags' : ''}
+        parser = ConfigParser.SafeConfigParser(defaults=defaults)
+        parser.read(self._library_file)
+
+        def getList(parser, *args, **kwargs):
+            entry = parser.get(*args, **kwargs)
+            entry = re.sub(r"^\s*|\s*$", "", entry)
+            if entry:
+                return re.split(r"\s+", entry)
+            else:
+                return []
+
+        global_build_flags = getList(parser, 'info', 'global_build_flags')
+
+        self.batch_build_flags = getList(parser, 'info', 'batch_build_flags')
+        self.single_build_flags = getList(parser, 'info', 'single_build_flags')
+        if self.batch_build_flags or self.single_build_flags:
+            print self.batch_build_flags
+            print self.single_build_flags
+
+        for section in parser.sections():
+            if section == 'info':
+                continue
+            sources = re.sub(r"^\s*|\s*$", "", parser.get(section, 'sources'))
+            sources = re.split(r"\s+", sources)
+            flags = getList(parser, section, 'build_flags')
+            #  flags = getList(parser.get(section, 'build_flags')))
+
+            if section not in self.libraries.keys():
+                self.addLibrary(section, sources)
+            else:
+                self.addLibrarySources(section, sources)
+
+            if global_build_flags:
+                self.addBuildFlags(section, global_build_flags)
+
+            if flags:
+                #  flags = re.split(r"\s+", flags)
+                self.addBuildFlags(section, flags)
 
     def __getstate__(self):
         state = self.__dict__.copy()
@@ -46,20 +129,6 @@ class ProjectBuilder(object):
         self._logger = logging.getLogger(state['_logger'])
         del state['_logger']
         self.__dict__.update(state)
-
-    # pylint: disable=E0213,W0212,E1102
-    # pylint: disable=invalid-name
-    def _memoid(meth):
-        "Store method result in cache to speed thins up"
-        def _memoid_w(self, *args, **kwargs):
-            "Memorize a result"
-            k = str((meth, args, kwargs))
-            if not hasattr(self, '_cache'):
-                self._cache = {}
-            if k not in self._cache.keys():
-                self._cache[k] = meth(self, *args, **kwargs)
-            return self._cache[k]
-        return _memoid_w
 
     def addLibrary(self, library_name, sources):
         "Adds a library with the given sources"
@@ -80,7 +149,7 @@ class ProjectBuilder(object):
         "Adds build flags to the given library"
         self.libraries[library].addBuildFlags(flags)
 
-    @_memoid
+    @memoid
     def _getReverseDependencyMap(self):
         """Returns a dict that relates which source files depend on a
         given library/unit"""
@@ -96,7 +165,7 @@ class ProjectBuilder(object):
                         result[dep_key].append(src_file.filename)
         return result
 
-    @_memoid
+    @memoid
     def _getDependencyMap(self):
         """Returns a dict which library/units a given source file
         depens on"""
@@ -190,7 +259,8 @@ class ProjectBuilder(object):
                     self._logger.debug("    - %s", str(source))
 
                 for source, errors, warnings in \
-                        self.libraries[lib_name].buildSources(sources):
+                        self.libraries[lib_name].buildSources(sources,
+                                flags=self.batch_build_flags):
                     for msg in errors + warnings:
                         print msg
 
@@ -198,76 +268,38 @@ class ProjectBuilder(object):
         """Same as buildByDependency, only that each library of each
         step is built in parallel"""
         threads = threads or self.BUILD_WORKERS
+
         for lib in self.libraries.itervalues():
             lib.createOrMapLibrary()
 
         pool = ThreadPool()
 
-        sources_with_errors = []
-        sources_with_warnings = []
-        sources_built_ok = []
-
-        step_cnt = 0
         for step in self._getBuildSteps():
-            step_cnt += 1
-            self._logger.debug("Step %d", step_cnt)
 
             f_args = []
 
-            fd = open('step_%d.log' % step_cnt, 'w')
             for lib_name, sources in step.iteritems():
                 self._logger.debug("  - %s", lib_name)
                 for source in sources:
                     self._logger.debug("    - %s", str(source))
 
-                fd.write("library %s\n" % lib_name)
-                for source in sources:
-                    fd.write("  - %s\n" % source)
                 f_args.append((lib_name,
                                self.libraries[lib_name],
                                'buildSources',
-                               sources))
+                               sources,
+                               self.batch_build_flags))
 
             if not f_args:
                 break
-            fd.write("Pool has %d workers\n" % min(threads, len(f_args)))
-            fd.close()
+
             pool_results = pool.imap(threadPoolRunnerAdapter, f_args)
 
             for pool_result in pool_results:
                 for lib_name, source, errors, warnings in pool_result:
-                    if errors:
-                        if (lib_name, source) not in sources_with_errors:
-                            sources_with_errors.append((lib_name, source))
-                    else:
-                        if warnings:
-                            if (lib_name, source) not in sources_with_warnings:
-                                sources_with_warnings.append((lib_name, source))
-                        elif (lib_name, source) not in sources_built_ok:
-                            sources_built_ok.append((lib_name, source))
                     for msg in errors + warnings:
                         print msg
         pool.close()
         pool.join()
-        print "Sources with errors: %d" % len(sources_with_errors)
-        print "Sources with warnings: %d" % len(sources_with_warnings)
-        print "Sources built OK: %d" % len(sources_built_ok)
-
-        if self._sources_with_errors:
-            diff = list(set(self._sources_with_errors) - set(sources_with_errors))
-            if diff:
-                self._logger.info("Sources that previously had errors:")
-            for lib, src in diff:
-                self._logger.info("(%s) %s", lib, src)
-
-            diff = list(set(sources_with_errors) - set(self._sources_with_errors))
-            if diff:
-                self._logger.info("Sources that previously had NO errors:")
-            for lib, src in diff:
-                self._logger.info("(%s) %s", lib, src)
-
-        self._sources_with_errors = sources_with_errors
-        self._sources_with_warnings = sources_with_warnings
 
     def buildByPath(self, target):
         "Finds the library of a given path and builds it"
@@ -276,7 +308,8 @@ class ProjectBuilder(object):
         for lib in self.libraries.values():
             if lib.hasSource(target):
                 print "Source %s is at library %s" % (target, lib.name)
-                errors, warnings = lib.buildByPath(target, forced=True)
+                errors, warnings = lib.buildByPath(target, forced=True, \
+                        flags=self.single_build_flags)
                 for msg in errors + warnings:
                     print msg
                 return
