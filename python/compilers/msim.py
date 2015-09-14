@@ -41,9 +41,7 @@ class MSim(BaseCompiler):
         cmd += flags
         cmd += [source.filename]
 
-        #  print repr(cmd)
-
-        self._logger.debug(repr(cmd))
+        self._logger.debug(" ".join(cmd))
 
         try:
             result = list(subprocess.check_output(cmd, stderr=subprocess.STDOUT).split("\n"))

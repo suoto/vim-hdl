@@ -59,9 +59,13 @@ class Library(object):
 
         cached_info = self._build_info_cache[source.abspath()]
 
+        for flag in self._extra_flags:
+            if flag not in flags:
+                flags.append(flag)
+
         if source.getmtime() > cached_info['compile_time'] or forced:
             errors, warnings = self.builder.build(
-                self.name, source, self._extra_flags + flags)
+                self.name, source, flags)
 
             cached_info['compile_time'] = source.getmtime()
             cached_info['errors'] = errors
