@@ -20,7 +20,6 @@ import logging
 import os
 import cPickle
 import ConfigParser
-
 from config import Config
 from compilers import msim
 from utils import readLibrariesFromFile

@@ -13,8 +13,10 @@
 # You should have received a copy of the GNU General Public License
 # along with hdl-check-o-matic.  If not, see <http://www.gnu.org/licenses/>.
 
-import logging, os
+import logging
+import os
 
+from utils import memoid
 from source_file import VhdlSourceFile
 
 class Library(object):
@@ -33,16 +35,6 @@ class Library(object):
 
         self._build_info_cache = {}
 
-    def _memoid(f):
-        def _memoid_w(self, *args, **kwargs):
-            k = str((f, args, kwargs))
-            if not hasattr(self, '_cache'):
-                self._cache = {}
-            if k not in self._cache.keys():
-                self._cache[k] = f(self, *args, **kwargs)
-            return self._cache[k]
-        return _memoid_w
-
     def __str__(self):
         return "Library(name='%s')" % self.name
 
@@ -57,7 +49,7 @@ class Library(object):
         self.__dict__.update(state)
 
     # TODO: Check file modification time to invalidate cached info
-    def _buildSource(self, source, forced=False):
+    def _buildSource(self, source, forced=False, flags=[]):
         """Handle caching of source build information, like warnings and
         errors."""
         if source.abspath() not in self._build_info_cache.keys():
@@ -69,7 +61,7 @@ class Library(object):
 
         if source.getmtime() > cached_info['compile_time'] or forced:
             errors, warnings = self.builder.build(
-                self.name, source, self._extra_flags)
+                self.name, source, self._extra_flags + flags)
 
             cached_info['compile_time'] = source.getmtime()
             cached_info['errors'] = errors
@@ -122,6 +114,9 @@ class Library(object):
     def createOrMapLibrary(self):
         return self.builder.createOrMapLibrary(self.name)
 
+    def deleteLibrary(self):
+        return self.builder.deleteLibrary(self.name)
+
     def buildAll(self, forced=False):
         msg = []
         for source in self.sources:
@@ -130,7 +125,7 @@ class Library(object):
         return msg
 
     # TODO: Check file modification time to invalidate cached info
-    @_memoid
+    @memoid
     def getDependencies(self):
         deps = []
         for source in self.sources:
@@ -144,15 +139,15 @@ class Library(object):
             deps.append((source, source_deps))
         return deps
 
-    @_memoid
+    @memoid
     def hasSource(self, path):
         return os.path.abspath(path) in [x.abspath() for x in self.sources]
 
-    @_memoid
+    @memoid
     def _getAbsPathOfSources(self):
         return [x.abspath() for x in self.sources]
 
-    def buildSources(self, sources, forced=False):
+    def buildSources(self, sources, forced=False, flags=[]):
         """Build a list or a single source. The argument should be
         a VhdlSourceFile object (retrieved via self.sources attribute or
         something similar"""
@@ -164,13 +159,13 @@ class Library(object):
             if source.abspath() not in abs_sources:
                 raise RuntimeError("Source %s not found in library %s" \
                         % (source, self.name))
-            result = list(self._buildSource(source, forced))
+            result = list(self._buildSource(source, forced, flags))
             msg.append([source] + result)
         return msg
 
-    def buildByPath(self, path, forced=False):
+    def buildByPath(self, path, forced=False, flags=[]):
         path = os.path.abspath(path)
         for source in self.sources:
             if path == source.abspath():
-                return self._buildSource(source, forced)
+                return self._buildSource(source, forced, flags)
 
