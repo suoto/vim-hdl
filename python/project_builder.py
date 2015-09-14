@@ -27,20 +27,29 @@ except ImportError:
 
 from library import Library
 from utils import memoid
+from compilers.msim import MSim
 
 # pylint: disable=star-args
 
 def saveCache(obj, fname):
     pickle.dump(obj, open(fname, 'w'))
 
+def getList(parser, *args, **kwargs):
+    entry = parser.get(*args, **kwargs)
+    entry = re.sub(r"^\s*|\s*$", "", entry)
+    if entry:
+        return re.split(r"\s+", entry)
+    else:
+        return []
+
+
 class ProjectBuilder(object):
     "hdl-check-o-matic project bulider class"
-    MAX_ITERATIONS_UNTIL_STABLE = 20
     MAX_BUILD_STEPS = 10
     BUILD_WORKERS = 5
 
-    def __init__(self, library_file, builder):
-        self.builder = builder
+    def __init__(self, library_file):
+        self.builder = None
         self.libraries = {}
         self._logger = logging.getLogger(__name__)
         self._conf_file_timestamp = 0
@@ -49,26 +58,49 @@ class ProjectBuilder(object):
         self.batch_build_flags = []
         self.single_build_flags = []
 
-        if os.path.exists(library_file):
-            self.readConfFile()
+        self.readConfFile()
 
         self._cache = {}
 
     def cleanCache(self):
         cache_fname = os.path.join(os.path.dirname(self._library_file), \
             '.' + os.path.basename(self._library_file))
-        os.remove(cache_fname)
+        try:
+            os.remove(cache_fname)
+        except OSError:
+            self._logger.debug("Cache filename '%s' not found", cache_fname)
         while self.libraries:
             self.libraries.popitem()[1].deleteLibrary()
         self._conf_file_timestamp = 0
+
+    @staticmethod
+    def clean(library_file):
+        _logger = logging.getLogger(__name__)
+        cache_fname = os.path.join(os.path.dirname(library_file), \
+            '.' + os.path.basename(library_file))
+
+        try:
+            os.remove(cache_fname)
+        except OSError:
+            _logger.debug("Cache filename '%s' not found", cache_fname)
+
+        parser = ConfigParser.SafeConfigParser()
+        parser.read(library_file)
+
+        target_dir = parser.get('global', 'target_dir')
+
+        assert not os.system("rm -rf " + target_dir)
 
     def readConfFile(self):
         cache_fname = os.path.join(os.path.dirname(self._library_file),
                 '.' + os.path.basename(self._library_file))
 
         if os.path.exists(cache_fname):
-            obj = pickle.load(open(cache_fname, 'r'))
-            self.__dict__.update(obj.__dict__)
+            try:
+                obj = pickle.load(open(cache_fname, 'r'))
+                self.__dict__.update(obj.__dict__)
+            except EOFError:
+                self._logger.warning("Unable to unpickle cached filename")
 
         atexit.register(saveCache, self, cache_fname)
 
@@ -84,31 +116,32 @@ class ProjectBuilder(object):
         parser = ConfigParser.SafeConfigParser(defaults=defaults)
         parser.read(self._library_file)
 
-        def getList(parser, *args, **kwargs):
-            entry = parser.get(*args, **kwargs)
-            entry = re.sub(r"^\s*|\s*$", "", entry)
-            if entry:
-                return re.split(r"\s+", entry)
-            else:
-                return []
+        global_build_flags = getList(parser, 'global', 'global_build_flags')
+        self.batch_build_flags = getList(parser, 'global', 'batch_build_flags')
+        self.single_build_flags = getList(parser, 'global', 'single_build_flags')
 
-        global_build_flags = getList(parser, 'info', 'global_build_flags')
 
-        self.batch_build_flags = getList(parser, 'info', 'batch_build_flags')
-        self.single_build_flags = getList(parser, 'info', 'single_build_flags')
-        if self.batch_build_flags or self.single_build_flags:
-            print self.batch_build_flags
-            print self.single_build_flags
+        builder = parser.get('global', 'builder')
+        target_dir = parser.get('global', 'target_dir')
+        self._logger.info("Builder selected: %s at %s", builder, target_dir)
+
+        if builder == 'msim':
+            self.builder = MSim(target_dir)
+        else:
+            raise RuntimeError("Unknown builder '%s'" % builder)
 
         for section in parser.sections():
-            if section == 'info':
+            if section == 'global':
                 continue
             sources = re.sub(r"^\s*|\s*$", "", parser.get(section, 'sources'))
             sources = re.split(r"\s+", sources)
             flags = getList(parser, section, 'build_flags')
+
+            #  print "[%s] flags: %s" % (section, str(flags))
             #  flags = getList(parser.get(section, 'build_flags')))
 
             if section not in self.libraries.keys():
+                self._logger.info("Found library '%s'", section)
                 self.addLibrary(section, sources)
             else:
                 self.addLibrarySources(section, sources)
@@ -117,8 +150,11 @@ class ProjectBuilder(object):
                 self.addBuildFlags(section, global_build_flags)
 
             if flags:
-                #  flags = re.split(r"\s+", flags)
                 self.addBuildFlags(section, flags)
+
+        for lib_name, lib in self.libraries.iteritems():
+            if not lib.sources:
+                self._logger.warning("Library '%s' has no sources", lib_name)
 
     def __getstate__(self):
         state = self.__dict__.copy()
@@ -177,7 +213,8 @@ class ProjectBuilder(object):
                     this_lib_map[src_file] = []
                 for dep_lib, dep_pkgs in src_deps:
                     for dep_pkg in dep_pkgs:
-                        this_lib_map[src_file].append((dep_lib, dep_pkg))
+                        if (dep_lib, dep_pkg) not in this_lib_map[src_file]:
+                            this_lib_map[src_file].append((dep_lib, dep_pkg))
 
             result[lib_name] = this_lib_map
         return result
@@ -185,7 +222,6 @@ class ProjectBuilder(object):
     def _getBuildSteps(self):
         """Yields a dict that has all the library/sources that can be
         built on a given step"""
-        self._getDependencyMap()
 
         this_build = []
         units_built = []
@@ -219,16 +255,27 @@ class ProjectBuilder(object):
                 self._logger.error("Max build steps of %d reached, stopping",
                                    self.MAX_BUILD_STEPS)
 
-        self._logMissingDependencies(units_built)
+        this_step = {}
+        for lib_name, src in self._logMissingDependencies(units_built):
+            if lib_name not in this_step:
+                this_step[lib_name] = []
+            if src not in this_step[lib_name]:
+                this_step[lib_name].append(src)
+
+        if this_step:
+            self._logger.debug("Yielding remaining files")
+            yield this_step
 
     def _logMissingDependencies(self, units_built):
         """Searches for files that weren't build given the units_built
         and logs their dependencies"""
-        this_step = {}
         for lib_name, lib_deps in self._getDependencyMap().iteritems():
             for src, src_deps in lib_deps.iteritems():
                 for design_unit in src.getDesignUnits():
+                    if not design_unit:
+                        yield lib_name, src
                     if (lib_name, design_unit) not in units_built:
+                        yield lib_name, src
                         missing_deps = []
                         for dep_lib_name, unit_name in set(src_deps) - set(units_built):
                             if "%s.%s" % (dep_lib_name, unit_name) not in missing_deps:
@@ -239,9 +286,6 @@ class ProjectBuilder(object):
                                 "Missing dependencies for '%s': %s",
                                 src, ", ".join(missing_deps))
 
-                        if lib_name not in this_step.keys():
-                            this_step[lib_name] = []
-                        this_step[lib_name].append(src)
 
     def buildByDependency(self):
         "Build the project by checking source file dependencies"
@@ -301,19 +345,30 @@ class ProjectBuilder(object):
         pool.close()
         pool.join()
 
+    def _findLibraryByPath(self, path):
+        if not os.path.exists(path):
+            raise OSError("Path %s doesn't exists" % path)
+        for lib in self.libraries.values():
+            if lib.hasSource(path):
+                return lib
+        raise RuntimeError("Source %s not found" % path)
+
+    def getDesignUnitsByPath(self, path):
+        lib = self._findLibraryByPath(path)
+        for source in lib.sources:
+            if source.abspath() == os.path.abspath(path):
+                print "Design units for '%s': %s" % (path,\
+                        ", ".join(source.getDesignUnits()))
+                break
+
+
     def buildByPath(self, target):
         "Finds the library of a given path and builds it"
-        if not os.path.exists(target):
-            raise OSError("Path %s doesn't exists" % target)
-        for lib in self.libraries.values():
-            if lib.hasSource(target):
-                print "Source %s is at library %s" % (target, lib.name)
-                errors, warnings = lib.buildByPath(target, forced=True, \
-                        flags=self.single_build_flags)
-                for msg in errors + warnings:
-                    print msg
-                return
-        raise RuntimeError("Source %s not found" % target)
+        lib = self._findLibraryByPath(target)
+        errors, warnings = lib.buildByPath(target, forced=True, \
+                flags=self.single_build_flags)
+        for msg in errors + warnings:
+            print msg
 
 def threadPoolRunnerAdapter(args):
     """Run a method from some import object via ThreadPool.

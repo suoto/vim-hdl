@@ -40,7 +40,9 @@ def parseArguments():
     parser.add_argument('--build',        '-b',  action='store_true')
     parser.add_argument('--library-file', '-l',  action='store')
     parser.add_argument('--target',       '-t',  action='store')
-    parser.add_argument('--threads',      '-m',  action='store', default=10, type=int)
+    parser.add_argument('--threads',      '-m',  action='store_true', default=False)
+    parser.add_argument('--print-dependency-map', action='store_true', default=False)
+    parser.add_argument('--print-design-units', action='store', default=False)
     # pylint: enable=bad-whitespace
 
     try:
@@ -49,9 +51,10 @@ def parseArguments():
     except ImportError:
         pass
     args = parser.parse_args()
+    args.log_level = logging.FATAL
     if args.verbose:
         if len(args.verbose) == 0:
-            args.log_level = logging.ERROR
+            args.log_level = logging.FATAL
         elif len(args.verbose) == 1:
             args.log_level = logging.WARNING
         elif len(args.verbose) == 2:
@@ -59,7 +62,7 @@ def parseArguments():
         elif len(args.verbose) == 3:
             args.log_level = logging.DEBUG
         else:
-            args.log_level = logging.INFO
+            args.log_level = logging.ERROR
 
 
     Config.updateFromArgparse(args)
@@ -70,18 +73,36 @@ def parseArguments():
 def main():
     args = parseArguments()
 
-    project = ProjectBuilder(library_file=args.library_file, builder=msim.MSim('~/temp/builder'))
+    _logger.info("Creating project object")
 
     if args.clean:
-        project.cleanCache()
+        _logger.info("Cleaning up")
+        ProjectBuilder.clean(args.library_file)
+
+    project = ProjectBuilder(library_file=args.library_file)
+
+    if args.print_dependency_map:
+        for lib_name, lib_deps in project._getDependencyMap().iteritems():
+            print lib_name
+            for src, src_deps in lib_deps.iteritems():
+                if src_deps:
+                    print " - %s: %s" % (src, ", ".join(["%s.%s" % (x[0], x[1]) for x in src_deps]))
+                else:
+                    print " - %s: None" % src
+
+    if args.print_design_units:
+        project.getDesignUnitsByPath(args.print_design_units)
 
     if args.build:
         if args.threads:
+            _logger.info("Building with threads")
             project.buildByDependencyWithThreads()
         else:
+            _logger.info("Building without threads")
             project.buildByDependency()
 
     if args.target:
+        _logger.info("Building target '%s'", args.target)
         project.buildByPath(args.target)
 
 if __name__ == '__main__':

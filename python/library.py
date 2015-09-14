@@ -59,13 +59,15 @@ class Library(object):
 
         cached_info = self._build_info_cache[source.abspath()]
 
-        for flag in self._extra_flags:
-            if flag not in flags:
-                flags.append(flag)
-
         if source.getmtime() > cached_info['compile_time'] or forced:
+
+            build_flags = []
+            for flag in self._extra_flags + flags:
+                if flag not in build_flags:
+                    build_flags.append(flag)
+
             errors, warnings = self.builder.build(
-                self.name, source, flags)
+                self.name, source, build_flags)
 
             cached_info['compile_time'] = source.getmtime()
             cached_info['errors'] = errors
@@ -73,8 +75,8 @@ class Library(object):
         else:
             errors, warnings = cached_info['errors'], cached_info['warnings']
 
-        #  if errors:
-        #      cached_info['compile_time'] = 0
+        if errors:
+            cached_info['compile_time'] = 0
 
         #  TODO: msim vcom-1195 means something wasn't found. Since this
         # something could be in some file not yet compiled, we'll leave the
@@ -134,12 +136,20 @@ class Library(object):
         deps = []
         for source in self.sources:
             source_deps = []
-            for dep_lib, dep_unit in source.getDependencies():
+            for dep_lib, dep_units in source.getDependencies():
                 # Work library means 'this' library, not a library
                 # named work!
                 if dep_lib == 'work':
                     dep_lib = self.name
-                source_deps.append((dep_lib, dep_unit))
+
+                # When the file depends on something defined within
+                # itself, remove this dependency.
+                # TODO: Check how to handle circular dependencies
+                if dep_lib == self.name:
+                    for dep_unit in dep_units:
+                        if dep_unit in source.getDesignUnits():
+                            dep_units.remove(dep_unit)
+                source_deps.append((dep_lib, dep_units))
             deps.append((source, source_deps))
         return deps
 
@@ -159,6 +169,7 @@ class Library(object):
             sources = [sources]
         msg = []
         abs_sources = self._getAbsPathOfSources()
+        #  print "1 [%s] flags: %s" % (self.name, str(flags))
         for source in sources:
             if source.abspath() not in abs_sources:
                 raise RuntimeError("Source %s not found in library %s" \

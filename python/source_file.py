@@ -37,8 +37,8 @@ _RE_LINE_PREPARE = re.compile(r"^\s*|\s*$|\s*--.*")
 
 # FIXME: Built-in libraries should be defined via Vim configuration interface
 # and thus be in a specific Python package from which we should import
-BUILTIN_LIBRARIES = ('ieee', 'std', 'altera', 'modelsim_lib', 'unisim',
-                     'xilinxcorelib', 'synplify', 'synopsis', 'altera_mf',
+BUILTIN_LIBRARIES = ('ieee', 'std', 'modelsim_lib', 'unisim',
+                     'xilinxcorelib', 'synplify', 'synopsis',
                      'maxii', 'family_support',)
 
 class VhdlSourceFile(object):
@@ -79,8 +79,10 @@ class VhdlSourceFile(object):
             if lib_units and lib_units_regex.findall(line):
                 for lib_unit in _RE_LIB_DOT_UNIT.findall(line):
                     lib, unit = lib_unit.split('.')
-                    #  if unit != 'all':
-                    deps[lib].append(unit)
+                    if lib not in deps.keys():
+                        deps[lib] = []
+                    if unit not in deps[lib]:
+                        deps[lib].append(unit)
 
             design_unit = ''
             if _RE_IS_PACKAGE.match(line):
