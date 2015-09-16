@@ -17,32 +17,23 @@
 # along with hdl-check-o-matic.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
-import os
-try:
-    import cPickle as pickle
-except ImportError:
-    import pickle
-import ConfigParser
 from config import Config
-from compilers import msim
 from project_builder import ProjectBuilder
 
 _logger = logging.getLogger(__name__)
-
-SAVE_FILE = os.path.expanduser("~/temp/builder.project")
 
 def parseArguments():
     import argparse
     parser = argparse.ArgumentParser()
     # pylint: disable=bad-whitespace
-    parser.add_argument('--verbose',      '-v',  action='append_const',  const=1)
-    parser.add_argument('--clean',        '-c',  action='store_true')
-    parser.add_argument('--build',        '-b',  action='store_true')
-    parser.add_argument('--library-file', '-l',  action='store')
-    parser.add_argument('--target',       '-t',  action='store')
-    parser.add_argument('--threads',      '-m',  action='store_true', default=False)
+    parser.add_argument('--verbose',       '-v',  action='append_const', const=1)
+    parser.add_argument('--clean',         '-c',  action='store_true')
+    parser.add_argument('--build',         '-b',  action='store_true')
+    parser.add_argument('--library-file',  '-l',  action='store')
+    parser.add_argument('--target',        '-t',  action='store')
+    parser.add_argument('--threads',       '-m',  action='store_true', default=False)
     parser.add_argument('--print-dependency-map', action='store_true', default=False)
-    parser.add_argument('--print-design-units', action='store', default=False)
+    parser.add_argument('--print-design-units',   action='store', default=False)
     # pylint: enable=bad-whitespace
 
     try:
@@ -102,6 +93,7 @@ def main():
             project.buildByDependency()
 
     if args.target:
+        print "Number of libraries: %d" % len(project.libraries)
         _logger.info("Building target '%s'", args.target)
         project.buildByPath(args.target)
 

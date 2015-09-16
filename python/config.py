@@ -19,8 +19,7 @@ class Config(object):
     is_toolchain = True
     silent = True
     thread_limit = 20
-    target_dir = '.build'
-    log_file = os.path.join(target_dir, "build.log")
+    log_file = os.path.join('/', 'tmp', 'build.log')
     log_level = logging.INFO
     #  log_format = "%(asctime)s <<%(levelname)-8s @ %(name)s >> %(message)s"
     log_format = "%(levelname)-8s || %(name)s || %(message)s"
@@ -62,6 +61,7 @@ class Config(object):
     @staticmethod
     def setupBuild():
         if 'VIM' in os.environ.keys():
+            Config.log_level = logging.INFO
             Config.is_toolchain = True
             Config._setupToolchain()
         else:

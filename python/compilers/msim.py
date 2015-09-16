@@ -18,6 +18,8 @@ from compilers.base_compiler import BaseCompiler
 from utils import shell
 import subprocess
 
+_RE_LIB_DOT_UNIT = re.compile(r"\b\w+\.\w+\b")
+
 class MSim(BaseCompiler):
     _re_error = re.compile(r"^\*\*\sError:", flags=re.I)
     _re_warning = re.compile(r"^\*\*\sWarning:", flags=re.I)
@@ -66,6 +68,8 @@ class MSim(BaseCompiler):
         return os.popen(cmd).read().split("\n")
 
     def _lineHasError(self, l):
+        if '(vcom-11)' in l:
+            return False
         if self._re_error.match(l):
             return True
         return False
@@ -74,6 +78,11 @@ class MSim(BaseCompiler):
         if self._re_warning.match(l):
             return True
         return False
+
+    def _getRebuildUnits(self, l):
+        if '(vcom-13)' not in l:
+            return []
+        return [x.split('.') for x in _RE_LIB_DOT_UNIT.findall(l)]
 
     def createOrMapLibrary(self, library):
         if os.path.exists(os.path.join(self._TARGET_FOLDER, library)):
@@ -89,6 +98,7 @@ class MSim(BaseCompiler):
     def _postBuild(self, library, source, stdout):
         errors = []
         warnings = []
+        rebuilds = []
         for l in stdout:
             if self._re_ignored.match(l):
                 continue
@@ -96,12 +106,13 @@ class MSim(BaseCompiler):
                 errors.append(l)
             if self._lineHasWarning(l):
                 warnings.append(l)
+            rebuilds += self._getRebuildUnits(l)
 
         if errors:
             self._logger.debug("Messages for (%s) %s:", library, source)
             for msg in errors + warnings:
                 self._logger.debug(msg)
-        return errors, warnings
+        return errors, warnings, rebuilds
 
     def createLibrary(self, library):
         self._logger.info("Library %s not found, creating", library)

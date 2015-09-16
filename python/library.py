@@ -66,16 +66,26 @@ class Library(object):
                 if flag not in build_flags:
                     build_flags.append(flag)
 
-            errors, warnings = self.builder.build(
+            errors, warnings, rebuilds = self.builder.build(
                 self.name, source, build_flags)
+
+            for i in range(len(rebuilds)):
+                lib, unit = rebuilds[i]
+                if lib == 'work':
+                    lib = self.name
+                rebuilds[i] = (lib, unit)
 
             cached_info['compile_time'] = source.getmtime()
             cached_info['errors'] = errors
             cached_info['warnings'] = warnings
+            cached_info['rebuilds'] = rebuilds
         else:
-            errors, warnings = cached_info['errors'], cached_info['warnings']
+            errors   = cached_info['errors']
+            warnings = cached_info['warnings']
+            rebuilds = cached_info['rebuilds']
 
-        if errors:
+        #  if errors or rebuilds:
+        if rebuilds:
             cached_info['compile_time'] = 0
 
         #  TODO: msim vcom-1195 means something wasn't found. Since this
@@ -87,7 +97,7 @@ class Library(object):
             if '(vcom-11)' in error:
                 self._logger.error("(%s) %s %s", self.name, str(source), error)
 
-        return errors, warnings
+        return errors, warnings, rebuilds
 
     def addSources(self, sources):
         "Adds a source or a list of sources to this library"
@@ -152,6 +162,21 @@ class Library(object):
                 source_deps.append((dep_lib, dep_units))
             deps.append((source, source_deps))
         return deps
+
+    @memoid
+    def hasDesignUnit(self, unit):
+        for source in self.sources:
+            if unit in source.getDesignUnits():
+                return True
+        return False
+
+    @memoid
+    def getSourceByDesignUnit(self, unit):
+        for source in self.sources:
+            if unit in source.getDesignUnits():
+                return source
+        raise RuntimeError("Design unit '%s' not found in library '%s'" % \
+                (str(unit), self.name))
 
     @memoid
     def hasSource(self, path):

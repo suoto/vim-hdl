@@ -60,8 +60,6 @@ class ProjectBuilder(object):
 
         self.readConfFile()
 
-        self._cache = {}
-
     def cleanCache(self):
         cache_fname = os.path.join(os.path.dirname(self._library_file), \
             '.' + os.path.basename(self._library_file))
@@ -302,9 +300,14 @@ class ProjectBuilder(object):
                 for source in sources:
                     self._logger.debug("    - %s", str(source))
 
-                for source, errors, warnings in \
+                for source, errors, warnings, rebuilds in \
                         self.libraries[lib_name].buildSources(sources,
                                 flags=self.batch_build_flags):
+                    for rebuild in rebuilds:
+                        self._logger.info("Rebuilding %s before %s", str(rebuild),
+                                [str(x) for x in sources])
+                        self.buildByDesignUnit(rebuild)
+
                     for msg in errors + warnings:
                         print msg
 
@@ -339,7 +342,7 @@ class ProjectBuilder(object):
             pool_results = pool.imap(threadPoolRunnerAdapter, f_args)
 
             for pool_result in pool_results:
-                for lib_name, source, errors, warnings in pool_result:
+                for lib_name, source, errors, warnings, rebuilds, in pool_result:
                     for msg in errors + warnings:
                         print msg
         pool.close()
@@ -362,11 +365,32 @@ class ProjectBuilder(object):
                 break
 
 
+    def buildByDesignUnit(self, unit):
+        lib_name = unit[0].lower()
+        if lib_name not in self.libraries.keys():
+            raise RuntimeError("Design unit '%s' not found" % unit)
+        lib = self.libraries[lib_name]
+        source = lib.getSourceByDesignUnit(unit[1])
+        self._logger.info("Rebuilding %s.%s", lib, source)
+        for _, errors, warnings, rebuilds in lib.buildSources([source], forced=True, \
+                flags=self.single_build_flags):
+            if rebuilds:
+                for rebuild in rebuilds:
+                    self._logger.info("Rebuilding %s before %s",
+                            str(rebuild), source)
+                    self.buildByDesignUnit(rebuild)
+                    self.buildByDesignUnit(unit)
+            else:
+                for msg in errors + warnings:
+                    print msg
+
     def buildByPath(self, target):
         "Finds the library of a given path and builds it"
         lib = self._findLibraryByPath(target)
-        errors, warnings = lib.buildByPath(target, forced=True, \
+        errors, warnings, rebuilds = lib.buildByPath(target, forced=True, \
                 flags=self.single_build_flags)
+        if rebuilds:
+            self._logger.warning("Rebuild units: %s", str(rebuilds))
         for msg in errors + warnings:
             print msg
 
