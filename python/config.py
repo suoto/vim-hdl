@@ -20,7 +20,8 @@ class Config(object):
     silent = True
     thread_limit = 20
     log_file = os.path.join('/', 'tmp', 'build.log')
-    log_level = logging.INFO
+    log_level = logging.DEBUG
+    show_only_current_file = True
     #  log_format = "%(asctime)s <<%(levelname)-8s @ %(name)s >> %(message)s"
     log_format = "%(levelname)-8s || %(name)s || %(message)s"
 
