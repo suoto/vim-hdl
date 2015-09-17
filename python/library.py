@@ -54,10 +54,14 @@ class Library(object):
         errors."""
         if source.abspath() not in self._build_info_cache.keys():
             self._build_info_cache[source.abspath()] = {
-                'compile_time': 0, 'errors': (), 'warnings': ()
+                'compile_time': 0, 'size' : 0, 'errors': (), 'warnings': ()
             }
 
         cached_info = self._build_info_cache[source.abspath()]
+
+        if os.stat(source.abspath()).st_size == cached_info['size']:
+            self._logger.warning("'%s' => size is the same!", str(source))
+            forced = False
 
         if source.getmtime() > cached_info['compile_time'] or forced:
 
@@ -208,4 +212,7 @@ class Library(object):
         for source in self.sources:
             if path == source.abspath():
                 return self._buildSource(source, forced, flags)
+    def clearBuildCacheByPath(self, path):
+        path = os.path.abspath(path)
+        self._build_info_cache[os.path.abspath(path)]['compile_time'] = 0
 
