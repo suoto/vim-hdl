@@ -82,7 +82,8 @@ def main():
                     print " - %s: None" % src
 
     if args.print_design_units:
-        project.getDesignUnitsByPath(args.print_design_units)
+        for unit in project.getDesignUnitsByPath(args.print_design_units):
+            print unit
 
     if args.build:
         if args.threads:
