@@ -28,6 +28,8 @@ except ImportError:
 from library import Library
 from utils import memoid
 from compilers.msim import MSim
+from config import Config
+
 
 # pylint: disable=star-args
 
@@ -59,6 +61,7 @@ class ProjectBuilder(object):
         self.single_build_flags = []
 
         self.readConfFile()
+        self._build_cnt = 0
 
     def cleanCache(self):
         cache_fname = os.path.join(os.path.dirname(self._library_file), \
@@ -161,6 +164,7 @@ class ProjectBuilder(object):
 
     def __setstate__(self, state):
         self._logger = logging.getLogger(state['_logger'])
+        self._logger.setLevel(logging.INFO)
         del state['_logger']
         self.__dict__.update(state)
 
@@ -193,7 +197,7 @@ class ProjectBuilder(object):
                 for src_dep in src_deps:
                     dep_lib, dep_pkgs = src_dep
                     for dep_pkg in dep_pkgs:
-                        dep_key = "%s.%s" % (dep_lib, dep_pkg)
+                        dep_key = (dep_lib, dep_pkg)
                         if dep_key not in result.keys():
                             result[dep_key] = []
                         result[dep_key].append(src_file.filename)
@@ -285,7 +289,7 @@ class ProjectBuilder(object):
                                 src, ", ".join(missing_deps))
 
 
-    def buildByDependency(self):
+    def buildByDependency(self, silent=False):
         "Build the project by checking source file dependencies"
         for lib in self.libraries.itervalues():
             lib.createOrMapLibrary()
@@ -308,8 +312,11 @@ class ProjectBuilder(object):
                                 [str(x) for x in sources])
                         self.buildByDesignUnit(rebuild)
 
-                    for msg in errors + warnings:
-                        print msg
+                    if not silent:
+                        for msg in errors + warnings:
+                            print msg
+
+        self._build_cnt += 1
 
     def buildByDependencyWithThreads(self, threads=None):
         """Same as buildByDependency, only that each library of each
@@ -360,9 +367,7 @@ class ProjectBuilder(object):
         lib = self._findLibraryByPath(path)
         for source in lib.sources:
             if source.abspath() == os.path.abspath(path):
-                print "Design units for '%s': %s" % (path,\
-                        ", ".join(source.getDesignUnits()))
-                break
+                return source.getDesignUnits()
 
 
     def buildByDesignUnit(self, unit):
@@ -384,15 +389,38 @@ class ProjectBuilder(object):
                 for msg in errors + warnings:
                     print msg
 
-    def buildByPath(self, target):
-        "Finds the library of a given path and builds it"
-        lib = self._findLibraryByPath(target)
-        errors, warnings, rebuilds = lib.buildByPath(target, forced=True, \
+    def buildByPath(self, path):
+        """Finds the library of a given path and builds it. Use the reverse
+        dependency map to reset the compile time of the sources that depend on
+        'path' to build later"""
+        if self._build_cnt == 0:
+            self._logger.info("Running project build before building '%s'", path)
+            self.buildByDependency(silent=True)
+        self._logger.info("==== Building '%s' ====", path)
+        # Find out which library has this path
+        lib = self._findLibraryByPath(path)
+        errors, warnings, rebuilds = lib.buildByPath(path, forced=True, \
                 flags=self.single_build_flags)
-        if rebuilds:
-            self._logger.warning("Rebuild units: %s", str(rebuilds))
         for msg in errors + warnings:
             print msg
+
+        # Find out which design units are found at path to use as key to the
+        # reverse dependency map
+        units = self.getDesignUnitsByPath(path)
+        reverse_dependency_map = self._getReverseDependencyMap()
+        for unit in units:
+            rev_dep_key = lib.name, unit
+            if rev_dep_key in reverse_dependency_map.keys():
+                self._logger.info("Building '%s' triggers rebuild of %s",
+                        path, ", ".join(reverse_dependency_map[rev_dep_key]))
+                for source in reverse_dependency_map[rev_dep_key]:
+                    dep_lib = self._findLibraryByPath(source)
+                    dep_lib.clearBuildCacheByPath(source)
+            else:
+                self._logger.info("'%s.%s' has no reverse dependency", lib.name, unit)
+        if rebuilds:
+            self._logger.warning("Rebuild units: %s", str(rebuilds))
+        self.buildByDependency(Config.show_only_current_file)
 
 def threadPoolRunnerAdapter(args):
     """Run a method from some import object via ThreadPool.
