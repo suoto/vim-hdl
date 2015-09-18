@@ -60,7 +60,7 @@ function! SyntaxCheckers_vhdl_hdl_check_o_matic_GetLocList() dict
 endfunction
 
 call g:SyntasticRegistry.CreateAndRegisterChecker({
-    \ 'exec'     : '/usr/bin/python',
+    \ 'exec'     : '/usr/bin/python2',
     \ 'filetype' : 'vhdl',
     \ 'name'     : 'hdl_check_o_matic'})
 

@@ -17,18 +17,17 @@ import os, re
 from compilers.base_compiler import BaseCompiler
 from utils import shell
 import subprocess
+from source_file import _RE_LIB_DOT_UNIT
 
-_RE_LIB_DOT_UNIT = re.compile(r"\b\w+\.\w+\b")
+_RE_ERROR = re.compile(r"^\*\*\sError:", flags=re.I)
+_RE_WARNING = re.compile(r"^\*\*\sWarning:", flags=re.I)
+_RE_IGNORED = re.compile('|'.join([
+    r"^\s*$",
+    r".*Unknown expanded name.\s*$",
+    r".*VHDL Compiler exiting\s*$",
+]))
 
 class MSim(BaseCompiler):
-    _re_error = re.compile(r"^\*\*\sError:", flags=re.I)
-    _re_warning = re.compile(r"^\*\*\sWarning:", flags=re.I)
-    _re_ignored = re.compile('|'.join([
-        r"^\s*$",
-        r".*Unknown expanded name.\s*$",
-        r".*VHDL Compiler exiting\s*$",
-    ]))
-
     def __init__(self, target_folder):
         super(MSim, self).__init__(target_folder)
         self._MODELSIM_INI = os.path.join(self._TARGET_FOLDER, 'modelsim.ini')
@@ -70,12 +69,12 @@ class MSim(BaseCompiler):
     def _lineHasError(self, l):
         if '(vcom-11)' in l:
             return False
-        if self._re_error.match(l):
+        if _RE_ERROR.match(l):
             return True
         return False
 
     def _lineHasWarning(self, l):
-        if self._re_warning.match(l):
+        if _RE_WARNING.match(l):
             return True
         return False
 
@@ -100,7 +99,7 @@ class MSim(BaseCompiler):
         warnings = []
         rebuilds = []
         for l in stdout:
-            if self._re_ignored.match(l):
+            if _RE_IGNORED.match(l):
                 continue
             if self._lineHasError(l):
                 errors.append(l)

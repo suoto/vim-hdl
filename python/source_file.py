@@ -37,9 +37,8 @@ _RE_LINE_PREPARE = re.compile(r"^\s*|\s*$|\s*--.*")
 
 # FIXME: Built-in libraries should be defined via Vim configuration interface
 # and thus be in a specific Python package from which we should import
-BUILTIN_LIBRARIES = ('ieee', 'std', 'modelsim_lib', 'unisim',
-                     'xilinxcorelib', 'synplify', 'synopsis',
-                     'maxii', 'family_support',)
+BUILTIN_LIBRARIES = ('ieee', 'std', 'unisim', 'xilinxcorelib', 'synplify',
+                     'synopsis', 'maxii', 'family_support')
 
 class VhdlSourceFile(object):
     def __init__(self, filename):
@@ -99,13 +98,6 @@ class VhdlSourceFile(object):
                 self._design_units.append(design_unit)
 
 
-        #  assert self._design_units, \
-        #      "Unable to find design unit name in source %s" % self.filename
-
-        #  self._deps = []
-        #  for k, v in deps.iteritems():
-        #      if v:
-        #          self._deps.append((k, v))
         self._deps = zip(deps.keys(), deps.values())
 
     def isPackage(self):
