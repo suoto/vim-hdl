@@ -17,31 +17,31 @@
 " For Syntastic license, check http://sam.zoy.org/wtfpl/COPYING
 "============================================================================
 
-if exists("g:loaded_syntastic_vhdl_hdl_check_o_matic_checker")
+if exists("g:loaded_syntastic_vhdl_vimhdl_checker")
     finish
 endif
-let g:loaded_syntastic_vhdl_hdl_check_o_matic_checker = 1
+let g:loaded_syntastic_vhdl_vimhdl_checker = 1
 
 let s:save_cpo = &cpo
 set cpo&vim
 
-let s:hdl_check_o_matic_path = escape(expand('<sfile>:p:h'), '\') . "/../"
+let s:vimhdl_path = escape(expand('<sfile>:p:h'), '\') . "/../"
 
 function! s:setup()
 python << EOF
-import sys, os
-hdl_check_o_matic_path = os.path.join(vim.eval( 's:hdl_check_o_matic_path' ), 'python')
-print "hdl_check_o_matic_path = " + hdl_check_o_matic_path
-if hdl_check_o_matic_path not in sys.path:
-    sys.path.insert(0, hdl_check_o_matic_path)
+import sys, os, vim
+vimhdl_path = os.path.join(vim.eval( 's:vimhdl_path' ), 'python')
+print "vimhdl_path = " + vimhdl_path
+if vimhdl_path not in sys.path:
+    sys.path.insert(0, vimhdl_path)
 EOF
 endfunction
 
 call s:setup()
 
-function! SyntaxCheckers_vhdl_hdl_check_o_matic_GetLocList() dict
-    let conf_file = get(g:, 'hdlcom_conf_file', '')
-    let makeprg = self.makeprgBuild({'args': s:hdl_check_o_matic_path . '/python/runner.py -l ' . conf_file . ' -t '})
+function! SyntaxCheckers_vhdl_vimhdl_GetLocList() dict
+    let conf_file = get(g:, 'vimhdl_conf_file', '')
+    let makeprg = self.makeprgBuild({'args': s:vimhdl_path . '/python/runner.py -l ' . conf_file . ' -t '})
 
     let errorformat =
         \ '** %tarning:\\s\*[\\d\\+]\\s\*%f(%l):\\s\*%m,' .
@@ -62,13 +62,13 @@ endfunction
 call g:SyntasticRegistry.CreateAndRegisterChecker({
     \ 'exec'     : '/usr/bin/python2',
     \ 'filetype' : 'vhdl',
-    \ 'name'     : 'hdl_check_o_matic'})
+    \ 'name'     : 'vimhdl'})
 
 let &cpo = s:save_cpo
 unlet s:save_cpo
 
 function! s:RebuildProject()
-let conf_file = get(g:, 'hdlcom_conf_file', '')
+let conf_file = get(g:, 'vimhdl_conf_file', '')
 echom "Rebuilding project " . conf_file
 python << EOF
 from project_builder import ProjectBuilder
