@@ -1,18 +1,18 @@
-# This file is part of hdl-check-o-matic.
+# This file is part of vim-hdl.
 #
-# hdl-check-o-matic is free software: you can redistribute it and/or modify
+# vim-hdl is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 #
-# hdl-check-o-matic is distributed in the hope that it will be useful,
+# vim-hdl is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with hdl-check-o-matic.  If not, see <http://www.gnu.org/licenses/>.
-"hdl-check-o-matic project bulider class"
+# along with vim-hdl.  If not, see <http://www.gnu.org/licenses/>.
+"vim-hdl project bulider class"
 
 import logging
 import os
@@ -46,7 +46,7 @@ def getList(parser, *args, **kwargs):
 
 
 class ProjectBuilder(object):
-    "hdl-check-o-matic project bulider class"
+    "vim-hdl project bulider class"
     MAX_BUILD_STEPS = 10
     BUILD_WORKERS = 5
 
