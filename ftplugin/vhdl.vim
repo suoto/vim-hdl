@@ -22,18 +22,15 @@ if exists("g:loaded_syntastic_vhdl_vimhdl_checker")
 endif
 let g:loaded_syntastic_vhdl_vimhdl_checker = 1
 
-
 if exists("g:syntastic_vhdl_checkers")
     let g:syntastic_vhdl_checkers += ['vimhdl']
 else
     let g:syntastic_vhdl_checkers = ['vimhdl']
 endif
-
 let s:save_cpo = &cpo
 set cpo&vim
 
 let s:vimhdl_path = escape(expand('<sfile>:p:h'), '\') . "/../"
-
 call vimhdl#setup()
 
 function! SyntaxCheckers_vhdl_vimhdl_GetLocList() dict
@@ -61,10 +58,8 @@ call g:SyntasticRegistry.CreateAndRegisterChecker({
     \ 'filetype' : 'vhdl',
     \ 'name'     : 'vimhdl'})
 
-
 let &cpo = s:save_cpo
 unlet s:save_cpo
-
 command! VimhdlRebuildProject call vimhdl#rebuildProject()
 
 " vim: set sw=4 sts=4 et fdm=marker:
