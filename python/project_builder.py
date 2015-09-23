@@ -17,9 +17,10 @@
 import logging
 import os
 import re
-import ConfigParser
 import atexit
 from multiprocessing.pool import ThreadPool
+from threading import Thread
+import threading
 try:
     import cPickle as pickle
 except ImportError:
@@ -29,21 +30,14 @@ from library import Library
 from utils import memoid
 from compilers.msim import MSim
 from config import Config
+from config_parser import ExtendedConfigParser
+from file_lock import FileLock
 
 
 # pylint: disable=star-args
 
 def saveCache(obj, fname):
     pickle.dump(obj, open(fname, 'w'))
-
-def getList(parser, *args, **kwargs):
-    entry = parser.get(*args, **kwargs)
-    entry = re.sub(r"^\s*|\s*$", "", entry)
-    if entry:
-        return re.split(r"\s+", entry)
-    else:
-        return []
-
 
 class ProjectBuilder(object):
     "vim-hdl project bulider class"
@@ -59,9 +53,9 @@ class ProjectBuilder(object):
 
         self.batch_build_flags = []
         self.single_build_flags = []
+        self._build_cnt = 0
 
         self.readConfFile()
-        self._build_cnt = 0
 
     def cleanCache(self):
         cache_fname = os.path.join(os.path.dirname(self._library_file), \
@@ -85,7 +79,7 @@ class ProjectBuilder(object):
         except OSError:
             _logger.debug("Cache filename '%s' not found", cache_fname)
 
-        parser = ConfigParser.SafeConfigParser()
+        parser = ExtendedConfigParser()
         parser.read(library_file)
 
         target_dir = parser.get('global', 'target_dir')
@@ -114,12 +108,12 @@ class ProjectBuilder(object):
                     'global_build_flags' : '',
                     'batch_build_flags' : '',
                     'single_build_flags' : ''}
-        parser = ConfigParser.SafeConfigParser(defaults=defaults)
+        parser = ExtendedConfigParser(defaults=defaults)
         parser.read(self._library_file)
 
-        global_build_flags = getList(parser, 'global', 'global_build_flags')
-        self.batch_build_flags = getList(parser, 'global', 'batch_build_flags')
-        self.single_build_flags = getList(parser, 'global', 'single_build_flags')
+        global_build_flags = parser.getlist('global', 'global_build_flags')
+        self.batch_build_flags = parser.getlist('global', 'batch_build_flags')
+        self.single_build_flags = parser.getlist('global', 'single_build_flags')
 
 
         builder = parser.get('global', 'builder')
@@ -136,7 +130,7 @@ class ProjectBuilder(object):
                 continue
             sources = re.sub(r"^\s*|\s*$", "", parser.get(section, 'sources'))
             sources = re.split(r"\s+", sources)
-            flags = getList(parser, section, 'build_flags')
+            flags = parser.getlist(section, 'build_flags')
 
             #  print "[%s] flags: %s" % (section, str(flags))
             #  flags = getList(parser.get(section, 'build_flags')))
@@ -257,27 +251,31 @@ class ProjectBuilder(object):
                 self._logger.error("Max build steps of %d reached, stopping",
                                    self.MAX_BUILD_STEPS)
 
-        this_step = {}
-        for lib_name, src in self._logMissingDependencies(units_built):
-            if lib_name not in this_step:
-                this_step[lib_name] = []
-            if src not in this_step[lib_name]:
-                this_step[lib_name].append(src)
+        #  this_step = {}
+        #  for lib_name, src in self._getSourcesWithMissingDependencies(units_built):
+        #      if lib_name not in this_step:
+        #          this_step[lib_name] = []
+        #      if src not in this_step[lib_name]:
+        #          this_step[lib_name].append(src)
 
-        if this_step:
-            self._logger.debug("Yielding remaining files")
-            yield this_step
+        #  if this_step:
+        #      self._logger.debug("Yielding remaining files")
+        #      yield this_step
 
-    def _logMissingDependencies(self, units_built):
+    @memoid
+    def _getSourcesWithMissingDependencies(self, units_built):
         """Searches for files that weren't build given the units_built
-        and logs their dependencies"""
+        and returns their dependencies"""
+        result = []
         for lib_name, lib_deps in self._getDependencyMap().iteritems():
             for src, src_deps in lib_deps.iteritems():
                 for design_unit in src.getDesignUnits():
                     if not design_unit:
-                        yield lib_name, src
+                        result.append((lib_name, src))
+                        #  yield lib_name, src
                     if (lib_name, design_unit) not in units_built:
-                        yield lib_name, src
+                        result.append((lib_name, src))
+                        #  yield lib_name, src
                         missing_deps = []
                         for dep_lib_name, unit_name in set(src_deps) - set(units_built):
                             if "%s.%s" % (dep_lib_name, unit_name) not in missing_deps:
@@ -287,6 +285,7 @@ class ProjectBuilder(object):
                             self._logger.warning(
                                 "Missing dependencies for '%s': %s",
                                 src, ", ".join(missing_deps))
+        return result
 
 
     def buildByDependency(self, silent=False):
@@ -317,6 +316,16 @@ class ProjectBuilder(object):
                             print msg
 
         self._build_cnt += 1
+
+    def _getLockFilename(self):
+        temp_path = os.path.join(os.path.sep, 'tmp', 'vim-hdl')
+        if not os.path.exists(temp_path):
+            os.mkdir(temp_path)
+
+        lockfile = os.path.join(os.path.sep, 'tmp', temp_path,
+            re.sub(os.path.sep, '_', os.path.abspath(self._library_file)))
+
+        return lockfile
 
     def buildByDependencyWithThreads(self, threads=None):
         """Same as buildByDependency, only that each library of each
@@ -355,6 +364,7 @@ class ProjectBuilder(object):
         pool.close()
         pool.join()
 
+    @memoid
     def _findLibraryByPath(self, path):
         if not os.path.exists(path):
             raise OSError("Path %s doesn't exists" % path)
@@ -363,6 +373,7 @@ class ProjectBuilder(object):
                 return lib
         raise RuntimeError("Source %s not found" % path)
 
+    @memoid
     def getDesignUnitsByPath(self, path):
         lib = self._findLibraryByPath(path)
         for source in lib.sources:
@@ -393,6 +404,7 @@ class ProjectBuilder(object):
         """Finds the library of a given path and builds it. Use the reverse
         dependency map to reset the compile time of the sources that depend on
         'path' to build later"""
+        self._logger.info("Build count: %d", self._build_cnt)
         if self._build_cnt == 0:
             self._logger.info("Running project build before building '%s'", path)
             self.buildByDependency(silent=True)
@@ -420,7 +432,7 @@ class ProjectBuilder(object):
                 self._logger.info("'%s.%s' has no reverse dependency", lib.name, unit)
         if rebuilds:
             self._logger.warning("Rebuild units: %s", str(rebuilds))
-        self.buildByDependency(Config.show_only_current_file)
+            self.buildByDependency(Config.show_only_current_file)
 
 def threadPoolRunnerAdapter(args):
     """Run a method from some import object via ThreadPool.
