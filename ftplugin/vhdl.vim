@@ -17,6 +17,7 @@
 " For Syntastic license, check http://sam.zoy.org/wtfpl/COPYING
 "============================================================================
 
+" { Pre setup
 if exists("g:loaded_syntastic_vhdl_vimhdl_checker")
     finish
 endif
@@ -29,12 +30,14 @@ else
 endif
 let s:save_cpo = &cpo
 set cpo&vim
+" }
 
 let s:vimhdl_path = escape(expand('<sfile>:p:h'), '\') . "/../"
 call vimhdl#setup()
 
+" { vimhdl Syntastic definition
 function! SyntaxCheckers_vhdl_vimhdl_GetLocList() dict
-    let conf_file = get(g:, 'vimhdl_conf_file', '')
+    let conf_file = vimhdl#getConfFile()
     let makeprg = self.makeprgBuild({'args': s:vimhdl_path . '/python/runner.py -l ' . conf_file . ' -t '})
 
     let errorformat =
@@ -52,14 +55,23 @@ function! SyntaxCheckers_vhdl_vimhdl_GetLocList() dict
         \ 'makeprg': makeprg,
         \ 'errorformat': errorformat })
 endfunction
+" }
 
+" { Register vimhdl within Syntastic
 call g:SyntasticRegistry.CreateAndRegisterChecker({
     \ 'exec'     : '/usr/bin/python2',
     \ 'filetype' : 'vhdl',
     \ 'name'     : 'vimhdl'})
+" }
 
 let &cpo = s:save_cpo
 unlet s:save_cpo
-command! VimhdlRebuildProject call vimhdl#rebuildProject()
 
-" vim: set sw=4 sts=4 et fdm=marker:
+" { Vimhdl commands
+command! VimhdlRebuildProject          call vimhdl#rebuildProject()
+command! VimhdlListLibraries           call vimhdl#listLibraries()
+command! VimhdlListLibrariesAndSources call vimhdl#listLibrariesAndSources()
+command! VimhdlViewLog                 call vimhdl#viewLog()
+" }
+
+" vim: set foldmarker={,} foldlevel=0 foldmethod=marker :
