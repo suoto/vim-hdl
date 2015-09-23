@@ -17,6 +17,8 @@
 # along with vim-hdl.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
+import time
+
 from config import Config
 from project_builder import ProjectBuilder
 
@@ -94,10 +96,13 @@ def main():
             project.buildByDependency()
 
     if args.target:
-        print "Number of libraries: %d" % len(project.libraries)
         _logger.info("Building target '%s'", args.target)
         project.buildByPath(args.target)
 
 if __name__ == '__main__':
+    start = time.time()
     main()
+    end = time.time()
+    _logger.info("Process took %.2fs", (end - start))
+
 
