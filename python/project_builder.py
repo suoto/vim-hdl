@@ -19,8 +19,8 @@ import os
 import re
 import atexit
 from multiprocessing.pool import ThreadPool
-from threading import Thread
-import threading
+#  from threading import Thread
+#  import threading
 try:
     import cPickle as pickle
 except ImportError:
@@ -31,7 +31,13 @@ from utils import memoid
 from compilers.msim import MSim
 from config import Config
 from config_parser import ExtendedConfigParser
-from file_lock import FileLock
+
+try:
+    import vim
+    HAS_VIM = True
+except ImportError:
+    HAS_VIM = False
+#  from file_lock import FileLock
 
 
 # pylint: disable=star-args
@@ -58,8 +64,10 @@ class ProjectBuilder(object):
         self.readConfFile()
 
     def cleanCache(self):
+        "Remove the cached project data and clean all libraries as well"
         cache_fname = os.path.join(os.path.dirname(self._library_file), \
             '.' + os.path.basename(self._library_file))
+
         try:
             os.remove(cache_fname)
         except OSError:
@@ -87,8 +95,8 @@ class ProjectBuilder(object):
         assert not os.system("rm -rf " + target_dir)
 
     def readConfFile(self):
-        cache_fname = os.path.join(os.path.dirname(self._library_file),
-                '.' + os.path.basename(self._library_file))
+        cache_fname = os.path.join(os.path.dirname(self._library_file), \
+            '.' + os.path.basename(self._library_file))
 
         if os.path.exists(cache_fname):
             try:
@@ -99,6 +107,7 @@ class ProjectBuilder(object):
 
         atexit.register(saveCache, self, cache_fname)
 
+        # If the library file hasn't changed, we're up to date an return
         if os.path.getmtime(self._library_file) <= self._conf_file_timestamp:
             return
 
@@ -108,36 +117,37 @@ class ProjectBuilder(object):
                     'global_build_flags' : '',
                     'batch_build_flags' : '',
                     'single_build_flags' : ''}
+
         parser = ExtendedConfigParser(defaults=defaults)
         parser.read(self._library_file)
 
+        # Get the global build definitions
         global_build_flags = parser.getlist('global', 'global_build_flags')
         self.batch_build_flags = parser.getlist('global', 'batch_build_flags')
         self.single_build_flags = parser.getlist('global', 'single_build_flags')
-
 
         builder = parser.get('global', 'builder')
         target_dir = parser.get('global', 'target_dir')
         self._logger.info("Builder selected: %s at %s", builder, target_dir)
 
+        # Check if the builder selected is implemented and create the
+        # builder attribute
         if builder == 'msim':
             self.builder = MSim(target_dir)
         else:
             raise RuntimeError("Unknown builder '%s'" % builder)
 
+        # Iterate over the sections to get sources and build flags.
+        # Take care to don't recreate a library
         for section in parser.sections():
             if section == 'global':
                 continue
-            sources = re.sub(r"^\s*|\s*$", "", parser.get(section, 'sources'))
-            sources = re.split(r"\s+", sources)
+            sources = parser.getlist(section, 'sources')
             flags = parser.getlist(section, 'build_flags')
-
-            #  print "[%s] flags: %s" % (section, str(flags))
-            #  flags = getList(parser.get(section, 'build_flags')))
 
             if section not in self.libraries.keys():
                 self._logger.info("Found library '%s'", section)
-                self.addLibrary(section, sources)
+                self.addLibrary(section, sources, target_dir)
             else:
                 self.addLibrarySources(section, sources)
 
@@ -152,22 +162,27 @@ class ProjectBuilder(object):
                 self._logger.warning("Library '%s' has no sources", lib_name)
 
     def __getstate__(self):
+        # Remove the _logger attribute because we can't pickle file or
+        # stream objects. In its place, save the logger name
         state = self.__dict__.copy()
         state['_logger'] = self._logger.name
         return state
 
     def __setstate__(self, state):
+        # Get a logger with the name given in state['_logger'] (see
+        # __getstate__) and update our dictionary with the pickled info
         self._logger = logging.getLogger(state['_logger'])
         self._logger.setLevel(logging.INFO)
         del state['_logger']
         self.__dict__.update(state)
 
-    def addLibrary(self, library_name, sources):
+    def addLibrary(self, library_name, sources, target_dir):
         "Adds a library with the given sources"
         self.libraries[library_name] = \
                 Library(builder=self.builder,
                         sources=sources,
-                        name=library_name)
+                        name=library_name,
+                        target_dir=target_dir)
 
     def hasLibrary(self, library_name):
         "Returns True is library_name has been added"
@@ -290,6 +305,7 @@ class ProjectBuilder(object):
 
     def buildByDependency(self, silent=False):
         "Build the project by checking source file dependencies"
+        self.updateVimTagsConfig()
         for lib in self.libraries.itervalues():
             lib.createOrMapLibrary()
 
@@ -304,10 +320,11 @@ class ProjectBuilder(object):
                     self._logger.debug("    - %s", str(source))
 
                 for source, errors, warnings, rebuilds in \
-                        self.libraries[lib_name].buildSources(sources,
+                        self.libraries[lib_name].buildSources(sources, \
                                 flags=self.batch_build_flags):
                     for rebuild in rebuilds:
-                        self._logger.info("Rebuilding %s before %s", str(rebuild),
+                        self._logger.info("Rebuilding %s before %s", \
+                                str(rebuild), \
                                 [str(x) for x in sources])
                         self.buildByDesignUnit(rebuild)
 
@@ -392,7 +409,7 @@ class ProjectBuilder(object):
                 flags=self.single_build_flags):
             if rebuilds:
                 for rebuild in rebuilds:
-                    self._logger.info("Rebuilding %s before %s",
+                    self._logger.info("Rebuilding %s before %s", \
                             str(rebuild), source)
                     self.buildByDesignUnit(rebuild)
                     self.buildByDesignUnit(unit)
@@ -433,6 +450,15 @@ class ProjectBuilder(object):
         if rebuilds:
             self._logger.warning("Rebuild units: %s", str(rebuilds))
             self.buildByDependency(Config.show_only_current_file)
+        self.updateVimTagsConfig()
+
+    def updateVimTagsConfig(self):
+        if HAS_VIM:
+            tags = [x.tag_file for x in self.libraries.values()]
+            self._logger.info('Setting up tags to %s', ', '.join(tags))
+            vim.command('set tags=%s' % ','.join(tags))
+        else:
+            self._logger.info("Vim mode not enable, bypassing")
 
 def threadPoolRunnerAdapter(args):
     """Run a method from some import object via ThreadPool.

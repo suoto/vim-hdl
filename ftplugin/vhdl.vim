@@ -73,5 +73,9 @@ command! VimhdlListLibraries           call vimhdl#listLibraries()
 command! VimhdlListLibrariesAndSources call vimhdl#listLibrariesAndSources()
 command! VimhdlViewLog                 call vimhdl#viewLog()
 " }
+"
+" { Autocommands
+autocmd BufWritePost *.vhd call vimhdl#updateTags()
+" }
 
 " vim: set foldmarker={,} foldlevel=0 foldmethod=marker :
