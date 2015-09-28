@@ -22,7 +22,7 @@ from threading import Thread
 from utils import memoid
 from source_file import VhdlSourceFile
 
-CTAGS_ARGS = '--append --tag-relative=yes --totals=no --sort=foldcase --extra=+f --fields=+i-l+m+s+S --links=yes'
+CTAGS_ARGS = '--tag-relative=no --totals=no --sort=foldcase --extra=+f --fields=+i-l+m+s+S --links=yes --append'
 RE_CTAGS_IGNORE_LINE = re.compile(r"^\s*$|ctags-exuberant: Warning: Language \"vhdl\" already defined")
 
 class Library(object):

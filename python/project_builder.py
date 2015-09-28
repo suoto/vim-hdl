@@ -454,9 +454,9 @@ class ProjectBuilder(object):
 
     def updateVimTagsConfig(self):
         if HAS_VIM:
-            tags = [x.tag_file for x in self.libraries.values()]
+            tags = [os.path.abspath(x.tag_file) for x in self.libraries.values()]
             self._logger.info('Setting up tags to %s', ', '.join(tags))
-            vim.command('set tags=%s' % ','.join(tags))
+            vim.command('setlocal tags=%s' % ','.join(tags))
         else:
             self._logger.info("Vim mode not enable, bypassing")
 

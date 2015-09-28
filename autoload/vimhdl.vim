@@ -112,5 +112,6 @@ project = ProjectBuilder(vim.eval('conf_file'))
 project.updateVimTagsConfig()
 EOF
 endfunction
+}
 
 " vim: set foldmarker={,} foldlevel=0 foldmethod=marker :
