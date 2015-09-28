@@ -1,9 +1,10 @@
 # vim-hdl
-vim-hdl is a Vim plugin that provides VHDL syntax checking to [Syntastic][Syntastic] using third-party tools.
+
+vim-hdl is a Vim plugin that provides some helpers to VHDL development:
+* Syntax checking (using [third-party compilers](#supported-third-party-compilers) + [Syntastic][Syntastic])
+* [CTags indexing](#supported-tag-generators)
 
 ![vim-hdl screenshot](http://i.imgur.com/YksSZq0.png)
-
-Currently, only [Mentor Graphics® ModelSim®][MG_msim] is supported, both Mentor Graphics version or [Altera®'s version][Altera_msim].
 
 ## Installation
 
@@ -36,6 +37,18 @@ Any other Syntastic option should work as well.
 
 You can clone [vim-hdl-examples][vim-hdl-examples] repository and try a ready-to-use setup.
 
+## Supported third-party compilers
+
+* [Mentor Graphics® ModelSim®][MG_msim]
+* [ModelSim-Altera® Edition][Altera_msim]
+
+Currently there are no plans to support other simulators/compilers.
+
+## Supported tag generators
+
+* [Ctags][ctags]
+
+Currently there are no plans to support other tag generators.
 
 ## Issues
 
@@ -62,4 +75,5 @@ vim-hdl's author has no connection or affiliation to any of the trademarks menti
 [vim-hdl-examples]: https://github.com/suoto/vim-hdl-examples
 [gpl]: http://www.gnu.org/copyleft/gpl.html
 [issue_tracker]: https://github.com/suoto/vim-hdl/issues
+[ctags]: http://ctags.sourceforge.net/
 
