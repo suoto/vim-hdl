@@ -102,16 +102,5 @@ EOF
 endfunction
 " }
 
-" { vimhdl#updateTags()
-" ============================================================================
-" List libraries and their respective sources
-function! vimhdl#updateTags()
-    let conf_file = vimhdl#getConfFile()
-python << EOF
-project = ProjectBuilder(vim.eval('conf_file'))
-project.updateVimTagsConfig()
-EOF
-endfunction
-}
 
 " vim: set foldmarker={,} foldlevel=0 foldmethod=marker :

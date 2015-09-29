@@ -75,8 +75,6 @@ command! VimhdlViewLog                 call vimhdl#viewLog()
 " }
 "
 " { Autocommands
-autocmd BufEnter     *.vhd call vimhdl#updateTags()
-autocmd BufWritePost *.vhd call vimhdl#updateTags()
 " }
 
 " vim: set foldmarker={,} foldlevel=0 foldmethod=marker :

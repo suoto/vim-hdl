@@ -102,7 +102,7 @@ class ProjectBuilder(object):
             try:
                 obj = pickle.load(open(cache_fname, 'r'))
                 self.__dict__.update(obj.__dict__)
-            except EOFError:
+            except (EOFError, IOError):
                 self._logger.warning("Unable to unpickle cached filename")
 
         atexit.register(saveCache, self, cache_fname)
@@ -305,7 +305,6 @@ class ProjectBuilder(object):
 
     def buildByDependency(self, silent=False):
         "Build the project by checking source file dependencies"
-        self.updateVimTagsConfig()
         for lib in self.libraries.itervalues():
             lib.createOrMapLibrary()
 
@@ -450,15 +449,6 @@ class ProjectBuilder(object):
         if rebuilds:
             self._logger.warning("Rebuild units: %s", str(rebuilds))
             self.buildByDependency(Config.show_only_current_file)
-        self.updateVimTagsConfig()
-
-    def updateVimTagsConfig(self):
-        if HAS_VIM:
-            tags = [os.path.abspath(x.tag_file) for x in self.libraries.values()]
-            self._logger.info('Setting up tags to %s', ', '.join(tags))
-            vim.command('setlocal tags=%s' % ','.join(tags))
-        else:
-            self._logger.info("Vim mode not enable, bypassing")
 
 def threadPoolRunnerAdapter(args):
     """Run a method from some import object via ThreadPool.
