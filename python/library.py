@@ -15,20 +15,29 @@
 
 import logging
 import os
+import subprocess
+import re
+from threading import Thread
 
 from utils import memoid
 from source_file import VhdlSourceFile
+
+CTAGS_ARGS = '--tag-relative=no --totals=no --sort=foldcase --extra=+f --fields=+i-l+m+s+S --links=yes --append'
+RE_CTAGS_IGNORE_LINE = re.compile(r"^\s*$|ctags-exuberant: Warning: Language \"vhdl\" already defined")
 
 class Library(object):
     """Organizes a collection of VhdlSourceFile objects and calls the
     builder with the appropriate parameters"""
 
-    def __init__(self, builder, sources=None, name='work'):
+    def __init__(self, builder, sources=None, name='work', target_dir=None):
         self.builder = builder
         self.name = name
         self.sources = []
         if sources is not None:
             self.addSources(sources)
+
+        self.target_dir = target_dir or os.curdir
+        self.tag_file = 'tags'
 
         self._extra_flags = []
         self._logger = logging.getLogger("Library('%s')" % self.name)
@@ -48,6 +57,12 @@ class Library(object):
         del state['_logger']
         self.__dict__.update(state)
 
+    def _updateTags(self, source):
+        cmd = ['ctags-exuberant'] + re.split(r"\s+", CTAGS_ARGS) + \
+                ['-f', self.tag_file, str(source)]
+
+        subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+
     # TODO: Check file modification time to invalidate cached info
     def _buildSource(self, source, forced=False, flags=[]):
         """Handle caching of source build information, like warnings and
@@ -63,7 +78,11 @@ class Library(object):
             self._logger.warning("'%s' => size is the same!", str(source))
             forced = False
 
+        tags_t = None
         if source.getmtime() > cached_info['compile_time'] or forced:
+
+            tags_t = Thread(target=self._updateTags, args=(source,))
+            tags_t.start()
 
             build_flags = []
             for flag in self._extra_flags + flags:
@@ -84,23 +103,16 @@ class Library(object):
             cached_info['warnings'] = warnings
             cached_info['rebuilds'] = rebuilds
         else:
-            errors   = cached_info['errors']
+            errors = cached_info['errors']
             warnings = cached_info['warnings']
             rebuilds = cached_info['rebuilds']
 
-        #  if errors or rebuilds:
         if rebuilds:
             cached_info['compile_time'] = 0
 
-        #  TODO: msim vcom-1195 means something wasn't found. Since this
-        # something could be in some file not yet compiled, we'll leave the
-        # cached status clear, so we force recompile only in this case.  This
-        # should be better studied because avoiding to recompile a file that
-        # had errors could be harmful
-        for error in errors:
-            if '(vcom-11)' in error:
-                self._logger.error("(%s) %s %s", self.name, str(source), error)
 
+        if tags_t is not None:
+            tags_t.join()
         return errors, warnings, rebuilds
 
     def addSources(self, sources):
