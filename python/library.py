@@ -37,7 +37,7 @@ class Library(object):
             self.addSources(sources)
 
         self.target_dir = target_dir or os.curdir
-        self.tag_file = '.tags'
+        self.tag_file = 'tags'
 
         self._extra_flags = []
         self._logger = logging.getLogger("Library('%s')" % self.name)
