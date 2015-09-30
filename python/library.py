@@ -74,13 +74,22 @@ class Library(object):
 
         cached_info = self._build_info_cache[source.abspath()]
 
-        if os.stat(source.abspath()).st_size == cached_info['size']:
-            self._logger.warning("'%s' => size is the same!", str(source))
-            forced = False
+        build = False
+
+        if forced:
+            build = True
+        else:
+            if os.stat(source.abspath()).st_size == cached_info['size']:
+                self._logger.info("%s: size hasn't changed, won't rebuild", str(source))
+                build = False
+            elif source.getmtime() > cached_info['compile_time']:
+                self._logger.info("%s: file has been modified", str(source))
+                build = True
 
         tags_t = None
-        if source.getmtime() > cached_info['compile_time'] or forced:
 
+        if build:
+            self._logger.info("%s: Building", str(source))
             tags_t = Thread(target=self._updateTags, args=(source,))
             tags_t.start()
 
@@ -102,6 +111,7 @@ class Library(object):
             cached_info['errors'] = errors
             cached_info['warnings'] = warnings
             cached_info['rebuilds'] = rebuilds
+            cached_info['size'] = os.stat(source.abspath()).st_size
         else:
             errors = cached_info['errors']
             warnings = cached_info['warnings']

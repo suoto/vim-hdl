@@ -28,13 +28,18 @@ def parseArguments():
     import argparse
     parser = argparse.ArgumentParser()
     # pylint: disable=bad-whitespace
-    parser.add_argument('--verbose',       '-v',  action='append_const', const=1)
-    parser.add_argument('--clean',         '-c',  action='store_true')
-    parser.add_argument('--build',         '-b',  action='store_true')
-    parser.add_argument('--library-file',  '-l',  action='store')
-    parser.add_argument('--target',        '-t',  action='store')
-    parser.add_argument('--threads',       '-m',  action='store_true', default=False)
-    parser.add_argument('--print-dependency-map', action='store_true', default=False)
+    parser.add_argument('--verbose',      '-v', action='append_const', const=1)
+    parser.add_argument('--clean',        '-c', action='store_true')
+    parser.add_argument('--build',        '-b', action='store_true')
+    parser.add_argument('--library-file', '-l', action='store')
+    parser.add_argument('--target',       '-t', action='store')
+    parser.add_argument('--threads',      '-m', action='store_true', default=False)
+
+    # Debugging options
+    parser.add_argument('--print-dependency-map',
+            action='store_true', default=False)
+    parser.add_argument('--print-reverse-dependency-map',
+            action='store_true', default=False)
     parser.add_argument('--print-design-units',   action='store', default=False)
     # pylint: enable=bad-whitespace
 
@@ -76,12 +81,30 @@ def main():
 
     if args.print_dependency_map:
         for lib_name, lib_deps in project._getDependencyMap().iteritems():
-            print lib_name
+            print "Library %s" % lib_name
             for src, src_deps in lib_deps.iteritems():
                 if src_deps:
-                    print " - %s: %s" % (src, ", ".join(["%s.%s" % (x[0], x[1]) for x in src_deps]))
+                    print " - %s: %s" % (src, ", ".join(["%s.%s" % (x[0], x[1]) \
+                            for x in src_deps]))
                 else:
                     print " - %s: None" % src
+
+    if args.print_reverse_dependency_map:
+        for (lib_name, design_unit), deps in project._getReverseDependencyMap().iteritems():
+            _s =  "- %s.%s: " % (lib_name, design_unit)
+            if deps:
+                _s += " ".join(deps)
+            else:
+                _s += "None"
+            print _s
+        #  for lib_name, lib_deps in project._getDependencyMap().iteritems():
+        #      print lib_name
+        #      for src, src_deps in lib_deps.iteritems():
+        #          if src_deps:
+        #              print " - %s: %s" % (src, ", ".join(["%s.%s" % (x[0], x[1]) \
+        #                      for x in src_deps]))
+        #          else:
+        #              print " - %s: None" % src
 
     if args.print_design_units:
         for unit in project.getDesignUnitsByPath(args.print_design_units):

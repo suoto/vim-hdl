@@ -22,6 +22,9 @@ class Config(object):
     log_file = os.path.join('/', 'tmp', 'build.log')
     log_level = logging.DEBUG
     show_only_current_file = True
+    show_reverse_dependencies = True
+
+
     #  log_format = "%(asctime)s <<%(levelname)-8s @ %(name)s >> %(message)s"
     log_format = "%(levelname)-8s || %(name)s || %(message)s"
 
