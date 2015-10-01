@@ -284,8 +284,10 @@ class ProjectBuilder(object):
                         result.append((lib_name, src))
                         #  yield lib_name, src
                         missing_deps = []
-                        for dep_lib_name, unit_name in set(src_deps) - set(units_built):
-                            if "%s.%s" % (dep_lib_name, unit_name) not in missing_deps:
+                        for dep_lib_name, unit_name in \
+                                set(src_deps) - set(units_built):
+                            if "%s.%s" % (dep_lib_name, unit_name) not in \
+                                    missing_deps:
                                 missing_deps.append(
                                     "%s.%s" % (dep_lib_name, unit_name))
                         if missing_deps:

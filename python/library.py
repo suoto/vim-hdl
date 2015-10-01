@@ -75,21 +75,25 @@ class Library(object):
         cached_info = self._build_info_cache[source.abspath()]
 
         build = False
+        _build_info = ""
 
         if forced:
             build = True
+            _build_info = "forced"
         else:
             if os.stat(source.abspath()).st_size == cached_info['size']:
-                self._logger.info("%s: size hasn't changed, won't rebuild", str(source))
                 build = False
+                _build_info = "no size change"
             elif source.getmtime() > cached_info['compile_time']:
-                self._logger.info("%s: file has been modified", str(source))
                 build = True
+                _build_info = "mtime"
+
+        if _build_info:
+            self._logger.info("[%s] Build info: %s", str(source), _build_info)
 
         tags_t = None
 
         if build:
-            self._logger.info("%s: Building", str(source))
             tags_t = Thread(target=self._updateTags, args=(source,))
             tags_t.start()
 
@@ -129,7 +133,7 @@ class Library(object):
         "Adds a source or a list of sources to this library"
         assert self.sources is not None
 
-        filenames = [x.abspath() for x in self.sources]
+        filenames = self._getAbsPathOfSources()
 
         if hasattr(sources, '__iter__'):
             for source in sources:
@@ -206,9 +210,8 @@ class Library(object):
 
     @memoid
     def hasSource(self, path):
-        return os.path.abspath(path) in [x.abspath() for x in self.sources]
+        return os.path.abspath(path) in self._getAbsPathOfSources()
 
-    @memoid
     def _getAbsPathOfSources(self):
         return [x.abspath() for x in self.sources]
 
@@ -219,10 +222,9 @@ class Library(object):
         if not hasattr(sources, '__iter__'):
             sources = [sources]
         msg = []
-        abs_sources = self._getAbsPathOfSources()
-        #  print "1 [%s] flags: %s" % (self.name, str(flags))
+        sources_abs_path = self._getAbsPathOfSources()
         for source in sources:
-            if source.abspath() not in abs_sources:
+            if source.abspath() not in sources_abs_path:
                 raise RuntimeError("Source %s not found in library %s" \
                         % (source, self.name))
             result = list(self._buildSource(source, forced, flags))

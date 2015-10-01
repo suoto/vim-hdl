@@ -132,7 +132,7 @@ class MSim(BaseCompiler):
             ))
 
     def mapLibrary(self, library):
-        self._logger.info("Library %s found, mapping", library)
+        self._logger.info("modelsim.ini found, adding %s", library)
 
         shell('vlib {library}'.format(
             library=os.path.join(self._TARGET_FOLDER, library)))
