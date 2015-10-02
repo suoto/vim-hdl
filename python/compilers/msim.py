@@ -27,6 +27,8 @@ _RE_IGNORED = re.compile('|'.join([
     r".*VHDL Compiler exiting\s*$",
 ]))
 
+VLIB_ARGS = ['-unix', '-type', 'directory']
+
 class MSim(BaseCompiler):
     def __init__(self, target_folder):
         super(MSim, self).__init__(target_folder)
@@ -115,9 +117,11 @@ class MSim(BaseCompiler):
 
     def createLibrary(self, library):
         self._logger.info("Library %s not found, creating", library)
-        shell('cd {target_folder} && vlib {library}'.format(
+        shell('cd {target_folder} && vlib {vlib_args} {library}'.format(
             target_folder=self._TARGET_FOLDER,
-            library=os.path.join(self._TARGET_FOLDER, library)))
+            library=os.path.join(self._TARGET_FOLDER, library),
+            vlib_args=" ".join(VLIB_ARGS)
+            ))
         shell('cd {target_folder} && vmap {library} {library_path}'.format(
             target_folder=self._TARGET_FOLDER,
             library=library,
@@ -134,7 +138,8 @@ class MSim(BaseCompiler):
     def mapLibrary(self, library):
         self._logger.info("modelsim.ini found, adding %s", library)
 
-        shell('vlib {library}'.format(
+        shell('vlib {vlib_args} {library}'.format(
+            vlib_args=" ".join(VLIB_ARGS),
             library=os.path.join(self._TARGET_FOLDER, library)))
         shell('vmap -modelsimini {modelsimini} {library} {library_path}'.format(
             modelsimini=self._MODELSIM_INI,

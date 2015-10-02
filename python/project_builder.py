@@ -53,40 +53,25 @@ class ProjectBuilder(object):
         self.single_build_flags = []
         self._build_cnt = 0
 
-        self.readConfFile()
+        self._readConfFile()
 
-    def cleanCache(self):
-        "Remove the cached project data and clean all libraries as well"
-        cache_fname = os.path.join(os.path.dirname(self._library_file), \
-            '.' + os.path.basename(self._library_file))
+    def __getstate__(self):
+        # Remove the _logger attribute because we can't pickle file or
+        # stream objects. In its place, save the logger name
+        state = self.__dict__.copy()
+        state['_logger'] = self._logger.name
+        return state
 
-        try:
-            os.remove(cache_fname)
-        except OSError:
-            self._logger.debug("Cache filename '%s' not found", cache_fname)
-        while self.libraries:
-            self.libraries.popitem()[1].deleteLibrary()
-        self._conf_file_timestamp = 0
+    def __setstate__(self, state):
+        # Get a logger with the name given in state['_logger'] (see
+        # __getstate__) and update our dictionary with the pickled info
+        self._logger = logging.getLogger(state['_logger'])
+        self._logger.setLevel(logging.INFO)
+        del state['_logger']
+        self.__dict__.update(state)
 
-    @staticmethod
-    def clean(library_file):
-        _logger = logging.getLogger(__name__)
-        cache_fname = os.path.join(os.path.dirname(library_file), \
-            '.' + os.path.basename(library_file))
-
-        try:
-            os.remove(cache_fname)
-        except OSError:
-            _logger.debug("Cache filename '%s' not found", cache_fname)
-
-        parser = ExtendedConfigParser()
-        parser.read(library_file)
-
-        target_dir = parser.get('global', 'target_dir')
-
-        assert not os.system("rm -rf " + target_dir)
-
-    def readConfFile(self):
+    def _readConfFile(self):
+        "Reads the configuration given by self._library_file"
         cache_fname = os.path.join(os.path.dirname(self._library_file), \
             '.' + os.path.basename(self._library_file))
 
@@ -153,40 +138,6 @@ class ProjectBuilder(object):
             if not lib.sources:
                 self._logger.warning("Library '%s' has no sources", lib_name)
 
-    def __getstate__(self):
-        # Remove the _logger attribute because we can't pickle file or
-        # stream objects. In its place, save the logger name
-        state = self.__dict__.copy()
-        state['_logger'] = self._logger.name
-        return state
-
-    def __setstate__(self, state):
-        # Get a logger with the name given in state['_logger'] (see
-        # __getstate__) and update our dictionary with the pickled info
-        self._logger = logging.getLogger(state['_logger'])
-        self._logger.setLevel(logging.INFO)
-        del state['_logger']
-        self.__dict__.update(state)
-
-    def addLibrary(self, library_name, sources, target_dir):
-        "Adds a library with the given sources"
-        self.libraries[library_name] = \
-                Library(builder=self.builder,
-                        sources=sources,
-                        name=library_name,
-                        target_dir=target_dir)
-
-    def hasLibrary(self, library_name):
-        "Returns True is library_name has been added"
-        return library_name.lower() in self.libraries.keys()
-
-    def addLibrarySources(self, library_name, sources):
-        "Adds sources to library_name"
-        self.libraries[library_name].addSources(sources)
-
-    def addBuildFlags(self, library, flags):
-        "Adds build flags to the given library"
-        self.libraries[library].addBuildFlags(flags)
 
     @memoid
     def _getReverseDependencyMap(self):
@@ -296,6 +247,68 @@ class ProjectBuilder(object):
                                 src, ", ".join(missing_deps))
         return result
 
+    @memoid
+    def _findLibraryByPath(self, path):
+        """Gets the library containing the path. Raises RuntimeError
+        if the source is not found anywhere"""
+        if not os.path.exists(path):
+            raise OSError("Path %s doesn't exists" % path)
+        for lib in self.libraries.values():
+            if lib.hasSource(path):
+                return lib
+        raise RuntimeError("Source %s not found" % path)
+
+    def cleanCache(self):
+        "Remove the cached project data and clean all libraries as well"
+        cache_fname = os.path.join(os.path.dirname(self._library_file), \
+            '.' + os.path.basename(self._library_file))
+
+        try:
+            os.remove(cache_fname)
+        except OSError:
+            self._logger.debug("Cache filename '%s' not found", cache_fname)
+        while self.libraries:
+            self.libraries.popitem()[1].deleteLibrary()
+        self._conf_file_timestamp = 0
+
+    @staticmethod
+    def clean(library_file):
+        "Clean up generated files for a clean build"
+        _logger = logging.getLogger(__name__)
+        cache_fname = os.path.join(os.path.dirname(library_file), \
+            '.' + os.path.basename(library_file))
+
+        try:
+            os.remove(cache_fname)
+        except OSError:
+            _logger.debug("Cache filename '%s' not found", cache_fname)
+
+        parser = ExtendedConfigParser()
+        parser.read(library_file)
+
+        target_dir = parser.get('global', 'target_dir')
+
+        assert not os.system("rm -rf " + target_dir)
+
+    def addLibrary(self, library_name, sources, target_dir):
+        "Adds a library with the given sources"
+        self.libraries[library_name] = \
+                Library(builder=self.builder,
+                        sources=sources,
+                        name=library_name,
+                        target_dir=target_dir)
+
+    def hasLibrary(self, library_name):
+        "Returns True is library_name has been added"
+        return library_name.lower() in self.libraries.keys()
+
+    def addLibrarySources(self, library_name, sources):
+        "Adds sources to library_name"
+        self.libraries[library_name].addSources(sources)
+
+    def addBuildFlags(self, library, flags):
+        "Adds build flags to the given library"
+        self.libraries[library].addBuildFlags(flags)
 
     def buildByDependency(self, filter=lambda x: 1):
         "Build the project by checking source file dependencies"
@@ -327,15 +340,6 @@ class ProjectBuilder(object):
 
         self._build_cnt += 1
 
-    def _getLockFilename(self):
-        temp_path = os.path.join(os.path.sep, 'tmp', 'vim-hdl')
-        if not os.path.exists(temp_path):
-            os.mkdir(temp_path)
-
-        lockfile = os.path.join(os.path.sep, 'tmp', temp_path,
-            re.sub(os.path.sep, '_', os.path.abspath(self._library_file)))
-
-        return lockfile
 
     def buildByDependencyWithThreads(self, threads=None):
         """Same as buildByDependency, only that each library of each
@@ -375,15 +379,6 @@ class ProjectBuilder(object):
         pool.join()
 
     @memoid
-    def _findLibraryByPath(self, path):
-        if not os.path.exists(path):
-            raise OSError("Path %s doesn't exists" % path)
-        for lib in self.libraries.values():
-            if lib.hasSource(path):
-                return lib
-        raise RuntimeError("Source %s not found" % path)
-
-    @memoid
     def getDesignUnitsByPath(self, path):
         lib = self._findLibraryByPath(path)
         for source in lib.sources:
@@ -421,12 +416,12 @@ class ProjectBuilder(object):
         self._logger.info("==== Building '%s' ====", path)
         # Find out which library has this path
         lib = self._findLibraryByPath(path)
-        errors, warnings, rebuilds = lib.buildByPath(path, \
+        errors, warnings, rebuilds = lib.buildByPath(path, forced=True, \
                 flags=self.single_build_flags)
         for msg in errors + warnings:
             print msg
 
-        if Config.show_reverse_dependencies:
+        if Config.show_reverse_dependencies != "none":
             # Find out which design units are found at path to use as key to the
             # reverse dependency map
             units = self.getDesignUnitsByPath(path)
@@ -443,8 +438,12 @@ class ProjectBuilder(object):
                         errors, warnings, rebuilds = dep_lib.buildByPath(
                                 source, forced=True, flags=self.single_build_flags)
 
-                        for msg in errors + warnings:
-                            print msg
+                        if Config.show_reverse_dependencies == "errors":
+                            for msg in errors:
+                                print msg
+                        elif Config.show_reverse_dependencies == "warnings":
+                            for msg in errors + warnings:
+                                print msg
                 else:
                     self._logger.info("'%s.%s' has no reverse dependency",
                             lib.name, unit)
@@ -452,7 +451,6 @@ class ProjectBuilder(object):
         if rebuilds:
             self._logger.warning("Rebuild units: %s", str(rebuilds))
             self.buildByDependency(lambda s: not Config.show_only_current_file)
-
 
 def threadPoolRunnerAdapter(args):
     """Run a method from some import object via ThreadPool.

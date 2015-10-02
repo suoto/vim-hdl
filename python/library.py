@@ -61,7 +61,10 @@ class Library(object):
         cmd = ['ctags-exuberant'] + re.split(r"\s+", CTAGS_ARGS) + \
                 ['-f', self.tag_file, str(source)]
 
-        subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+        try:
+            subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+        except subprocess.CalledProcessError as e:
+            self._logger.fatal(e.output)
 
     # TODO: Check file modification time to invalidate cached info
     def _buildSource(self, source, forced=False, flags=[]):

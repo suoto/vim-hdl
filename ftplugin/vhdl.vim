@@ -59,7 +59,7 @@ endfunction
 
 " { Register vimhdl within Syntastic
 call g:SyntasticRegistry.CreateAndRegisterChecker({
-    \ 'exec'     : '/usr/bin/python2',
+    \ 'exec'     : 'python',
     \ 'filetype' : 'vhdl',
     \ 'name'     : 'vimhdl'})
 " }
@@ -72,6 +72,7 @@ command! VimhdlRebuildProject          call vimhdl#rebuildProject()
 command! VimhdlListLibraries           call vimhdl#listLibraries()
 command! VimhdlListLibrariesAndSources call vimhdl#listLibrariesAndSources()
 command! VimhdlViewLog                 call vimhdl#viewLog()
+command! VimhdlCleanProjectCache       call vimhdl#cleanProjectCache()
 " }
 "
 " { Autocommands

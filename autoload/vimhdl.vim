@@ -96,11 +96,23 @@ endfunction
 " Shows vim-hdl log
 function! vimhdl#viewLog()
 python << EOF
-print open('/tmp/build.log').read()
+print "\n".join(open('/tmp/build.log').read().split("\n")[-30:])
 EOF
 
 endfunction
 " }
 
+" { vimhdl#cleanCache()
+" Clean internal vim-hdl cache
+function! vimhdl#cleanProjectCache()
+    let conf_file = vimhdl#getConfFile()
+
+python << EOF
+project = ProjectBuilder(library_file=vim.eval('conf_file'))
+project.cleanCache()
+EOF
+
+endfunction
+" }
 
 " vim: set foldmarker={,} foldlevel=0 foldmethod=marker :
