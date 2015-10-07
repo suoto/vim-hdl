@@ -17,6 +17,7 @@
 import logging
 import os
 import abc
+import time
 
 _logger = logging.getLogger(__name__)
 
@@ -77,8 +78,12 @@ class BaseCompiler(object):
     def build(self, library, source, flags=None):
         """Method that interfaces with parents and implements the
         building chain"""
+        start = time.time()
         self._preBuild(library, source)
         stdout = self._doBuild(library, source, flags)
-        return self._postBuild(library, source, stdout)
+        result = self._postBuild(library, source, stdout)
+        end = time.time()
+        self._logger.info("Compiling took %.2fs", (end - start))
+        return result
 
 
