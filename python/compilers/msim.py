@@ -30,66 +30,66 @@ _RE_IGNORED = re.compile('|'.join([
 
 VLIB_ARGS = ['-unix', '-type', 'directory']
 
+def _lineHasError(line):
+    "Parses <line> and return True or False if it contains an error"
+    if '(vcom-11)' in line:
+        return False
+    if _RE_ERROR.match(line):
+        return True
+    return False
+
+def _lineHasWarning(line):
+    "Parses <line> and return True or False if it contains a warning"
+    if _RE_WARNING.match(line):
+        return True
+    return False
+
+def _getRebuildUnits(line):
+    "Finds units that the compilers is telling us to rebuild"
+    if '(vcom-13)' not in line:
+        return []
+    return [x.split('.') for x in _RE_LIB_DOT_UNIT.findall(line)]
+
 class MSim(BaseCompiler):
+    """Implementation of the ModelSim compiler"""
+
     def __init__(self, target_folder):
         super(MSim, self).__init__(target_folder)
-        self._MODELSIM_INI = os.path.join(self._TARGET_FOLDER, 'modelsim.ini')
+        self._modelsim_ini = os.path.join(self._target_folder, 'modelsim.ini')
+
+    def _checkEnvironment(self):
+        try:
+            version = subprocess.check_output(['vcom', '-version'],
+                stderr=subprocess.STDOUT)
+            self._logger.info("vcom version string: '%s'", version[:-1])
+        except Exception as exc:
+            self._logger.error("Sanity check failed with message: '%s'", exc)
+            raise
 
     def _doBuild(self, library, source, flags=None):
         if flags:
-            flags += self.getBuildFlags(library, source)
+            flags += self._getBuildFlags(library, source)
         else:
-            flags = self.getBuildFlags(library, source)
+            flags = self._getBuildFlags(library, source)
 
-        cmd = ['vcom', '-modelsimini', self._MODELSIM_INI, '-work', os.path.join(self._TARGET_FOLDER, library)]
+        cmd = ['vcom', '-modelsimini', self._modelsim_ini,
+                '-work', os.path.join(self._target_folder, library)]
         cmd += flags
         cmd += [source.filename]
 
         self._logger.debug(" ".join(cmd))
 
         try:
-            result = list(subprocess.check_output(cmd, stderr=subprocess.STDOUT).split("\n"))
+            result = list(subprocess.check_output(cmd,
+                stderr=subprocess.STDOUT).split("\n"))
         except subprocess.CalledProcessError as exc:
             result = list(exc.output.split("\n"))
         return result
 
-    def _doBatchBuild(self, library, sources, flags=None):
-        if flags:
-            flags += self.getBuildFlags(library, sources)
-        else:
-            flags = self.getBuildFlags(library, sources)
-
-        cmd = 'vcom -modelsimini {modelsimini} -work {library} {flags} {sources}'.format(
-            modelsimini=self._MODELSIM_INI,
-            library=os.path.join(self._TARGET_FOLDER, library),
-            flags=" ".join(flags),
-
-            sources=" ".join(sources))
-
-        self._logger.debug(cmd)
-        return os.popen(cmd).read().split("\n")
-
-    def _lineHasError(self, l):
-        if '(vcom-11)' in l:
-            return False
-        if _RE_ERROR.match(l):
-            return True
-        return False
-
-    def _lineHasWarning(self, l):
-        if _RE_WARNING.match(l):
-            return True
-        return False
-
-    def _getRebuildUnits(self, l):
-        if '(vcom-13)' not in l:
-            return []
-        return [x.split('.') for x in _RE_LIB_DOT_UNIT.findall(l)]
-
     def createOrMapLibrary(self, library):
-        if os.path.exists(os.path.join(self._TARGET_FOLDER, library)):
+        if os.path.exists(os.path.join(self._target_folder, library)):
             return
-        if os.path.exists(self._MODELSIM_INI):
+        if os.path.exists(self._modelsim_ini):
             self.mapLibrary(library)
         else:
             self.createLibrary(library)
@@ -101,14 +101,14 @@ class MSim(BaseCompiler):
         errors = []
         warnings = []
         rebuilds = []
-        for l in stdout:
-            if _RE_IGNORED.match(l):
+        for line in stdout:
+            if _RE_IGNORED.match(line):
                 continue
-            if self._lineHasError(l):
-                errors.append(l)
-            if self._lineHasWarning(l):
-                warnings.append(l)
-            rebuilds += self._getRebuildUnits(l)
+            if _lineHasError(line):
+                errors.append(line)
+            if _lineHasWarning(line):
+                warnings.append(line)
+            rebuilds += _getRebuildUnits(line)
 
         if errors:
             self._logger.debug("Messages for (%s) %s:", library, source)
@@ -119,21 +119,21 @@ class MSim(BaseCompiler):
     def createLibrary(self, library):
         self._logger.info("Library %s not found, creating", library)
         shell('cd {target_folder} && vlib {vlib_args} {library}'.format(
-            target_folder=self._TARGET_FOLDER,
-            library=os.path.join(self._TARGET_FOLDER, library),
+            target_folder=self._target_folder,
+            library=os.path.join(self._target_folder, library),
             vlib_args=" ".join(VLIB_ARGS)
             ))
         shell('cd {target_folder} && vmap {library} {library_path}'.format(
-            target_folder=self._TARGET_FOLDER,
+            target_folder=self._target_folder,
             library=library,
-            library_path=os.path.join(self._TARGET_FOLDER, library)))
+            library_path=os.path.join(self._target_folder, library)))
 
     def deleteLibrary(self, library):
-        if not os.path.exists(os.path.join(self._TARGET_FOLDER, library)):
+        if not os.path.exists(os.path.join(self._target_folder, library)):
             self._logger.warning("Library %s doesn't exists", library)
             return
         shell('vdel -modelsimini {modelsimini} -lib {library} -all'.format(
-            modelsimini=self._MODELSIM_INI, library=library
+            modelsimini=self._modelsim_ini, library=library
             ))
 
     def mapLibrary(self, library):
@@ -141,32 +141,9 @@ class MSim(BaseCompiler):
 
         shell('vlib {vlib_args} {library}'.format(
             vlib_args=" ".join(VLIB_ARGS),
-            library=os.path.join(self._TARGET_FOLDER, library)))
+            library=os.path.join(self._target_folder, library)))
         shell('vmap -modelsimini {modelsimini} {library} {library_path}'.format(
-            modelsimini=self._MODELSIM_INI,
+            modelsimini=self._modelsim_ini,
             library=library,
-            library_path=os.path.join(self._TARGET_FOLDER, library)))
-
-    def getBuildFlags(self, library, source):
-        return []
-
-    def build(self, library, source, flags=None):
-        self._preBuild(library, source)
-        stdout = self._doBuild(library, source, flags)
-        return self._postBuild(library, source, stdout)
-
-    def batchBuild(self, library, sources, flags=None):
-        self._preBuild(library, sources)
-        stdout = self._doBatchBuild(library, sources, flags)
-        errors, warnings = self._postBuild(library, sources, stdout)
-        if not errors:
-            return errors, warnings
-        errors = []
-        warnings = []
-        for source in sources:
-            _errors, _warnings = self.build(library, source, flags)
-            errors.append(_errors)
-            warnings.append(_warnings)
-        return errors, warnings
-
+            library_path=os.path.join(self._target_folder, library)))
 
