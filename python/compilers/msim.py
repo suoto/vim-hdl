@@ -17,7 +17,8 @@ import os, re
 from compilers.base_compiler import BaseCompiler
 from utils import shell
 import subprocess
-from source_file import _RE_LIB_DOT_UNIT
+
+_RE_LIB_DOT_UNIT = re.compile(r"\b\w+\.\w+\b")
 
 _RE_ERROR = re.compile(r"^\*\*\sError:", flags=re.I)
 _RE_WARNING = re.compile(r"^\*\*\sWarning:", flags=re.I)

@@ -179,7 +179,7 @@ class Library(object):
         deps = []
         for source in self.sources:
             source_deps = []
-            for dep_lib, dep_units in source.getDependencies():
+            for dep_lib, dep_unit in source.getDependencies():
                 # Work library means 'this' library, not a library
                 # named work!
                 if dep_lib == 'work':
@@ -188,11 +188,9 @@ class Library(object):
                 # When the file depends on something defined within
                 # itself, remove this dependency.
                 # TODO: Check how to handle circular dependencies
-                if dep_lib == self.name:
-                    for dep_unit in dep_units:
-                        if dep_unit in source.getDesignUnits():
-                            dep_units.remove(dep_unit)
-                source_deps.append((dep_lib, dep_units))
+                if dep_lib == self.name and dep_unit in source.getDesignUnits():
+                    continue
+                source_deps.append((dep_lib, dep_unit))
             deps.append((source, source_deps))
         return deps
 

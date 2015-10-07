@@ -16,7 +16,6 @@
 
 import logging
 import os
-import re
 import atexit
 from multiprocessing.pool import ThreadPool
 #  from threading import Thread
@@ -165,10 +164,9 @@ class ProjectBuilder(object):
             for src_file, src_deps in lib.getDependencies():
                 if src_file not in this_lib_map.keys():
                     this_lib_map[src_file] = []
-                for dep_lib, dep_pkgs in src_deps:
-                    for dep_pkg in dep_pkgs:
-                        if (dep_lib, dep_pkg) not in this_lib_map[src_file]:
-                            this_lib_map[src_file].append((dep_lib, dep_pkg))
+                for dep_lib, dep_unit in src_deps:
+                    if (dep_lib, dep_unit) not in this_lib_map[src_file]:
+                        this_lib_map[src_file].append((dep_lib, dep_unit))
 
             result[lib_name] = this_lib_map
         return result
@@ -187,6 +185,7 @@ class ProjectBuilder(object):
             this_step = {}
             for lib_name, lib_deps in self._getDependencyMap().iteritems():
                 for src, src_deps in lib_deps.iteritems():
+
                     for design_unit in src.getDesignUnits():
                         if (lib_name, design_unit) in units_built:
                             continue
@@ -209,18 +208,18 @@ class ProjectBuilder(object):
                 self._logger.error("Max build steps of %d reached, stopping",
                                    self.MAX_BUILD_STEPS)
 
-        #  this_step = {}
-        #  for lib_name, src in self._getSourcesWithMissingDependencies(units_built):
-        #      if lib_name not in this_step:
-        #          this_step[lib_name] = []
-        #      if src not in this_step[lib_name]:
-        #          this_step[lib_name].append(src)
+        this_step = {}
+        for lib_name, src in self._getSourcesWithMissingDependencies(units_built):
+            if lib_name not in this_step:
+                this_step[lib_name] = []
+            if src not in this_step[lib_name]:
+                this_step[lib_name].append(src)
 
         #  if this_step:
         #      self._logger.debug("Yielding remaining files")
         #      yield this_step
 
-    @memoid
+    #  @memoid
     def _getSourcesWithMissingDependencies(self, units_built):
         """Searches for files that weren't build given the units_built
         and returns their dependencies"""
