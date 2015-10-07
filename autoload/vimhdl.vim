@@ -34,10 +34,15 @@ endfunction
 " Gets the configuration file giving preference to the buffer version
 function! vimhdl#getConfFile()
     if exists("b:vimhdl_conf_file")
-        return b:vimhdl_conf_file
+        let conf_file = b:vimhdl_conf_file
     else
-        return get(g:, 'vimhdl_conf_file', '')
+        let conf_file = get(g:, 'vimhdl_conf_file', '')
     endif
+    if !filereadable(conf_file)
+        let conf_file = ''
+    endif
+    return conf_file
+
 endfunction
 " }
 
