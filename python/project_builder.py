@@ -18,8 +18,7 @@ import logging
 import os
 import atexit
 from multiprocessing.pool import ThreadPool
-#  from threading import Thread
-#  import threading
+from threading import Thread
 try:
     import cPickle as pickle
 except ImportError:
@@ -145,8 +144,7 @@ class ProjectBuilder(object):
         result = {}
         for lib in self.libraries.values():
             for src_file, src_deps in lib.getDependencies():
-                for src_dep in src_deps:
-                    dep_lib, dep_pkgs = src_dep
+                for dep_lib, dep_pkgs in src_deps:
                     for dep_pkg in dep_pkgs:
                         dep_key = (dep_lib, dep_pkg)
                         if dep_key not in result.keys():
@@ -381,7 +379,7 @@ class ProjectBuilder(object):
     def getDesignUnitsByPath(self, path):
         lib = self._findLibraryByPath(path)
         for source in lib.sources:
-            if source.abspath() == os.path.abspath(path):
+            if os.path.samefile(str(source), str(path)):
                 return source.getDesignUnits()
 
 
@@ -408,6 +406,14 @@ class ProjectBuilder(object):
         """Finds the library of a given path and builds it. Use the reverse
         dependency map to reset the compile time of the sources that depend on
         'path' to build later"""
+
+        # Start the direct and reverse dependency mapping in a thread
+        # to save time
+        threads = [Thread(target=self._getDependencyMap),
+                   Thread(target=self._getReverseDependencyMap)]
+
+        [t.start() for t in threads]
+
         self._logger.info("Build count: %d", self._build_cnt)
         if self._build_cnt == 0:
             self._logger.info("Running project build before building '%s'", path)
@@ -419,6 +425,10 @@ class ProjectBuilder(object):
                 flags=self.single_build_flags)
         for msg in errors + warnings:
             print msg
+
+        # Join the dependency mapping threads before we need that
+        # information
+        [t.join() for t in threads]
 
         if Config.show_reverse_dependencies != "none":
             # Find out which design units are found at path to use as key to the

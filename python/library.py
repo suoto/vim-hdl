@@ -18,6 +18,7 @@ import os
 import subprocess
 import re
 from threading import Thread
+import time
 
 from utils import memoid
 from source_file import VhdlSourceFile
@@ -33,8 +34,6 @@ class Library(object):
         self.builder = builder
         self.name = name
         self.sources = []
-        if sources is not None:
-            self.addSources(sources)
 
         self.target_dir = target_dir or os.curdir
         self.tag_file = 'tags'
@@ -43,9 +42,14 @@ class Library(object):
         self._logger = logging.getLogger("Library('%s')" % self.name)
 
         self._build_info_cache = {}
+        if sources is not None:
+            self.addSources(sources)
 
     def __str__(self):
         return "Library(name='%s')" % self.name
+
+    def __repr__(self):
+        return str(self)
 
     def __getstate__(self):
         state = self.__dict__.copy()
@@ -136,16 +140,14 @@ class Library(object):
         "Adds a source or a list of sources to this library"
         assert self.sources is not None
 
-        filenames = self._getAbsPathOfSources()
-
         if hasattr(sources, '__iter__'):
             for source in sources:
-                if os.path.abspath(source) not in filenames:
+                if not self.hasSource(source):
                     self.sources.append(VhdlSourceFile(source))
                 else:
                     self._logger.warning("Source %s was already added", source)
         else:
-            if os.path.abspath(sources) not in filenames:
+            if not self.hasSource(sources):
                 self.sources.append(VhdlSourceFile(sources))
             else:
                 self._logger.warning("Source %s was already added", sources)
@@ -174,10 +176,44 @@ class Library(object):
         return msg
 
     # TODO: Check file modification time to invalidate cached info
-    @memoid
+    #  @memoid
     def getDependencies(self):
-        deps = []
+        """Gets the dependency tree for this library"""
+
+        # Add an entry to our cached with the dependency check info
+        if 'dependency_check' not in self._build_info_cache.keys():
+            self._build_info_cache['dependency_check'] = {
+                    'timestamp' : 0,
+                    'dependencies' : {},
+                    }
+
+        cached_info = self._build_info_cache['dependency_check']
+
+        # If no sources have changed since we last checked, return the
+        # info we have cached
+        reparse = False
         for source in self.sources:
+            if source.getmtime() > cached_info['timestamp']:
+                reparse = True
+                break
+
+        if not reparse:
+            return cached_info['dependencies']
+
+        self._logger.debug("Some sources changed, reparsing")
+
+        # While parsing, store entries in a dict to change it based
+        # on which sources actually changed
+        dep_dict = dict(cached_info['dependencies'])
+
+        for source in self.sources:
+            # If this source hasn't changed, skip it
+            if source.getmtime() < cached_info['timestamp']:
+                continue
+
+            self._logger.debug("Source %s changed, updating its "
+                    "dependencies", source)
+
             source_deps = []
             for dep_lib, dep_unit in source.getDependencies():
                 # Work library means 'this' library, not a library
@@ -191,8 +227,16 @@ class Library(object):
                 if dep_lib == self.name and dep_unit in source.getDesignUnits():
                     continue
                 source_deps.append((dep_lib, dep_unit))
-            deps.append((source, source_deps))
-        return deps
+            dep_dict[source] = source_deps
+
+        cached_info['timestamp'] = time.time()
+        # We don't return in a dict-like object. Maybe will do that if
+        # helps anything...
+        cached_info['dependencies'] = zip(dep_dict.keys(), dep_dict.values())
+
+        self._build_info_cache['dependency_check'] = cached_info
+
+        return cached_info['dependencies']
 
     @memoid
     def hasDesignUnit(self, unit):
@@ -209,12 +253,12 @@ class Library(object):
         raise RuntimeError("Design unit '%s' not found in library '%s'" % \
                 (str(unit), self.name))
 
-    @memoid
+    #  @memoid
     def hasSource(self, path):
-        return os.path.abspath(path) in self._getAbsPathOfSources()
-
-    def _getAbsPathOfSources(self):
-        return [x.abspath() for x in self.sources]
+        for source in self.sources:
+            if os.path.samefile(str(path), str(source)):
+                return True
+        return False
 
     def buildSources(self, sources, forced=False, flags=[]):
         """Build a list or a single source. The argument should be
@@ -223,9 +267,9 @@ class Library(object):
         if not hasattr(sources, '__iter__'):
             sources = [sources]
         msg = []
-        sources_abs_path = self._getAbsPathOfSources()
+
         for source in sources:
-            if source.abspath() not in sources_abs_path:
+            if not self.hasSource(source):
                 raise RuntimeError("Source %s not found in library %s" \
                         % (source, self.name))
             result = list(self._buildSource(source, forced, flags))
@@ -233,11 +277,10 @@ class Library(object):
         return msg
 
     def buildByPath(self, path, forced=False, flags=[]):
-        path = os.path.abspath(path)
         for source in self.sources:
-            if path == source.abspath():
+            if os.path.samefile(str(source), path):
                 return self._buildSource(source, forced, flags)
     def clearBuildCacheByPath(self, path):
         path = os.path.abspath(path)
-        self._build_info_cache[os.path.abspath(path)]['compile_time'] = 0
+        self._build_info_cache[path]['compile_time'] = 0
 

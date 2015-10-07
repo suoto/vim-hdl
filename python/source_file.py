@@ -16,6 +16,7 @@
 import re
 import os
 import logging
+from utils import memoid
 
 _RE_VALID_NAME_CHECK = re.compile(r"^[a-z]\w*$", flags=re.I)
 
@@ -66,17 +67,18 @@ class VhdlSourceFile(object):
         try:
             self._lock.acquire()
             self._doParse()
+            self._mtime = self.getmtime()
         finally:
             self._lock.release()
+
+    def changed(self):
+        return self._mtime >= self.getmtime()
 
     def _doParse(self):
         "Parses the source file to find design units and dependencies"
         # Check if we really need to parse
-        if self._mtime >= self.getmtime():
-            return
 
         _logger.debug("Parsing %s", str(self))
-        self._mtime = self.getmtime()
 
         # Replace everything from comment ('--') until a line break and
         # converts to lowercase
@@ -135,12 +137,17 @@ class VhdlSourceFile(object):
                 raise RuntimeError("Dependency unit %s is invalid" % dep_unit)
 
     def getDesignUnits(self):
-        self._parse()
+        if self.changed():
+            self._parse()
         return self._design_units
 
     def getDependencies(self):
-        self._parse()
+        if self.changed():
+            self._parse()
         return self._deps
+
+    def __repr__(self):
+        return "VhdlSourceFile('%s')" % self.abspath()
 
     def __str__(self):
         return str(self.filename)
@@ -148,6 +155,7 @@ class VhdlSourceFile(object):
     def getmtime(self):
         return os.path.getmtime(self.filename)
 
+    @memoid
     def abspath(self):
         return os.path.abspath(self.filename)
 

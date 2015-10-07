@@ -87,7 +87,7 @@ def memoid(func):
     def memoid_w(self, *args, **kwargs):
         if not hasattr(self, '_memoid'):
             self._memoid = {}
-        k = str((func, args, frozenset(kwargs)))
+        k = str((func.func_name, args, frozenset(kwargs)))
         if k not in self._memoid.keys():
             self._memoid[k] = func(self, *args, **kwargs)
         return self._memoid[k]
