@@ -46,9 +46,12 @@ def _lineHasWarning(line):
 
 def _getRebuildUnits(line):
     "Finds units that the compilers is telling us to rebuild"
-    if '(vcom-13)' not in line:
-        return []
-    return [x.split('.') for x in _RE_LIB_DOT_UNIT.findall(line)]
+    rebuilds = []
+    if '(vcom-13)' in line:
+        rebuilds = [x.split('.') for x in re.findall(
+            r"(?<=recompile)\s*(\w+\.\w+)", line, flags=re.I)
+        ]
+    return rebuilds
 
 class MSim(BaseCompiler):
     """Implementation of the ModelSim compiler"""

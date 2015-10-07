@@ -83,7 +83,7 @@ class BaseCompiler(object):
         stdout = self._doBuild(library, source, flags)
         result = self._postBuild(library, source, stdout)
         end = time.time()
-        self._logger.info("Compiling took %.2fs", (end - start))
+        self._logger.debug("Compiling took %.2fs", (end - start))
         return result
 
 
