@@ -80,6 +80,7 @@ def main():
     project = ProjectBuilder(library_file=args.library_file)
 
     if args.print_dependency_map:
+        #  print project._getDependencyMap().iteritems()
         for lib_name, lib_deps in project._getDependencyMap().iteritems():
             print "Library %s" % lib_name
             for src, src_deps in lib_deps.iteritems():
@@ -90,21 +91,14 @@ def main():
                     print " - %s: None" % src
 
     if args.print_reverse_dependency_map:
-        for (lib_name, design_unit), deps in project._getReverseDependencyMap().iteritems():
+        for (lib_name, design_unit), deps in \
+                project._getReverseDependencyMap().iteritems():
             _s =  "- %s.%s: " % (lib_name, design_unit)
             if deps:
                 _s += " ".join(deps)
             else:
                 _s += "None"
             print _s
-        #  for lib_name, lib_deps in project._getDependencyMap().iteritems():
-        #      print lib_name
-        #      for src, src_deps in lib_deps.iteritems():
-        #          if src_deps:
-        #              print " - %s: %s" % (src, ", ".join(["%s.%s" % (x[0], x[1]) \
-        #                      for x in src_deps]))
-        #          else:
-        #              print " - %s: None" % src
 
     if args.print_design_units:
         for unit in project.getDesignUnitsByPath(args.print_design_units):

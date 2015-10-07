@@ -137,22 +137,21 @@ class ProjectBuilder(object):
                 self._logger.warning("Library '%s' has no sources", lib_name)
 
 
-    @memoid
+    #  @memoid
     def _getReverseDependencyMap(self):
         """Returns a dict that relates which source files depend on a
         given library/unit"""
         result = {}
         for lib in self.libraries.values():
             for src_file, src_deps in lib.getDependencies():
-                for dep_lib, dep_pkgs in src_deps:
-                    for dep_pkg in dep_pkgs:
-                        dep_key = (dep_lib, dep_pkg)
-                        if dep_key not in result.keys():
-                            result[dep_key] = []
-                        result[dep_key].append(src_file.filename)
+                for dep_lib, dep_pkg in src_deps:
+                    dep_key = (dep_lib, dep_pkg)
+                    if dep_key not in result.keys():
+                        result[dep_key] = []
+                    result[dep_key].append(src_file.filename)
         return result
 
-    @memoid
+    #  @memoid
     def _getDependencyMap(self):
         """Returns a dict which library/units a given source file
         depens on"""
@@ -423,8 +422,6 @@ class ProjectBuilder(object):
         lib = self._findLibraryByPath(path)
         errors, warnings, rebuilds = lib.buildByPath(path, forced=True, \
                 flags=self.single_build_flags)
-        for msg in errors + warnings:
-            print msg
 
         # Join the dependency mapping threads before we need that
         # information
@@ -444,18 +441,22 @@ class ProjectBuilder(object):
                         dep_lib = self._findLibraryByPath(source)
                         dep_lib.clearBuildCacheByPath(source)
 
-                        errors, warnings, rebuilds = dep_lib.buildByPath(
+                        dep_errors, dep_warnings, rebuilds = dep_lib.buildByPath(
                                 source, forced=True, flags=self.single_build_flags)
 
+                        # Append errors and/or warnings according to
+                        # user preferences to make sure we keep printing
+                        # errors before the warnings
                         if Config.show_reverse_dependencies == "errors":
-                            for msg in errors:
-                                print msg
+                            errors += dep_errors
                         elif Config.show_reverse_dependencies == "warnings":
-                            for msg in errors + warnings:
-                                print msg
+                            errors += dep_warnings
                 else:
                     self._logger.info("'%s.%s' has no reverse dependency",
-                            lib.name, unit)
+                        lib.name, unit)
+
+        for msg in errors + warnings:
+            print msg
 
         if rebuilds:
             self._logger.warning("Rebuild units: %s", str(rebuilds))
