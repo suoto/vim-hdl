@@ -32,7 +32,7 @@ def parseArguments():
     parser.add_argument('--clean',        '-c', action='store_true')
     parser.add_argument('--build',        '-b', action='store_true')
     parser.add_argument('--library-file', '-l', action='store')
-    parser.add_argument('--target',       '-t', action='store')
+    parser.add_argument('--target',       '-t', action='append', nargs='*')
     parser.add_argument('--threads',      '-m', action='store_true', default=False)
 
     # Debugging options
@@ -61,7 +61,6 @@ def parseArguments():
             args.log_level = logging.DEBUG
         else:
             args.log_level = logging.ERROR
-
 
     Config.updateFromArgparse(args)
     Config.setupBuild()
@@ -113,8 +112,15 @@ def main():
             project.buildByDependency()
 
     if args.target:
-        _logger.info("Building target '%s'", args.target)
-        project.buildByPath(args.target)
+        for targets in args.target:
+            for target in targets:
+                try:
+                    _logger.info("Building target '%s'", target)
+                    project.buildByPath(target)
+                except RuntimeError:
+                    _logger.error("Unable to build '%s'", target)
+                    continue
+
 
 if __name__ == '__main__':
     start = time.time()
