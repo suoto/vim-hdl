@@ -142,7 +142,7 @@ class VhdlSourceFile(object):
         return self._design_units
 
     def getDependencies(self):
-        if self.changed():
+        if self.changed() or self._deps is None:
             self._parse()
         return self._deps
 

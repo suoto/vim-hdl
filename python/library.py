@@ -131,7 +131,6 @@ class Library(object):
         if rebuilds:
             cached_info['compile_time'] = 0
 
-
         if tags_t is not None:
             tags_t.join()
         return errors, warnings, rebuilds
@@ -282,5 +281,10 @@ class Library(object):
                 return self._buildSource(source, forced, flags)
     def clearBuildCacheByPath(self, path):
         path = os.path.abspath(path)
+        if path not in self._build_info_cache.keys():
+            self._build_info_cache[path] = {
+                'compile_time': 0, 'size' : 0, 'errors': (), 'warnings': ()
+            }
+            self._logger.info("Adding '%s'", path)
         self._build_info_cache[path]['compile_time'] = 0
 
