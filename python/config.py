@@ -22,7 +22,17 @@ class Config(object):
     log_file = os.path.join('/', 'tmp', 'build.log')
     log_level = logging.DEBUG
     show_only_current_file = True
-    show_reverse_dependencies = "errors" # "none", "errors", "warnings"
+
+    # When building a specific source, we can build its dependencies
+    # and display their errors and/or warnings. Notice that no
+    # dependency tracking will be done when this is set to "none"
+    show_reverse_dependencies = "none" # "none", "errors", "warnings"
+
+    # When we find errors, we can cache them to avoid recompiling a
+    # specific source file or consider the file as changed. Notice this
+    # is changed from True to False, the errors reported for a given
+    # source will be the cached ontes until we force rebuilding it
+    cache_error_messages = True
 
     log_format = "%(levelname)-8s || %(name)s || %(message)s"
 

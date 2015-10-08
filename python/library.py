@@ -17,14 +17,18 @@ import logging
 import os
 import subprocess
 import re
-from threading import Thread
 import time
+from threading import Thread
 
+from config import Config
 from utils import memoid
 from source_file import VhdlSourceFile
 
-CTAGS_ARGS = '--tag-relative=no --totals=no --sort=foldcase --extra=+f --fields=+i-l+m+s+S --links=yes --append'
-RE_CTAGS_IGNORE_LINE = re.compile(r"^\s*$|ctags-exuberant: Warning: Language \"vhdl\" already defined")
+CTAGS_ARGS = ('--tag-relative=no', '--totals=no', '--sort=foldcase',
+        '--extra=+f', '--fields=+i-l+m+s+S', '--links=yes', '--append')
+
+RE_CTAGS_IGNORE_LINE = re.compile(
+    r"^\s*$|ctags-exuberant: Warning: Language \"vhdl\" already defined")
 
 class Library(object):
     """Organizes a collection of VhdlSourceFile objects and calls the
@@ -62,9 +66,8 @@ class Library(object):
         self.__dict__.update(state)
 
     def _updateTags(self, source):
-        cmd = ['ctags-exuberant'] + re.split(r"\s+", CTAGS_ARGS) + \
+        cmd = ['ctags-exuberant'] + list(CTAGS_ARGS) + \
                 ['-f', self.tag_file, str(source)]
-
         try:
             subprocess.check_output(cmd, stderr=subprocess.STDOUT)
         except subprocess.CalledProcessError as e:
@@ -128,7 +131,7 @@ class Library(object):
             warnings = cached_info['warnings']
             rebuilds = cached_info['rebuilds']
 
-        if rebuilds:
+        if not Config.cache_error_messages and errors or rebuilds:
             cached_info['compile_time'] = 0
 
         if tags_t is not None:
