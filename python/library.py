@@ -199,7 +199,7 @@ class Library(object):
         if not reparse:
             return cached_info['dependencies']
 
-        self._logger.debug("Some sources changed, reparsing")
+        self._logger.debug("Checking sources for dependency changes")
 
         # While parsing, store entries in a dict to change it based
         # on which sources actually changed
@@ -210,8 +210,8 @@ class Library(object):
             if source.getmtime() < cached_info['timestamp']:
                 continue
 
-            self._logger.debug("Source %s changed, updating its "
-                    "dependencies", source)
+            self._logger.debug("Updating dependency info for '%s'",
+                    source)
 
             source_deps = []
             for dep_lib, dep_unit in source.getDependencies():

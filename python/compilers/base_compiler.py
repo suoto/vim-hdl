@@ -62,7 +62,6 @@ class BaseCompiler(object):
 
     def _getBuildFlags(self, library, source):
         "Holds compiler based build flags"
-        self._logger.debug("Method _getBuildFlags not overridden")
         return []
 
     def __getstate__(self):

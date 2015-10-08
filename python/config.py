@@ -24,8 +24,6 @@ class Config(object):
     show_only_current_file = True
     show_reverse_dependencies = "errors" # "none", "errors", "warnings"
 
-
-    #  log_format = "%(asctime)s <<%(levelname)-8s @ %(name)s >> %(message)s"
     log_format = "%(levelname)-8s || %(name)s || %(message)s"
 
     _logger = logging.getLogger(__name__)

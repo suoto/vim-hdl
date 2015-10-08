@@ -12,12 +12,11 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with vim-hdl.  If not, see <http://www.gnu.org/licenses/>.
-"vim-hdl project bulider class"
+"vim-hdl project builder class"
 
 import logging
 import os
 import atexit
-from multiprocessing.pool import ThreadPool
 from threading import Thread
 try:
     import cPickle as pickle
@@ -35,10 +34,23 @@ from config_parser import ExtendedConfigParser
 def saveCache(obj, fname):
     pickle.dump(obj, open(fname, 'w'))
 
+_logger = logging.getLogger('build messages')
+
+def _print(s, fmt=None):
+    if Config.is_toolchain:
+        if fmt:
+            print s % fmt
+        else:
+            print s
+    else:
+        if fmt:
+            _logger.info(s, fmt)
+        else:
+            _logger.info(s)
+
 class ProjectBuilder(object):
-    "vim-hdl project bulider class"
-    MAX_BUILD_STEPS = 10
-    BUILD_WORKERS = 5
+    "vim-hdl project builder class"
+    MAX_BUILD_STEPS = 20
 
     def __init__(self, library_file):
         self.builder = None
@@ -243,7 +255,7 @@ class ProjectBuilder(object):
                                 src, ", ".join(missing_deps))
         return result
 
-    @memoid
+    #  @memoid
     def _findLibraryByPath(self, path):
         """Gets the library containing the path. Raises RuntimeError
         if the source is not found anywhere"""
@@ -332,49 +344,11 @@ class ProjectBuilder(object):
 
                     for msg in errors + warnings:
                         if filter(msg):
-                            print msg
+                            _print(msg)
 
         self._build_cnt += 1
 
-
-    def buildByDependencyWithThreads(self, threads=None):
-        """Same as buildByDependency, only that each library of each
-        step is built in parallel"""
-        threads = threads or self.BUILD_WORKERS
-
-        for lib in self.libraries.itervalues():
-            lib.createOrMapLibrary()
-
-        pool = ThreadPool()
-
-        for step in self._getBuildSteps():
-
-            f_args = []
-
-            for lib_name, sources in step.iteritems():
-                self._logger.debug("  - %s", lib_name)
-                for source in sources:
-                    self._logger.debug("    - %s", str(source))
-
-                f_args.append((lib_name,
-                               self.libraries[lib_name],
-                               'buildSources',
-                               sources,
-                               self.batch_build_flags))
-
-            if not f_args:
-                break
-
-            pool_results = pool.imap(threadPoolRunnerAdapter, f_args)
-
-            for pool_result in pool_results:
-                for lib_name, source, errors, warnings, rebuilds, in pool_result:
-                    for msg in errors + warnings:
-                        print msg
-        pool.close()
-        pool.join()
-
-    @memoid
+    #  @memoid
     def getDesignUnitsByPath(self, path):
         lib = self._findLibraryByPath(path)
         for source in lib.sources:
@@ -399,12 +373,19 @@ class ProjectBuilder(object):
                     self.buildByDesignUnit(unit)
             else:
                 for msg in errors + warnings:
-                    print msg
+                    _print(msg)
 
     def buildByPath(self, path):
         """Finds the library of a given path and builds it. Use the reverse
         dependency map to reset the compile time of the sources that depend on
         'path' to build later"""
+
+        self._logger.info("Build count: %d", self._build_cnt)
+        if self._build_cnt == 0:
+
+            self._logger.info("Running project build before building '%s'", path)
+            self.buildByDependency(filter=lambda x: 1)
+
 
         # Start the direct and reverse dependency mapping in a thread
         # to save time
@@ -413,10 +394,6 @@ class ProjectBuilder(object):
 
         [t.start() for t in threads]
 
-        self._logger.info("Build count: %d", self._build_cnt)
-        if self._build_cnt == 0:
-            self._logger.info("Running project build before building '%s'", path)
-            self.buildByDependency(filter=lambda x: 0)
         self._logger.info("==== Building '%s' ====", path)
         # Find out which library has this path
         lib = self._findLibraryByPath(path)
@@ -456,7 +433,7 @@ class ProjectBuilder(object):
                         lib.name, unit)
 
         for msg in errors + warnings:
-            print msg
+            _print(msg)
 
         if rebuilds:
             self._logger.warning("Rebuild units: %s", str(rebuilds))
