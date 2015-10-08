@@ -37,16 +37,14 @@ def saveCache(obj, fname):
 _logger = logging.getLogger('build messages')
 
 def _print(s, fmt=None):
-    if Config.is_toolchain:
-        if fmt:
+    if fmt:
+        _logger.info(s, fmt)
+        if Config.is_toolchain:
             print s % fmt
-        else:
-            print s
     else:
-        if fmt:
-            _logger.info(s, fmt)
-        else:
-            _logger.info(s)
+        _logger.info(s)
+        if Config.is_toolchain:
+            print s
 
 class ProjectBuilder(object):
     "vim-hdl project builder class"
@@ -79,6 +77,11 @@ class ProjectBuilder(object):
         self._logger.setLevel(logging.INFO)
         del state['_logger']
         self.__dict__.update(state)
+
+    def saveCache(self):
+        cache_fname = os.path.join(os.path.dirname(self._library_file), \
+            '.' + os.path.basename(self._library_file))
+        pickle.dump(self, open(cache_fname, 'w'))
 
     def _readConfFile(self):
         "Reads the configuration given by self._library_file"
@@ -414,6 +417,13 @@ class ProjectBuilder(object):
                 if rev_dep_key in reverse_dependency_map.keys():
                     self._logger.info("Building '%s' triggers rebuild of %s",
                             path, ", ".join(reverse_dependency_map[rev_dep_key]))
+
+                    # FIXME: Here we try to rebuild everything that is
+                    # marked as dependency to <path>, ignoring that if
+                    # we're building a package, we need to build other
+                    # packages that depend on <path> first. After this,
+                    # we can then rebuild sources with other unit types
+                    # such as entities, architectures and configurations
                     for source in reverse_dependency_map[rev_dep_key]:
                         dep_lib = self._findLibraryByPath(source)
                         dep_lib.clearBuildCacheByPath(source)
