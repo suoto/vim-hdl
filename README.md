@@ -23,6 +23,11 @@ In your .vimrc:
 Plugin 'suoto/vim-hdl'
 ```
 
+### Notes
+
+* Requires Vim compiled with Python support, plus features needed by [Syntastic][Syntastic] itself
+* Only tested on Linux with recent Vim versions (7.4+)
+
 ## Usage
 
 vim-hdl requires a configuration file listing libraries, source files, build flags, etc. Select the configuration file via
@@ -33,7 +38,7 @@ let g:vimhdl_conf_file = '<config/file>'
 
 The configuration file syntax follows Python [ConfigParser][ConfigParser].
 
-Any other Syntastic option should work as well.
+Any other [Syntastic][Syntastic] option should work as well.
 
 You can clone [vim-hdl-examples][vim-hdl-examples] repository and try a ready-to-use setup.
 
