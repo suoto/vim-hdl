@@ -29,7 +29,7 @@ from compilers.msim import MSim
 from config import Config
 from config_parser import ExtendedConfigParser
 
-# pylint: disable=star-args
+# pylint: disable=star-args, bad-continuation
 
 def saveCache(obj, fname):
     pickle.dump(obj, open(fname, 'w'))
@@ -64,6 +64,7 @@ class ProjectBuilder(object):
         self._readConfFile()
 
     def __getstate__(self):
+        "Pickle dump implementation"
         # Remove the _logger attribute because we can't pickle file or
         # stream objects. In its place, save the logger name
         state = self.__dict__.copy()
@@ -71,6 +72,7 @@ class ProjectBuilder(object):
         return state
 
     def __setstate__(self, state):
+        "Pickle load implementation"
         # Get a logger with the name given in state['_logger'] (see
         # __getstate__) and update our dictionary with the pickled info
         self._logger = logging.getLogger(state['_logger'])
@@ -265,8 +267,9 @@ class ProjectBuilder(object):
         if not os.path.exists(path):
             raise OSError("Path %s doesn't exists" % path)
         for lib in self.libraries.values():
-            if lib.hasSource(path):
-                return lib
+            source = lib.hasSource(path)
+            if source:
+                return lib, source
         raise RuntimeError("Source %s not found" % path)
 
     def cleanCache(self):
@@ -351,44 +354,23 @@ class ProjectBuilder(object):
 
         self._build_cnt += 1
 
-    #  @memoid
-    def getDesignUnitsByPath(self, path):
-        lib = self._findLibraryByPath(path)
-        for source in lib.sources:
-            if os.path.samefile(str(source), str(path)):
-                return source.getDesignUnits()
-
-
     def buildByDesignUnit(self, unit):
         lib_name = unit[0].lower()
         if lib_name not in self.libraries.keys():
             raise RuntimeError("Design unit '%s' not found" % unit)
         lib = self.libraries[lib_name]
         source = lib.getSourceByDesignUnit(unit[1])
-        self._logger.info("Rebuilding %s.%s", lib, source)
-        for _, errors, warnings, rebuilds in lib.buildSources([source], \
-                flags=self.single_build_flags):
-            if rebuilds:
-                for rebuild in rebuilds:
-                    self._logger.info("Rebuilding %s before %s", \
-                            str(rebuild), source)
-                    self.buildByDesignUnit(rebuild)
-                    self.buildByDesignUnit(unit)
-            else:
-                for msg in errors + warnings:
-                    _print(msg)
 
-    def buildByPath(self, path):
-        """Finds the library of a given path and builds it. Use the reverse
-        dependency map to reset the compile time of the sources that depend on
-        'path' to build later"""
+        return self.buildSource(lib, source)
 
-        self._logger.info("Build count: %d", self._build_cnt)
+    def buildSource(self, library, source, *args, **kwargs):
+        "Flow for building library.source"
+
+        self._logger.debug("Build count: %d", self._build_cnt)
         if self._build_cnt == 0:
-
-            self._logger.info("Running project build before building '%s'", path)
+            self._logger.info("Running project build before building '%s'",
+                    str(source))
             self.buildByDependency(filter=lambda x: 1)
-
 
         # Start the direct and reverse dependency mapping in a thread
         # to save time
@@ -397,50 +379,102 @@ class ProjectBuilder(object):
 
         [t.start() for t in threads]
 
-        self._logger.info("==== Building '%s' ====", path)
-        # Find out which library has this path
-        lib = self._findLibraryByPath(path)
-        errors, warnings, rebuilds = lib.buildByPath(path, forced=True, \
-                flags=self.single_build_flags)
+        self._logger.info("Building [%s] '%s'", library.name, str(source))
+        errors, warnings, rebuilds = library.buildSource(source,
+                *args, **kwargs)
 
         # Join the dependency mapping threads before we need that
         # information
         [t.join() for t in threads]
 
-        if Config.show_reverse_dependencies != "none":
-            # Find out which design units are found at path to use as key to the
-            # reverse dependency map
-            units = self.getDesignUnitsByPath(path)
-            reverse_dependency_map = self._getReverseDependencyMap()
-            for unit in units:
-                rev_dep_key = lib.name, unit
-                if rev_dep_key in reverse_dependency_map.keys():
-                    self._logger.info("Building '%s' triggers rebuild of %s",
-                            path, ", ".join(reverse_dependency_map[rev_dep_key]))
+        for dep_errors, dep_warnings, dep_rebuilds in \
+                self._buildReverseDependencies(library, source):
+            errors += dep_errors
+            warnings += dep_warnings
+            rebuilds += dep_rebuilds
 
-                    # FIXME: Here we try to rebuild everything that is
-                    # marked as dependency to <path>, ignoring that if
-                    # we're building a package, we need to build other
-                    # packages that depend on <path> first. After this,
-                    # we can then rebuild sources with other unit types
-                    # such as entities, architectures and configurations
-                    for source in reverse_dependency_map[rev_dep_key]:
-                        dep_lib = self._findLibraryByPath(source)
-                        dep_lib.clearBuildCacheByPath(source)
+        return errors, warnings, rebuilds
 
-                        dep_errors, dep_warnings, rebuilds = dep_lib.buildByPath(
-                                source, forced=True, flags=self.single_build_flags)
+    # Notice that we won't build recursively because this can lead
+    # to rebuilding the entire library, which may take much more
+    # time than we want to wait for a syntax check.
+    # However, building only first level dependencies makes second
+    # level dependencies out of date. This should be handled (maybe
+    # in background), or else things can get very messy
+    def _buildReverseDependencies(self, library, source):
+        """Builds sources that depends on library.source"""
+        if not (Config.show_reverse_dependencies_errors or \
+                Config.show_reverse_dependencies_warnings):
+            raise StopIteration()
 
-                        # Append errors and/or warnings according to
-                        # user preferences to make sure we keep printing
-                        # errors before the warnings
-                        if Config.show_reverse_dependencies == "errors":
-                            errors += dep_errors
-                        elif Config.show_reverse_dependencies == "warnings":
-                            errors += dep_warnings
-                else:
-                    self._logger.info("'%s.%s' has no reverse dependency",
-                        lib.name, unit)
+        # Find out which design units are found on the source to use
+        # as key to the reverse dependency map
+        units = source.getDesignUnits()
+        reverse_dependency_map = self._getReverseDependencyMap()
+
+        # We'll build packages while searching for dependencies.
+        # Those dependencies that don't have packages will be built
+        # after we're done with the packages
+        post_build_list = []
+
+        for unit in units:
+            rev_dep_key = library.name, unit
+            if rev_dep_key in reverse_dependency_map.keys():
+                self._logger.info("Building '%s' triggers rebuild of %s",
+                        str(source), ", ".join(reverse_dependency_map[rev_dep_key]))
+
+                for _source in reverse_dependency_map[rev_dep_key]:
+                    dep_lib, _source = self._findLibraryByPath(_source)
+
+                    # Schedule sources without any package to be rebuilt
+                    # later
+                    if not _source.hasPackage():
+                        self._logger.info("[%s] '%s' will be build later",
+                                dep_lib.name, str(_source))
+                        post_build_list.append((dep_lib, _source))
+                        continue
+
+                    errors, warnings, rebuilds = \
+                        dep_lib.buildSource(_source, forced=True, \
+                        flags=self.single_build_flags)
+
+                    # Append errors and/or warnings according to
+                    # user preferences to make sure we keep printing
+                    # errors before the warnings
+                    if not Config.show_reverse_dependencies_errors:
+                        errors = []
+                    elif not Config.show_reverse_dependencies_warnings:
+                        warnings = []
+                    yield errors, warnings, rebuilds
+            else:
+                self._logger.info("'%s.%s' has no reverse dependency",
+                    library.name, unit)
+
+        for dep_lib, dep_source in post_build_list:
+            self._logger.info("Building scheduled [%s] '%s'",
+                    dep_lib.name, str(dep_source))
+            errors, warnings, rebuilds = \
+                dep_lib.buildSource(dep_source, forced=True, \
+                flags=self.single_build_flags)
+
+            # Append errors and/or warnings according to
+            # user preferences to make sure we keep printing
+            # errors before the warnings
+            if not Config.show_reverse_dependencies_errors:
+                errors = []
+            elif not Config.show_reverse_dependencies_warnings:
+                warnings = []
+            yield errors, warnings, rebuilds
+
+    def buildByPath(self, path):
+        """Finds the library of a given path and builds it. Use the reverse
+        dependency map to reset the compile time of the sources that depend on
+        'path' to build later"""
+
+        # Find out which library has this path
+        lib, source = self._findLibraryByPath(path)
+        errors, warnings, rebuilds = self.buildSource(lib, source, \
+                forced=True, flags=self.single_build_flags)
 
         for msg in errors + warnings:
             _print(msg)

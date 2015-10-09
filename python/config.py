@@ -21,12 +21,14 @@ class Config(object):
     thread_limit = 20
     log_file = os.path.join('/', 'tmp', 'build.log')
     log_level = logging.DEBUG
-    show_only_current_file = True
+    show_only_current_file = False
 
-    # When building a specific source, we can build its dependencies
-    # and display their errors and/or warnings. Notice that no
-    # dependency tracking will be done when this is set to "none"
-    show_reverse_dependencies = "none" # "none", "errors", "warnings"
+    # When building a specific source, we can build its first level
+    # dependencies and display their errors and/or warnings. Notice
+    # that no dependency tracking will be done when none of them
+    # are enabled!
+    show_reverse_dependencies_errors = True
+    show_reverse_dependencies_warnings = False
 
     # When we find errors, we can cache them to avoid recompiling a
     # specific source file or consider the file as changed. Notice this

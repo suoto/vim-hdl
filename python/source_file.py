@@ -20,11 +20,15 @@ from utils import memoid
 
 _RE_VALID_NAME_CHECK = re.compile(r"^[a-z]\w*$", flags=re.I)
 
-_RE_DESIGN_UNITS = re.compile('|'.join([
-    r"(?<=entity)\s+\w+\s+(?=is\b)",
+_RE_PACKAGES = re.compile('|'.join([
     r"(?<=package)\s+\w+\s+(?=is\b)",
     r"(?<=package)\s+(?<=body)\s+\w+\s+(?=is\b)",
     ]), flags=re.I)
+
+_RE_ENTITIES = re.compile(r"(?<=entity)\s+\w+\s+(?=is\b)", flags=re.I)
+
+_RE_DESIGN_UNITS = re.compile('|'.join([
+    _RE_PACKAGES.pattern, _RE_ENTITIES.pattern]), flags=re.I)
 
 _RE_LIBRARIES = re.compile(r"(?<=library)\s+\w+\b", flags=re.I)
 _RE_USE_CLAUSES = re.compile(r"(?<=use)\s+\w+\.\w+\b", flags=re.I)
@@ -47,6 +51,7 @@ class VhdlSourceFile(object):
         self.filename = os.path.normpath(filename)
         self._design_units = None
         self._deps = None
+        self._has_package = None
         self._mtime = 0
 
         self._lock = threading.Lock()
@@ -60,6 +65,12 @@ class VhdlSourceFile(object):
     def __setstate__(self, state):
         self.__dict__.update(state)
         self._lock = threading.Lock()
+
+    def __repr__(self):
+        return "VhdlSourceFile('%s')" % self.abspath()
+
+    def __str__(self):
+        return str(self.filename)
 
     def _parse(self):
         "Wraps self._doParse with lock acquire/release"
@@ -89,6 +100,12 @@ class VhdlSourceFile(object):
         self._design_units = []
         for unit in _RE_DESIGN_UNITS.findall(text):
             self._design_units.append(_RE_WHITESPACES.sub("", unit))
+
+        if _RE_PACKAGES.findall(text):
+            self._has_package = True
+            _logger.info("Source %s has package", self.filename)
+        else:
+            self._has_package = False
 
         # Gets libraries referred
         libs = [_RE_WHITESPACES.sub("", x) for x in _RE_LIBRARIES.findall(text)]
@@ -146,11 +163,10 @@ class VhdlSourceFile(object):
             self._parse()
         return self._deps
 
-    def __repr__(self):
-        return "VhdlSourceFile('%s')" % self.abspath()
-
-    def __str__(self):
-        return str(self.filename)
+    def hasPackage(self):
+        if self.changed() or self._has_package is None:
+            self._parse()
+        return self._has_package
 
     def getmtime(self):
         return os.path.getmtime(self.filename)

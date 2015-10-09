@@ -91,10 +91,11 @@ class Library(object):
             build = True
             _build_info = "forced"
         else:
-            if os.stat(source.abspath()).st_size == cached_info['size']:
-                build = False
-                _build_info = "no size change"
-            elif source.getmtime() > cached_info['compile_time']:
+            #  if os.stat(source.abspath()).st_size == cached_info['size']:
+            #      build = False
+            #      _build_info = "no size change"
+            #  elif source.getmtime() > cached_info['compile_time']:
+            if source.getmtime() > cached_info['compile_time']:
                 build = True
                 _build_info = "mtime"
 
@@ -259,8 +260,7 @@ class Library(object):
     def hasSource(self, path):
         for source in self.sources:
             if os.path.samefile(str(path), str(source)):
-                return True
-        return False
+                return source
 
     def buildSources(self, sources, forced=False, flags=[]):
         """Build a list or a single source. The argument should be
@@ -278,12 +278,21 @@ class Library(object):
             msg.append([source] + result)
         return msg
 
+    def buildSource(self, source, forced=False, flags=[]):
+        """Build a list or a single source. The argument should be
+        a VhdlSourceFile object (retrieved via self.sources attribute or
+        something similar"""
+        if not self.hasSource(source):
+            raise RuntimeError("Source %s not found in library %s" \
+                    % (source, self.name))
+        return list(self._buildSource(source, forced, flags))
+
     def buildByPath(self, path, forced=False, flags=[]):
         for source in self.sources:
             if os.path.samefile(str(source), path):
                 return self._buildSource(source, forced, flags)
-    def clearBuildCacheByPath(self, path):
-        path = os.path.abspath(path)
+    def clearBuildCache(self, source):
+        path = source.abspath()
         if path not in self._build_info_cache.keys():
             self._build_info_cache[path] = {
                 'compile_time': 0, 'size' : 0, 'errors': (), 'warnings': ()
