@@ -37,8 +37,11 @@ def parseArguments():
 
     # Debugging options
     parser.add_argument('--print-dependency-map',
-            action='store_true', default=False)
+            action='store', nargs='?', default='')
+
     parser.add_argument('--print-reverse-dependency-map',
+            action='store_true', default=False)
+    parser.add_argument('--print-reverse-dependency-tree',
             action='store_true', default=False)
     parser.add_argument('--print-design-units',   action='store', default=False)
     # pylint: enable=bad-whitespace
@@ -49,6 +52,7 @@ def parseArguments():
     except ImportError:
         pass
     args = parser.parse_args()
+
     args.log_level = logging.FATAL
     if args.verbose:
         if len(args.verbose) == 0:
@@ -78,26 +82,11 @@ def main():
 
     project = ProjectBuilder(library_file=args.library_file)
 
-    if args.print_dependency_map:
-        #  print project._getDependencyMap().iteritems()
-        for lib_name, lib_deps in project._getDependencyMap().iteritems():
-            print "Library %s" % lib_name
-            for src, src_deps in lib_deps.iteritems():
-                if src_deps:
-                    print " - %s: %s" % (src, ", ".join(["%s.%s" % (x[0], x[1]) \
-                            for x in src_deps]))
-                else:
-                    print " - %s: None" % src
+    if args.print_dependency_map != '':
+        project.printDependencyMap(args.print_dependency_map)
 
     if args.print_reverse_dependency_map:
-        for (lib_name, design_unit), deps in \
-                project._getReverseDependencyMap().iteritems():
-            _s =  "- %s.%s: " % (lib_name, design_unit)
-            if deps:
-                _s += " ".join(deps)
-            else:
-                _s += "None"
-            print _s
+        project.printReverseDependencyMap()
 
     if args.print_design_units:
         for unit in project.getDesignUnitsByPath(args.print_design_units):

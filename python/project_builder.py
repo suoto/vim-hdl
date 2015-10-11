@@ -80,11 +80,6 @@ class ProjectBuilder(object):
         del state['_logger']
         self.__dict__.update(state)
 
-    def saveCache(self):
-        cache_fname = os.path.join(os.path.dirname(self._library_file), \
-            '.' + os.path.basename(self._library_file))
-        pickle.dump(self, open(cache_fname, 'w'))
-
     def _readConfFile(self):
         "Reads the configuration given by self._library_file"
         cache_fname = os.path.join(os.path.dirname(self._library_file), \
@@ -272,19 +267,6 @@ class ProjectBuilder(object):
                 return lib, source
         raise RuntimeError("Source %s not found" % path)
 
-    def cleanCache(self):
-        "Remove the cached project data and clean all libraries as well"
-        cache_fname = os.path.join(os.path.dirname(self._library_file), \
-            '.' + os.path.basename(self._library_file))
-
-        try:
-            os.remove(cache_fname)
-        except OSError:
-            self._logger.debug("Cache filename '%s' not found", cache_fname)
-        while self.libraries:
-            self.libraries.popitem()[1].deleteLibrary()
-        self._conf_file_timestamp = 0
-
     @staticmethod
     def clean(library_file):
         "Clean up generated files for a clean build"
@@ -303,6 +285,24 @@ class ProjectBuilder(object):
         target_dir = parser.get('global', 'target_dir')
 
         assert not os.system("rm -rf " + target_dir)
+
+    def saveCache(self):
+        cache_fname = os.path.join(os.path.dirname(self._library_file), \
+            '.' + os.path.basename(self._library_file))
+        pickle.dump(self, open(cache_fname, 'w'))
+
+    def cleanCache(self):
+        "Remove the cached project data and clean all libraries as well"
+        cache_fname = os.path.join(os.path.dirname(self._library_file), \
+            '.' + os.path.basename(self._library_file))
+
+        try:
+            os.remove(cache_fname)
+        except OSError:
+            self._logger.debug("Cache filename '%s' not found", cache_fname)
+        while self.libraries:
+            self.libraries.popitem()[1].deleteLibrary()
+        self._conf_file_timestamp = 0
 
     def addLibrary(self, library_name, sources, target_dir):
         "Adds a library with the given sources"
@@ -483,15 +483,34 @@ class ProjectBuilder(object):
             self._logger.warning("Rebuild units: %s", str(rebuilds))
             self.buildByDependency(lambda s: not Config.show_only_current_file)
 
-def threadPoolRunnerAdapter(args):
-    """Run a method from some import object via ThreadPool.
-    This is ugly and will be replaced"""
-    lib_name = args[0]
-    lib_obj = args[1]
-    meth = args[2]
-    f_args = args[3:]
-    result = []
-    for _result in getattr(lib_obj, meth)(*f_args):
-        result.append([lib_name] + _result)
+    # Debugging methods
+    def printDependencyMap(self, source=None):
+        "Prints the dependencies of all sources or of a single file"
+        if source is None:
+            for lib_name, lib_deps in self._getDependencyMap().iteritems():
+                print "Library %s" % lib_name
+                for src, src_deps in lib_deps.iteritems():
+                    if src_deps:
+                        print " - %s: %s" % (src, ", ".join(["%s.%s" % (x[0], x[1]) \
+                                for x in src_deps]))
+                    else:
+                        print " - %s: None" % src
+        else:
+            lib, source = self._findLibraryByPath(source)
+            print "\n".join(["%s.%s" % tuple(x) for x in source.getDependencies()])
 
-    return result
+    def printReverseDependencyMap(self):
+        """Prints the reverse dependency map (i.e., 'who depends on
+        me?', as opposite to the direct dependency map 'who do I depend
+        on?')
+        """
+        for (lib_name, design_unit), deps in \
+                self._getReverseDependencyMap().iteritems():
+            _s =  "- %s.%s: " % (lib_name, design_unit)
+            if deps:
+                _s += " ".join(deps)
+            else:
+                _s += "None"
+            print _s
+
+
