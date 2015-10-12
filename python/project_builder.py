@@ -346,7 +346,7 @@ class ProjectBuilder(object):
                         self._logger.info("Rebuilding %s before %s", \
                                 str(rebuild), \
                                 [str(x) for x in sources])
-                        self.buildByDesignUnit(rebuild)
+                        self.buildByDesignUnit(*rebuild)
 
                     for msg in errors + warnings:
                         if filter(msg):
@@ -354,12 +354,13 @@ class ProjectBuilder(object):
 
         self._build_cnt += 1
 
-    def buildByDesignUnit(self, unit):
-        lib_name = unit[0].lower()
+    def buildByDesignUnit(self, lib_name, unit):
+        """Builds a source file given a design unit, in the format
+        """
         if lib_name not in self.libraries.keys():
             raise RuntimeError("Design unit '%s' not found" % unit)
         lib = self.libraries[lib_name]
-        source = lib.getSourceByDesignUnit(unit[1])
+        source = lib.getSourceByDesignUnit(unit)
 
         return self.buildSource(lib, source)
 
@@ -483,7 +484,7 @@ class ProjectBuilder(object):
             self._logger.warning("Rebuild units: %s", str(rebuilds))
             self.buildByDependency(lambda s: not Config.show_only_current_file)
 
-    # Debugging methods
+    # Methods for displaying info about the project
     def printDependencyMap(self, source=None):
         "Prints the dependencies of all sources or of a single file"
         if source is None:
@@ -496,21 +497,28 @@ class ProjectBuilder(object):
                     else:
                         print " - %s: None" % src
         else:
-            lib, source = self._findLibraryByPath(source)
+            _, source = self._findLibraryByPath(source)
             print "\n".join(["%s.%s" % tuple(x) for x in source.getDependencies()])
 
-    def printReverseDependencyMap(self):
+    def printReverseDependencyMap(self, source=None):
         """Prints the reverse dependency map (i.e., 'who depends on
         me?', as opposite to the direct dependency map 'who do I depend
         on?')
         """
-        for (lib_name, design_unit), deps in \
-                self._getReverseDependencyMap().iteritems():
-            _s =  "- %s.%s: " % (lib_name, design_unit)
-            if deps:
-                _s += " ".join(deps)
-            else:
-                _s += "None"
-            print _s
+        if source is None:
+            for (lib_name, design_unit), deps in \
+                    self._getReverseDependencyMap().iteritems():
+                _s =  "- %s.%s: " % (lib_name, design_unit)
+                if deps:
+                    _s += " ".join(deps)
+                else:
+                    _s += "None"
+                print _s
+        else:
+            lib, source = self._findLibraryByPath(source)
+            rev_depmap = self._getReverseDependencyMap()
+            for unit in source.getDesignUnits():
+                k = lib.name, unit
+                print "\n".join(rev_depmap[k])
 
 

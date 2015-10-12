@@ -28,20 +28,26 @@ def parseArguments():
     import argparse
     parser = argparse.ArgumentParser()
     # pylint: disable=bad-whitespace
-    parser.add_argument('--verbose',      '-v', action='append_const', const=1)
-    parser.add_argument('--clean',        '-c', action='store_true')
-    parser.add_argument('--build',        '-b', action='store_true')
-    parser.add_argument('--library-file', '-l', action='store')
-    parser.add_argument('--target',       '-t', action='append', nargs='*')
-    parser.add_argument('--threads',      '-m', action='store_true', default=False)
+    parser.add_argument('--verbose',      '-v', action='append_const', const=1,
+            help="""Increases verbose level. Use multiple times to
+            increase more""")
+    parser.add_argument('--clean',        '-c', action='store_true',
+            help="Cleans the project before building")
+    parser.add_argument('--build',        '-b', action='store_true',
+            help="Builds the project given by <library-file>")
+    parser.add_argument('--library-file', '-l', action='store',
+            help="""Library configuration file that defines sources,
+            libraries, options, etc""")
+    parser.add_argument('--target',       '-t', action='append', nargs='*',
+            help="""Source(s) file(s) to build individually""")
 
     # Debugging options
     parser.add_argument('--print-dependency-map',
             action='store', nargs='?', default='')
 
     parser.add_argument('--print-reverse-dependency-map',
-            action='store_true', default=False)
-    parser.add_argument('--print-reverse-dependency-tree',
+            action='store', nargs='?', default='')
+    parser.add_argument('--print-dependency-tree',
             action='store_true', default=False)
     parser.add_argument('--print-design-units',   action='store', default=False)
     # pylint: enable=bad-whitespace
@@ -74,6 +80,10 @@ def parseArguments():
 def main():
     args = parseArguments()
 
+    print "="*10
+    print args
+    print "="*10
+
     _logger.info("Creating project object")
 
     if args.clean:
@@ -85,20 +95,15 @@ def main():
     if args.print_dependency_map != '':
         project.printDependencyMap(args.print_dependency_map)
 
-    if args.print_reverse_dependency_map:
-        project.printReverseDependencyMap()
+    if args.print_reverse_dependency_map != '':
+        project.printReverseDependencyMap(args.print_reverse_dependency_map)
 
     if args.print_design_units:
         for unit in project.getDesignUnitsByPath(args.print_design_units):
             print unit
 
     if args.build:
-        if args.threads:
-            _logger.info("Building with threads")
-            project.buildByDependencyWithThreads()
-        else:
-            _logger.info("Building without threads")
-            project.buildByDependency()
+        project.buildByDependency()
 
     if args.target:
         for targets in args.target:
