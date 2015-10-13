@@ -80,10 +80,6 @@ def parseArguments():
 def main():
     args = parseArguments()
 
-    print "="*10
-    print args
-    print "="*10
-
     _logger.info("Creating project object")
 
     if args.clean:
@@ -111,8 +107,8 @@ def main():
                 try:
                     _logger.info("Building target '%s'", target)
                     project.buildByPath(target)
-                except RuntimeError:
-                    _logger.error("Unable to build '%s'", target)
+                except RuntimeError as e:
+                    _logger.error("Unable to build '%s': '%s'", target, str(e))
                     continue
 
 

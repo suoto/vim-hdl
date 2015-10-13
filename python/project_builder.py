@@ -36,13 +36,23 @@ def saveCache(obj, fname):
 
 _logger = logging.getLogger('build messages')
 
-def _print(s, fmt=None):
+def _error(s, fmt=None):
     if fmt:
-        _logger.info(s, fmt)
+        _logger.error(s, fmt)
         if Config.is_toolchain:
             print s % fmt
     else:
-        _logger.info(s)
+        _logger.error(s)
+        if Config.is_toolchain:
+            print s
+
+def _warning(s, fmt=None):
+    if fmt:
+        _logger.warning(s, fmt)
+        if Config.is_toolchain:
+            print s % fmt
+    else:
+        _logger.warning(s)
         if Config.is_toolchain:
             print s
 
@@ -79,6 +89,11 @@ class ProjectBuilder(object):
         self._logger.setLevel(logging.INFO)
         del state['_logger']
         self.__dict__.update(state)
+
+    def saveCache(self):
+        cache_fname = os.path.join(os.path.dirname(self._library_file), \
+            '.' + os.path.basename(self._library_file))
+        pickle.dump(self, open(cache_fname, 'w'))
 
     def _readConfFile(self):
         "Reads the configuration given by self._library_file"
@@ -256,7 +271,7 @@ class ProjectBuilder(object):
         return result
 
     #  @memoid
-    def _findLibraryByPath(self, path):
+    def _getLibraryAndSourceByPath(self, path):
         """Gets the library containing the path. Raises RuntimeError
         if the source is not found anywhere"""
         if not os.path.exists(path):
@@ -266,6 +281,19 @@ class ProjectBuilder(object):
             if source:
                 return lib, source
         raise RuntimeError("Source %s not found" % path)
+
+    def cleanCache(self):
+        "Remove the cached project data and clean all libraries as well"
+        cache_fname = os.path.join(os.path.dirname(self._library_file), \
+            '.' + os.path.basename(self._library_file))
+
+        try:
+            os.remove(cache_fname)
+        except OSError:
+            self._logger.debug("Cache filename '%s' not found", cache_fname)
+        while self.libraries:
+            self.libraries.popitem()[1].deleteLibrary()
+        self._conf_file_timestamp = 0
 
     @staticmethod
     def clean(library_file):
@@ -285,24 +313,6 @@ class ProjectBuilder(object):
         target_dir = parser.get('global', 'target_dir')
 
         assert not os.system("rm -rf " + target_dir)
-
-    def saveCache(self):
-        cache_fname = os.path.join(os.path.dirname(self._library_file), \
-            '.' + os.path.basename(self._library_file))
-        pickle.dump(self, open(cache_fname, 'w'))
-
-    def cleanCache(self):
-        "Remove the cached project data and clean all libraries as well"
-        cache_fname = os.path.join(os.path.dirname(self._library_file), \
-            '.' + os.path.basename(self._library_file))
-
-        try:
-            os.remove(cache_fname)
-        except OSError:
-            self._logger.debug("Cache filename '%s' not found", cache_fname)
-        while self.libraries:
-            self.libraries.popitem()[1].deleteLibrary()
-        self._conf_file_timestamp = 0
 
     def addLibrary(self, library_name, sources, target_dir):
         "Adds a library with the given sources"
@@ -332,6 +342,10 @@ class ProjectBuilder(object):
         step_cnt = 0
         for step in self._getBuildSteps():
             step_cnt += 1
+            if not step:
+                self._logger.debug("Empty step at iteration %d", step_cnt)
+                break
+
             self._logger.debug("Step %d", step_cnt)
 
             for lib_name, sources in step.iteritems():
@@ -348,9 +362,13 @@ class ProjectBuilder(object):
                                 [str(x) for x in sources])
                         self.buildByDesignUnit(*rebuild)
 
-                    for msg in errors + warnings:
-                        if filter(msg):
-                            _print(msg)
+                    for error in errors:
+                        if filter(error):
+                            _error(error)
+
+                    for warning in warnings:
+                        if filter(warning):
+                            _warning(warning)
 
         self._build_cnt += 1
 
@@ -425,7 +443,7 @@ class ProjectBuilder(object):
                         str(source), ", ".join(reverse_dependency_map[rev_dep_key]))
 
                 for _source in reverse_dependency_map[rev_dep_key]:
-                    dep_lib, _source = self._findLibraryByPath(_source)
+                    dep_lib, _source = self._getLibraryAndSourceByPath(_source)
 
                     # Schedule sources without any package to be rebuilt
                     # later
@@ -473,12 +491,15 @@ class ProjectBuilder(object):
         'path' to build later"""
 
         # Find out which library has this path
-        lib, source = self._findLibraryByPath(path)
+        lib, source = self._getLibraryAndSourceByPath(path)
         errors, warnings, rebuilds = self.buildSource(lib, source, \
                 forced=True, flags=self.single_build_flags)
 
-        for msg in errors + warnings:
-            _print(msg)
+        for error in errors:
+            _error(error)
+
+        for warning in warnings:
+            _warning(warning)
 
         if rebuilds:
             self._logger.warning("Rebuild units: %s", str(rebuilds))
@@ -497,7 +518,7 @@ class ProjectBuilder(object):
                     else:
                         print " - %s: None" % src
         else:
-            _, source = self._findLibraryByPath(source)
+            _, source = self._getLibraryAndSourceByPath(source)
             print "\n".join(["%s.%s" % tuple(x) for x in source.getDependencies()])
 
     def printReverseDependencyMap(self, source=None):
@@ -515,7 +536,7 @@ class ProjectBuilder(object):
                     _s += "None"
                 print _s
         else:
-            lib, source = self._findLibraryByPath(source)
+            lib, source = self._getLibraryAndSourceByPath(source)
             rev_depmap = self._getReverseDependencyMap()
             for unit in source.getDesignUnits():
                 k = lib.name, unit

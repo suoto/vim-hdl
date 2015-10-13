@@ -219,6 +219,8 @@ class Library(object):
 
             source_deps = []
             for dep_lib, dep_unit in source.getDependencies():
+                # Skip source dependencies that are listed as builtin
+                # by the builder
                 if dep_lib in self.builder.builtin_libraries:
                     continue
 

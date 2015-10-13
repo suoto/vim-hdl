@@ -50,7 +50,7 @@ class VhdlSourceFile(object):
         self._mtime = 0
 
         self._lock = threading.Lock()
-        threading.Thread(target=self._doParse).start()
+        threading.Thread(target=self._parse).start()
 
     def __getstate__(self):
         state = self.__dict__.copy()
@@ -69,22 +69,23 @@ class VhdlSourceFile(object):
 
     def _parse(self):
         "Wraps self._doParse with lock acquire/release"
-        # If we need to parse, acquire the lock
         try:
+            # If we need to parse, acquire the lock
             self._lock.acquire()
-            self._doParse()
-            self._mtime = self.getmtime()
+            # We have the lock, so if the source changed, parse it!
+            if self.changed():
+                _logger.debug("Parsing %s (%f >= %f)", str(self), self._mtime,
+                        self.getmtime())
+                self._mtime = self.getmtime()
+                self._doParse()
         finally:
             self._lock.release()
 
     def changed(self):
-        return self._mtime >= self.getmtime()
+        return self.getmtime() > self._mtime
 
     def _doParse(self):
         "Parses the source file to find design units and dependencies"
-        # Check if we really need to parse
-
-        _logger.debug("Parsing %s", str(self))
 
         # Replace everything from comment ('--') until a line break and
         # converts to lowercase
@@ -123,7 +124,6 @@ class VhdlSourceFile(object):
             if dep not in dependencies:
                 dependencies.append(dep)
 
-        # Finally, remove built-in libraries from the list we found
         self._deps = dependencies
 
         self._sanityCheckNames()
@@ -146,18 +146,15 @@ class VhdlSourceFile(object):
                 raise RuntimeError("Dependency unit %s is invalid" % dep_unit)
 
     def getDesignUnits(self):
-        if self.changed():
-            self._parse()
+        self._parse()
         return self._design_units
 
     def getDependencies(self):
-        if self.changed() or self._deps is None:
-            self._parse()
+        self._parse()
         return self._deps
 
     def hasPackage(self):
-        if self.changed() or self._has_package is None:
-            self._parse()
+        self._parse()
         return self._has_package
 
     def getmtime(self):
