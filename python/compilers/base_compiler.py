@@ -30,6 +30,8 @@ class BaseCompiler(object):
         self._logger = logging.getLogger(__name__)
         self._target_folder = os.path.abspath(os.path.expanduser(target_folder))
 
+        self.builtin_libraries = []
+
         if not os.path.exists(self._target_folder):
             self._logger.info("%s doens't exists", self._target_folder)
             os.mkdir(self._target_folder)

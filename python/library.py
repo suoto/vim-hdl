@@ -219,6 +219,9 @@ class Library(object):
 
             source_deps = []
             for dep_lib, dep_unit in source.getDependencies():
+                if dep_lib in self.builder.builtin_libraries:
+                    continue
+
                 # Work library means 'this' library, not a library
                 # named work!
                 if dep_lib == 'work':

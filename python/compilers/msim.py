@@ -60,6 +60,11 @@ class MSim(BaseCompiler):
         super(MSim, self).__init__(target_folder)
         self._modelsim_ini = os.path.join(self._target_folder, 'modelsim.ini')
 
+        # FIXME: Built-in libraries should not be statically defined
+        # like this. Review this at some point
+        self.builtin_libraries = ['ieee', 'std', 'unisim', 'xilinxcorelib',
+                'synplify', 'synopsis', 'maxii', 'family_support']
+
     def _checkEnvironment(self):
         try:
             version = subprocess.check_output(['vcom', '-version'],

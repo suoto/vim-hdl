@@ -37,11 +37,6 @@ _RE_WHITESPACES = re.compile(r"^\s*|\s*$")
 
 _RE_PRE_PROC = re.compile(r"\s*--[^\n]*\n|\s+")
 
-# FIXME: Built-in libraries should be defined via Vim configuration interface
-# and thus be in a specific Python package from which we should import
-BUILTIN_LIBRARIES = ('ieee', 'std', 'unisim', 'xilinxcorelib', 'synplify',
-                     'synopsis', 'maxii', 'family_support')
-
 _logger = logging.getLogger(__name__)
 
 import threading
@@ -129,10 +124,7 @@ class VhdlSourceFile(object):
                 dependencies.append(dep)
 
         # Finally, remove built-in libraries from the list we found
-        self._deps = []
-        for dep in dependencies:
-            if dep[0] not in BUILTIN_LIBRARIES and dep not in self._deps:
-                self._deps.append(dep)
+        self._deps = dependencies
 
         self._sanityCheckNames()
 
