@@ -29,6 +29,7 @@ class Config(object):
     # are enabled!
     show_reverse_dependencies_errors = True
     show_reverse_dependencies_warnings = False
+    max_reverse_dependency_sources = 20
 
     # When we find errors, we can cache them to avoid recompiling a
     # specific source file or consider the file as changed. Notice this

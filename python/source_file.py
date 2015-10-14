@@ -98,9 +98,10 @@ class VhdlSourceFile(object):
             self._design_units.append(_RE_WHITESPACES.sub("", unit))
 
         if _RE_PACKAGES.findall(text):
+            _logger.debug("Source %s has packages", self.filename)
             self._has_package = True
-            _logger.info("Source %s has package", self.filename)
         else:
+            _logger.debug("Source %s has no packages", self.filename)
             self._has_package = False
 
         # Gets libraries referred

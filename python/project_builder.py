@@ -431,10 +431,12 @@ class ProjectBuilder(object):
         units = source.getDesignUnits()
         reverse_dependency_map = self._getReverseDependencyMap()
 
-        # We'll build packages while searching for dependencies.
-        # Those dependencies that don't have packages will be built
-        # after we're done with the packages
-        post_build_list = []
+        # We'll insert packages at the start of the list and append
+        # non packages at the end. We need to do this before actually
+        # building anything to check if the amount of sources that
+        # should be rebuilt doesn't exceeds the value given by
+        # Config.max_reverse_dependency_sources
+        build_list = []
 
         for unit in units:
             rev_dep_key = library.name, unit
@@ -445,31 +447,27 @@ class ProjectBuilder(object):
                 for _source in reverse_dependency_map[rev_dep_key]:
                     dep_lib, _source = self._getLibraryAndSourceByPath(_source)
 
-                    # Schedule sources without any package to be rebuilt
-                    # later
-                    if not _source.hasPackage():
-                        self._logger.info("[%s] '%s' will be build later",
-                                dep_lib.name, str(_source))
-                        post_build_list.append((dep_lib, _source))
-                        continue
+                    if _source.hasPackage():
+                        self._logger.debug("Inserting [%s] '%s'", dep_lib.name,
+                                str(_source))
+                        build_list.insert(0, (dep_lib, _source))
+                    else:
+                        self._logger.debug("Appending [%s] '%s'", dep_lib.name,
+                                str(_source))
+                        build_list.append((dep_lib, _source))
 
-                    errors, warnings, rebuilds = \
-                        dep_lib.buildSource(_source, forced=True, \
-                        flags=self.single_build_flags)
+        # TODO: If we exceed the maximum number of dependencies allowed
+        # to be rebuilt, we should warn the user we're not rebuilding
+        # anything
+        if len(build_list) > Config.max_reverse_dependency_sources:
+            self._logger.warning("Number of tracked rebuilds of %d exceeds "
+                    "the maximum configured of %d", len(build_list),
+                    Config.max_reverse_dependency_sources)
+            raise StopIteration()
+        else:
+            self._logger.info("Tracked %d rebuilds", len(build_list))
 
-                    # Append errors and/or warnings according to
-                    # user preferences to make sure we keep printing
-                    # errors before the warnings
-                    if not Config.show_reverse_dependencies_errors:
-                        errors = []
-                    elif not Config.show_reverse_dependencies_warnings:
-                        warnings = []
-                    yield errors, warnings, rebuilds
-            else:
-                self._logger.info("'%s.%s' has no reverse dependency",
-                    library.name, unit)
-
-        for dep_lib, dep_source in post_build_list:
+        for dep_lib, dep_source in build_list:
             self._logger.info("Building scheduled [%s] '%s'",
                     dep_lib.name, str(dep_source))
             errors, warnings, rebuilds = \
