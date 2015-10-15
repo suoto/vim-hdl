@@ -37,7 +37,7 @@ class Library(object):
     def __init__(self, builder, sources=None, name='work', target_dir=None):
         self.builder = builder
         self.name = name
-        self.sources = []
+        self.sources = {}
 
         self.target_dir = target_dir or os.curdir
         self.tag_file = 'tags'
@@ -46,8 +46,16 @@ class Library(object):
         self._logger = logging.getLogger("Library('%s')" % self.name)
 
         self._build_info_cache = {}
+
         if sources is not None:
-            self.addSources(sources)
+            if hasattr(sources, '__iter__'):
+                _sources = sources
+            else:
+                _sources = [sources]
+
+            for source in _sources:
+                _source = VhdlSourceFile(source)
+                self.sources[_source.abspath()] = _source
 
     def __str__(self):
         return "Library(name='%s')" % self.name
@@ -141,19 +149,19 @@ class Library(object):
 
     def addSources(self, sources):
         "Adds a source or a list of sources to this library"
-        assert self.sources is not None
 
         if hasattr(sources, '__iter__'):
-            for source in sources:
-                if not self.hasSource(source):
-                    self.sources.append(VhdlSourceFile(source))
-                else:
-                    self._logger.warning("Source %s was already added", source)
+            _sources = sources
         else:
-            if not self.hasSource(sources):
-                self.sources.append(VhdlSourceFile(sources))
-            else:
-                self._logger.warning("Source %s was already added", sources)
+            _sources = [sources]
+
+        for _source in _sources:
+            if os.path.abspath(_source) in self.sources.keys():
+                self._logger.warning("Source %s was already added", _source)
+                continue
+
+            source = VhdlSourceFile(_source)
+            self.sources[source.abspath()] = source
 
     def addBuildFlags(self, flags):
         """Adds a flag or a list of flags to be used when building
@@ -173,13 +181,11 @@ class Library(object):
 
     def buildAll(self, forced=False):
         msg = []
-        for source in self.sources:
+        for source in self.sources.values():
             r = list(self._buildSource(source, forced))
             msg.append([source] + r)
         return msg
 
-    # TODO: Check file modification time to invalidate cached info
-    #  @memoid
     def getDependencies(self):
         """Gets the dependency tree for this library"""
 
@@ -195,7 +201,7 @@ class Library(object):
         # If no sources have changed since we last checked, return the
         # info we have cached
         reparse = False
-        for source in self.sources:
+        for source in self.sources.values():
             if source.getmtime() > cached_info['timestamp']:
                 reparse = True
                 break
@@ -209,7 +215,7 @@ class Library(object):
         # on which sources actually changed
         dep_dict = dict(cached_info['dependencies'])
 
-        for source in self.sources:
+        for source in self.sources.values():
             # If this source hasn't changed, skip it
             if source.getmtime() < cached_info['timestamp']:
                 continue
@@ -248,24 +254,31 @@ class Library(object):
 
     @memoid
     def hasDesignUnit(self, unit):
-        for source in self.sources:
+        for source in self.sources.values():
             if unit in source.getDesignUnits():
                 return True
         return False
 
     @memoid
     def getSourceByDesignUnit(self, unit):
-        for source in self.sources:
+        for source in self.sources.values():
             if unit in source.getDesignUnits():
                 return source
         raise RuntimeError("Design unit '%s' not found in library '%s'" % \
                 (str(unit), self.name))
 
-    #  @memoid
+    @memoid
     def hasSource(self, path):
-        for source in self.sources:
-            if os.path.samefile(str(path), str(source)):
-                return source
+        if type(path) is str:
+            path = os.path.abspath(path)
+        else:
+            path = path.abspath()
+        source = None
+        try:
+            source = self.sources[path]
+        except KeyError:
+            pass
+        return source
 
     def buildSources(self, sources, forced=False, flags=[]):
         """Build a list or a single source. The argument should be
@@ -293,7 +306,7 @@ class Library(object):
         return list(self._buildSource(source, forced, flags))
 
     def buildByPath(self, path, forced=False, flags=[]):
-        for source in self.sources:
+        for source in self.sources.values():
             if os.path.samefile(str(source), path):
                 return self._buildSource(source, forced, flags)
     def clearBuildCache(self, source):
