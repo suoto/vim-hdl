@@ -76,7 +76,7 @@ class Config(object):
     @staticmethod
     def setupBuild():
         if 'VIM' in os.environ.keys():
-            Config.log_level = logging.INFO
+            Config.log_level = logging.DEBUG
             Config.is_toolchain = True
             Config._setupToolchain()
         else:

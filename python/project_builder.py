@@ -109,9 +109,11 @@ class ProjectBuilder(object):
 
         atexit.register(saveCache, self, cache_fname)
 
-        # If the library file hasn't changed, we're up to date an return
+        #  If the library file hasn't changed, we're up to date an return
         if os.path.getmtime(self._library_file) <= self._conf_file_timestamp:
             return
+
+        self._logger.info("Updating config file")
 
         self._conf_file_timestamp = os.path.getmtime(self._library_file)
 
@@ -195,7 +197,7 @@ class ProjectBuilder(object):
             result[lib_name] = this_lib_map
         return result
 
-    def _getBuildSteps(self):
+    def getBuildSteps(self):
         """Yields a dict that has all the library/sources that can be
         built on a given step"""
 
@@ -223,40 +225,26 @@ class ProjectBuilder(object):
                             if src not in this_step[lib_name]:
                                 this_step[lib_name].append(src)
 
-            if not this_build:
-                break
-
             yield this_step
 
-            if step == self.MAX_BUILD_STEPS:
+            if step == self.MAX_BUILD_STEPS or not this_build:
                 self._logger.error("Max build steps of %d reached, stopping",
                                    self.MAX_BUILD_STEPS)
 
-        this_step = {}
-        for lib_name, src in self._getSourcesWithMissingDependencies(units_built):
-            if lib_name not in this_step:
-                this_step[lib_name] = []
-            if src not in this_step[lib_name]:
-                this_step[lib_name].append(src)
-
-        #  if this_step:
-        #      self._logger.debug("Yielding remaining files")
-        #      yield this_step
+                for lib_name, src, missing_deps, in self._getSourcesWithMissingDeps(units_built):
+                    assert 0
+                    self._logger.warning("[%s] %s has missing dependencies: %s",
+                            lib_name, src, str(missing_deps))
+                break
 
     #  @memoid
-    def _getSourcesWithMissingDependencies(self, units_built):
+    def _getSourcesWithMissingDeps(self, units_built):
         """Searches for files that weren't build given the units_built
         and returns their dependencies"""
-        result = []
         for lib_name, lib_deps in self._getDependencyMap().iteritems():
             for src, src_deps in lib_deps.iteritems():
                 for design_unit in src.getDesignUnits():
-                    if not design_unit:
-                        result.append((lib_name, src))
-                        #  yield lib_name, src
                     if (lib_name, design_unit) not in units_built:
-                        result.append((lib_name, src))
-                        #  yield lib_name, src
                         missing_deps = []
                         for dep_lib_name, unit_name in \
                                 set(src_deps) - set(units_built):
@@ -264,14 +252,10 @@ class ProjectBuilder(object):
                                     missing_deps:
                                 missing_deps.append(
                                     "%s.%s" % (dep_lib_name, unit_name))
-                        if missing_deps:
-                            self._logger.warning(
-                                "Missing dependencies for '%s': %s",
-                                src, ", ".join(missing_deps))
-        return result
+                        yield lib_name, src, missing_deps
 
     #  @memoid
-    def _getLibraryAndSourceByPath(self, path):
+    def getLibraryAndSourceByPath(self, path):
         """Gets the library containing the path. Raises RuntimeError
         if the source is not found anywhere"""
         if not os.path.exists(path):
@@ -340,7 +324,7 @@ class ProjectBuilder(object):
             lib.createOrMapLibrary()
 
         step_cnt = 0
-        for step in self._getBuildSteps():
+        for step in self.getBuildSteps():
             step_cnt += 1
             if not step:
                 self._logger.debug("Empty step at iteration %d", step_cnt)
@@ -414,14 +398,19 @@ class ProjectBuilder(object):
 
         return errors, warnings, rebuilds
 
-    # Notice that we won't build recursively because this can lead
-    # to rebuilding the entire library, which may take much more
-    # time than we want to wait for a syntax check.
-    # However, building only first level dependencies makes second
-    # level dependencies out of date. This should be handled (maybe
-    # in background), or else things can get very messy
     def _buildReverseDependencies(self, library, source):
-        """Builds sources that depends on library.source"""
+        """Builds sources that depends on the given library/source.
+        Notes on current implementation:
+        1) We won't build recursively because this can lead to to
+        rebuilding the entire library, which may take much more time
+        than we want to wait for a syntax check. However, building only
+        first level dependencies makes second level dependencies out of
+        date. This should be handled (maybe in background), or else
+        things can get very messy
+        2) The build order is not checked. If A triggers rebuilding B
+        and C but C also depends on B (and thus should be built after
+        B), there is no guarantee that B will be built before C"""
+
         if not (Config.show_reverse_dependencies_errors or \
                 Config.show_reverse_dependencies_warnings):
             raise StopIteration()
@@ -445,7 +434,7 @@ class ProjectBuilder(object):
                         str(source), ", ".join(reverse_dependency_map[rev_dep_key]))
 
                 for _source in reverse_dependency_map[rev_dep_key]:
-                    dep_lib, _source = self._getLibraryAndSourceByPath(_source)
+                    dep_lib, _source = self.getLibraryAndSourceByPath(_source)
 
                     if _source.hasPackage():
                         self._logger.debug("Inserting [%s] '%s'", dep_lib.name,
@@ -489,7 +478,7 @@ class ProjectBuilder(object):
         'path' to build later"""
 
         # Find out which library has this path
-        lib, source = self._getLibraryAndSourceByPath(path)
+        lib, source = self.getLibraryAndSourceByPath(path)
         errors, warnings, rebuilds = self.buildSource(lib, source, \
                 forced=True, flags=self.single_build_flags)
 
@@ -516,7 +505,7 @@ class ProjectBuilder(object):
                     else:
                         print " - %s: None" % src
         else:
-            _, source = self._getLibraryAndSourceByPath(source)
+            _, source = self.getLibraryAndSourceByPath(source)
             print "\n".join(["%s.%s" % tuple(x) for x in source.getDependencies()])
 
     def printReverseDependencyMap(self, source=None):
@@ -534,7 +523,7 @@ class ProjectBuilder(object):
                     _s += "None"
                 print _s
         else:
-            lib, source = self._getLibraryAndSourceByPath(source)
+            lib, source = self.getLibraryAndSourceByPath(source)
             rev_depmap = self._getReverseDependencyMap()
             for unit in source.getDesignUnits():
                 k = lib.name, unit

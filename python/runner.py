@@ -50,6 +50,7 @@ def parseArguments():
     parser.add_argument('--print-dependency-tree',
             action='store_true', default=False)
     parser.add_argument('--print-design-units',   action='store', default=False)
+    parser.add_argument('--print-build-steps',   action='store_true', default=False)
     # pylint: enable=bad-whitespace
 
     try:
@@ -78,6 +79,7 @@ def parseArguments():
     return args
 
 def main():
+    "Main runner command processing"
     args = parseArguments()
 
     _logger.info("Creating project object")
@@ -95,8 +97,21 @@ def main():
         project.printReverseDependencyMap(args.print_reverse_dependency_map)
 
     if args.print_design_units:
-        for unit in project.getDesignUnitsByPath(args.print_design_units):
+        lib, source = project.getLibraryAndSourceByPath(args.print_design_units)
+        for unit in source.getDesignUnits():
             print unit
+
+    if args.print_build_steps:
+        step_cnt = 0
+        for step in project.getBuildSteps():
+            step_cnt += 1
+            if not step:
+                break
+            print "="*10 + (" Step %d " % step_cnt) + "="*10
+            for lib_name, sources in step.iteritems():
+                print "  - Library %s" % lib_name
+                for source in sources:
+                    print "    - %s" % source
 
     if args.build:
         project.buildByDependency()
