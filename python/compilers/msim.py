@@ -16,6 +16,7 @@
 import os, re
 from compilers.base_compiler import BaseCompiler
 from utils import shell
+import vimhdl_exceptions
 import subprocess
 
 _RE_LIB_DOT_UNIT = re.compile(r"\b\w+\.\w+\b")
@@ -28,7 +29,7 @@ _RE_IGNORED = re.compile('|'.join([
     r".*VHDL Compiler exiting\s*$",
 ]))
 
-VLIB_ARGS = ['-unix', '-type', 'directory']
+VLIB_ARGS = ['-type', 'directory']
 
 def _lineHasError(line):
     "Parses <line> and return True or False if it contains an error"
@@ -71,8 +72,7 @@ class MSim(BaseCompiler):
                 stderr=subprocess.STDOUT)
             self._logger.info("vcom version string: '%s'", version[:-1])
         except Exception as exc:
-            self._logger.error("Sanity check failed with message: '%s'", exc)
-            raise
+            raise vimhdl_exceptions.SanityCheckError(str(exc))
 
     def _doBuild(self, library, source, flags=None):
         if flags:
