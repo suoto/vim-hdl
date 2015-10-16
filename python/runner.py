@@ -16,16 +16,40 @@
 # You should have received a copy of the GNU General Public License
 # along with vim-hdl.  If not, see <http://www.gnu.org/licenses/>.
 
+import os
 import logging
 import time
+import argparse
+try:
+    import argcomplete
+    _HAS_ARGCOMPLETE = True
+except ImportError:
+    _HAS_ARGCOMPLETE = False
+    pass
 
 from config import Config
 from project_builder import ProjectBuilder
 
 _logger = logging.getLogger(__name__)
 
+def _fileExtentensionCompleter(extension):
+    def _completer(**kwargs):
+        prefix = kwargs['prefix']
+        if prefix == '':
+            prefix = os.curdir
+
+        result = []
+        for line in os.listdir(prefix):
+            if line.lower().endswith('.' + extension):
+                result.append(line)
+            elif os.path.isdir(line):
+                result.append("./" + line)
+
+        return result
+    return _completer
+
+
 def parseArguments():
-    import argparse
     parser = argparse.ArgumentParser()
     # pylint: disable=bad-whitespace
     parser.add_argument('--verbose',      '-v', action='append_const', const=1,
@@ -39,7 +63,8 @@ def parseArguments():
             help="""Library configuration file that defines sources,
             libraries, options, etc""")
     parser.add_argument('--target',       '-t', action='append', nargs='*',
-            help="""Source(s) file(s) to build individually""")
+            help="""Source(s) file(s) to build individually""").completer \
+                    = _fileExtentensionCompleter('vhd')
 
     # Debugging options
     parser.add_argument('--print-dependency-map',
@@ -53,11 +78,9 @@ def parseArguments():
     parser.add_argument('--print-build-steps',   action='store_true', default=False)
     # pylint: enable=bad-whitespace
 
-    try:
-        import argcomplete
+    if _HAS_ARGCOMPLETE:
         argcomplete.autocomplete(parser)
-    except ImportError:
-        pass
+
     args = parser.parse_args()
 
     args.log_level = logging.FATAL
@@ -68,10 +91,8 @@ def parseArguments():
             args.log_level = logging.WARNING
         elif len(args.verbose) == 2:
             args.log_level = logging.INFO
-        elif len(args.verbose) == 3:
+        elif len(args.verbose) >= 3:
             args.log_level = logging.DEBUG
-        else:
-            args.log_level = logging.ERROR
 
     Config.updateFromArgparse(args)
     Config.setupBuild()
