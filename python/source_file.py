@@ -16,8 +16,15 @@
 import re
 import os
 import logging
+import threading
+
 from utils import memoid
 
+_logger = logging.getLogger(__name__)
+
+_MAX_OPEN_FILES = 100
+
+# Regexes
 _RE_VALID_NAME_CHECK = re.compile(r"^[a-z]\w*$", flags=re.I)
 
 _RE_PACKAGES = re.compile('|'.join([
@@ -37,11 +44,12 @@ _RE_WHITESPACES = re.compile(r"^\s*|\s*$")
 
 _RE_PRE_PROC = re.compile(r"\s*--[^\n]*\n|\s+")
 
-_logger = logging.getLogger(__name__)
-
-import threading
-
 class VhdlSourceFile(object):
+
+    # Use a semaphore to avoid opening too many files (Python raises
+    # an exception for this)
+    _semaphore = threading.BoundedSemaphore(_MAX_OPEN_FILES)
+
     def __init__(self, filename):
         self.filename = os.path.normpath(filename)
         self._design_units = None
@@ -74,8 +82,7 @@ class VhdlSourceFile(object):
             self._lock.acquire()
             # We have the lock, so if the source changed, parse it!
             if self.changed():
-                _logger.debug("Parsing %s (%f >= %f)", str(self), self._mtime,
-                        self.getmtime())
+                _logger.debug("Parsing %s", str(self))
                 self._mtime = self.getmtime()
                 self._doParse()
         finally:
@@ -89,7 +96,9 @@ class VhdlSourceFile(object):
 
         # Replace everything from comment ('--') until a line break and
         # converts to lowercase
+        VhdlSourceFile._semaphore.acquire()
         text = _RE_PRE_PROC.sub(" ", open(self.filename, 'r').read()).lower()
+        VhdlSourceFile._semaphore.release()
 
         # Search for design units. We should get things like entities
         # and packages
@@ -104,8 +113,10 @@ class VhdlSourceFile(object):
             _logger.debug("Source %s has no packages", self.filename)
             self._has_package = False
 
-        # Gets libraries referred
-        libs = [_RE_WHITESPACES.sub("", x) for x in _RE_LIBRARIES.findall(text)]
+        # Get libraries referred and add library 'work', which is
+        # referred implicitly
+        libs = list(set(['work'] +
+            [_RE_WHITESPACES.sub("", x) for x in _RE_LIBRARIES.findall(text)]))
 
         # If there are no libraries, we won't search for units
         # instantiated using the format 'lib.unit'
