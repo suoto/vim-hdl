@@ -14,6 +14,11 @@
 # along with vim-hdl.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging, os, sys
+try:
+    from rainbow_logging_handler import RainbowLoggingHandler
+    _COLOR_LOGGING = True
+except ImportError:
+    _COLOR_LOGGING = False
 
 class Config(object):
     is_toolchain = True
@@ -43,7 +48,20 @@ class Config(object):
 
     @staticmethod
     def _setupStreamHandler(stream):
-        stream_handler = logging.StreamHandler(stream)
+        if _COLOR_LOGGING:
+            stream_handler = RainbowLoggingHandler(
+                stream,
+                #  Customizing each column's color
+                color_pathname=('black', 'red'  , False), color_module=('yellow', None, False),
+                color_funcName=('blue' , 'white', False), color_lineno=('green' , None, False),
+                color_message_debug    = ('white'  , None , False),
+                color_message_info     = ('green' , None , False),
+                color_message_warning  = ('yellow', None , False),
+                color_message_error    = ('red'   , None , True),
+                color_message_critical = ('white' , 'red', True))
+        else:
+            stream_handler = logging.StreamHandler(stream)
+
         stream_handler.formatter = logging.Formatter(Config.log_format)
         logging.root.addHandler(stream_handler)
         logging.root.setLevel(Config.log_level)
