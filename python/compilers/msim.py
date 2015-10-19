@@ -72,6 +72,7 @@ class MSim(BaseCompiler):
                 stderr=subprocess.STDOUT)
             self._logger.info("vcom version string: '%s'", version[:-1])
         except Exception as exc:
+            self._logger.fatal("Sanity check failed")
             raise vimhdl_exceptions.SanityCheckError(str(exc))
 
     def _doBuild(self, library, source, flags=None):
