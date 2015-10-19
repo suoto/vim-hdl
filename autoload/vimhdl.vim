@@ -155,4 +155,39 @@ EOF
 endfunction
 " }
 
+" { vimhdl#removeSourceFromLibrary(library, source=<current>)
+" Adds <source> to library <library>. If source is not defined, use the
+" current buffer name
+function! vimhdl#removeSourceFromLibrary(...)
+    let library = a:1
+    if a:0 == 1
+        let source = expand('%:p')
+    elseif a:0 == 2
+        let source = a:2
+    endif
+
+    let conf_file = vimhdl#getConfFile()
+
+python << EOF
+_source = vim.eval('source')
+_library = vim.eval('library')
+try:
+    project = ProjectBuilder(library_file=vim.eval('conf_file'))
+    project.libraries[_library].removeSources(_source)
+    project.saveCache()
+
+    vim.command("echom \"Removed source '%s' from library '%s'\"" % \
+        (_source, _library))
+except Exception as e:
+    vim.command("echom \"Error removing source '%s' from library '%s': '%s'\"" % \
+        (_source, _library, str(e)))
+finally:
+    del _source, _library
+EOF
+
+
+
+endfunction
+" }
+
 " vim: set foldmarker={,} foldlevel=0 foldmethod=marker :

@@ -163,6 +163,23 @@ class Library(object):
             source = VhdlSourceFile(_source)
             self.sources[source.abspath()] = source
 
+    def removeSources(self, sources):
+        "Adds a source or a list of sources to this library"
+
+        if hasattr(sources, '__iter__'):
+            _sources = sources
+        else:
+            _sources = [sources]
+
+        for _source in _sources:
+            if os.path.abspath(_source) not in self.sources.keys():
+                self._logger.error("Source '%s' in not in library '%s'",
+                        _source, self.name)
+            else:
+                self._logger.info("Source '%s' removed from library '%s'",
+                        _source, self.name)
+                del self.sources[os.path.abspath(_source)]
+
     def addBuildFlags(self, flags):
         """Adds a flag or a list of flags to be used when building
         source files for this library"""

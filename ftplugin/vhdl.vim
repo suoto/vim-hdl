@@ -68,12 +68,14 @@ let &cpo = s:save_cpo
 unlet s:save_cpo
 
 " { Vimhdl commands
-command! VimhdlRebuildProject              call vimhdl#rebuildProject()
-command! VimhdlListLibraries               call vimhdl#listLibraries()
-command! VimhdlListLibrariesAndSources     call vimhdl#listLibrariesAndSources()
-command! VimhdlViewLog                     call vimhdl#viewLog()
-command! VimhdlCleanProjectCache           call vimhdl#cleanProjectCache()
+command! VimhdlRebuildProject                  call vimhdl#rebuildProject()
+command! VimhdlListLibraries                   call vimhdl#listLibraries()
+command! VimhdlListLibrariesAndSources         call vimhdl#listLibrariesAndSources()
+command! VimhdlViewLog                         call vimhdl#viewLog()
+command! VimhdlCleanProjectCache               call vimhdl#cleanProjectCache()
+
 command! -nargs=? VimhdlAddSourceToLibrary call vimhdl#addSourceToLibrary(<f-args>)
+command! -nargs=? VimhdlRemoveSourceFromLibrary call vimhdl#removeSourceFromLibrary(<f-args>)
 " }
 "
 " { Autocommands
