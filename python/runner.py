@@ -25,7 +25,11 @@ try:
     _HAS_ARGCOMPLETE = True
 except ImportError:
     _HAS_ARGCOMPLETE = False
-    pass
+
+try:
+    import cProfile as profile
+except ImportError:
+    import profile
 
 from config import Config
 from project_builder import ProjectBuilder
@@ -72,10 +76,13 @@ def parseArguments():
 
     parser.add_argument('--print-reverse-dependency-map',
             action='store', nargs='?', default='')
+
     parser.add_argument('--print-dependency-tree',
             action='store_true', default=False)
-    parser.add_argument('--print-design-units',   action='store', default=False)
-    parser.add_argument('--print-build-steps',   action='store_true', default=False)
+
+    parser.add_argument('--print-design-units',       action='store',       default=False)
+    parser.add_argument('--debug-print-build-steps',  action='store_true',  default=False)
+    parser.add_argument('--debug-profiling',          action='store',       nargs='?', default='')
     # pylint: enable=bad-whitespace
 
     if _HAS_ARGCOMPLETE:
@@ -94,14 +101,18 @@ def parseArguments():
         elif len(args.verbose) >= 3:
             args.log_level = logging.DEBUG
 
+    if args.debug_profiling == '':
+        args.debug_profiling = None
+    else:
+        args.debug_profiling = args.debug_profiling or 'output.pstats'
+
     Config.updateFromArgparse(args)
     Config.setupBuild()
 
     return args
 
-def main():
+def main(args):
     "Main runner command processing"
-    args = parseArguments()
 
     _logger.info("Creating project object")
 
@@ -122,7 +133,7 @@ def main():
         for unit in source.getDesignUnits():
             print unit
 
-    if args.print_build_steps:
+    if args.debug_print_build_steps:
         step_cnt = 0
         for step in project.getBuildSteps():
             step_cnt += 1
@@ -150,7 +161,12 @@ def main():
 
 if __name__ == '__main__':
     start = time.time()
-    main()
+    args = parseArguments()
+    print args
+    if args.debug_profiling:
+        profile.run('main(args)', args.debug_profiling)
+    else:
+        main(args)
     end = time.time()
     _logger.info("Process took %.2fs", (end - start))
 
