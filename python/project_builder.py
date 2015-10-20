@@ -24,7 +24,6 @@ except ImportError:
     import pickle
 
 from library import Library
-from utils import memoid
 from compilers.msim import MSim
 from config import Config
 from config_parser import ExtendedConfigParser
@@ -165,8 +164,6 @@ class ProjectBuilder(object):
             if not lib.sources:
                 self._logger.warning("Library '%s' has no sources", lib_name)
 
-
-    #  @memoid
     def _getReverseDependencyMap(self):
         """Returns a dict that relates which source files depend on a
         given library/unit"""
@@ -180,7 +177,6 @@ class ProjectBuilder(object):
                     result[dep_key].append(src_file.filename)
         return result
 
-    #  @memoid
     def _getDependencyMap(self):
         """Returns a dict which library/units a given source file
         depens on"""
@@ -231,13 +227,13 @@ class ProjectBuilder(object):
                 self._logger.error("Max build steps of %d reached, stopping",
                                    self.MAX_BUILD_STEPS)
 
-                for lib_name, src, missing_deps, in self._getSourcesWithMissingDeps(units_built):
+                for lib_name, src, missing_deps, in \
+                        self._getSourcesWithMissingDeps(units_built):
                     assert 0
                     self._logger.warning("[%s] %s has missing dependencies: %s",
                             lib_name, src, str(missing_deps))
                 break
 
-    #  @memoid
     def _getSourcesWithMissingDeps(self, units_built):
         """Searches for files that weren't build given the units_built
         and returns their dependencies"""
@@ -254,7 +250,6 @@ class ProjectBuilder(object):
                                     "%s.%s" % (dep_lib_name, unit_name))
                         yield lib_name, src, missing_deps
 
-    #  @memoid
     def getLibraryAndSourceByPath(self, path):
         """Gets the library containing the path. Raises RuntimeError
         if the source is not found anywhere"""
@@ -431,7 +426,7 @@ class ProjectBuilder(object):
             rev_dep_key = library.name, unit
             if rev_dep_key in reverse_dependency_map.keys():
                 self._logger.info("Building '%s' triggers rebuild of %s",
-                        str(source), ", ".join(reverse_dependency_map[rev_dep_key]))
+                    str(source), ", ".join(reverse_dependency_map[rev_dep_key]))
 
                 for _source in reverse_dependency_map[rev_dep_key]:
                     dep_lib, _source = self.getLibraryAndSourceByPath(_source)
@@ -500,8 +495,10 @@ class ProjectBuilder(object):
                 print "Library %s" % lib_name
                 for src, src_deps in lib_deps.iteritems():
                     if src_deps:
-                        print " - %s: %s" % (src, ", ".join(["%s.%s" % (x[0], x[1]) \
-                                for x in src_deps]))
+                        print " - %s: %s" % \
+                            (src, ", ".join(
+                                ["%s.%s" % (x[0], x[1]) for x in src_deps]
+                            ))
                     else:
                         print " - %s: None" % src
         else:
