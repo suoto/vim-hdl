@@ -31,8 +31,8 @@ try:
 except ImportError:
     import profile
 
-from config import Config
-from project_builder import ProjectBuilder
+from vimhdl.config import Config
+from vimhdl.project_builder import ProjectBuilder
 
 _logger = logging.getLogger(__name__)
 

@@ -23,10 +23,21 @@ try:
 except ImportError:
     import pickle
 
-from library import Library
-from compilers.msim import MSim
-from config import Config
-from config_parser import ExtendedConfigParser
+from vimhdl.library import Library
+from vimhdl.compilers.msim import MSim
+from vimhdl.config import Config
+from vimhdl.config_parser import ExtendedConfigParser
+
+def _error(s):
+    _logger.error(s)
+    if Config.is_toolchain:
+        print s
+
+def _warning(s):
+    _logger.warning(s)
+    if Config.is_toolchain:
+        print s
+
 
 # pylint: disable=star-args, bad-continuation
 
@@ -34,26 +45,6 @@ def saveCache(obj, fname):
     pickle.dump(obj, open(fname, 'w'))
 
 _logger = logging.getLogger('build messages')
-
-def _error(s, fmt=None):
-    if fmt:
-        _logger.error(s, fmt)
-        if Config.is_toolchain:
-            print s % fmt
-    else:
-        _logger.error(s)
-        if Config.is_toolchain:
-            print s
-
-def _warning(s, fmt=None):
-    if fmt:
-        _logger.warning(s, fmt)
-        if Config.is_toolchain:
-            print s % fmt
-    else:
-        _logger.warning(s)
-        if Config.is_toolchain:
-            print s
 
 class ProjectBuilder(object):
     "vim-hdl project builder class"

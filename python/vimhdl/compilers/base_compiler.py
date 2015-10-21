@@ -21,6 +21,13 @@ import time
 
 _logger = logging.getLogger(__name__)
 
+class abstractstaticmethod(staticmethod):
+    __slots__ = ()
+    def __init__(self, function):
+        super(abstractstaticmethod, self).__init__(function)
+        function.__isabstractmethod__ = True
+    __isabstractmethod__ = True
+
 class BaseCompiler(object):
     "Class that implements the base compiler flow"
 
@@ -39,6 +46,11 @@ class BaseCompiler(object):
             self._logger.info("%s already exists", self._target_folder)
 
         self._checkEnvironment()
+
+    @abstractstaticmethod
+    def _makeMessageRecord(message):
+        """Static method that converts a string into a dict that has
+        elements identifying its fields"""
 
     @abc.abstractmethod
     def _checkEnvironment(self):

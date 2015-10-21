@@ -20,9 +20,9 @@ import re
 import time
 from threading import Thread
 
-from config import Config
-from utils import memoid
-from source_file import VhdlSourceFile
+from vimhdl.config import Config
+from vimhdl.utils import memoid
+from vimhdl.source_file import VhdlSourceFile
 
 CTAGS_ARGS = ('--tag-relative=no', '--totals=no', '--sort=foldcase',
         '--extra=+f', '--fields=+i-l+m+s+S', '--links=yes', '--append')

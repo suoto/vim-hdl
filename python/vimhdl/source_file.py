@@ -18,7 +18,7 @@ import os
 import logging
 import threading
 
-from utils import memoid
+from vimhdl.utils import memoid
 
 _logger = logging.getLogger(__name__)
 
