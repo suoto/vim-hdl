@@ -24,7 +24,7 @@ import sys, os, vim
 vimhdl_path = os.path.join(vim.eval('s:vimhdl_path'), 'python')
 if vimhdl_path not in sys.path:
     sys.path.insert(0, vimhdl_path)
-from project_builder import ProjectBuilder
+from vimhdl.project_builder import ProjectBuilder
 EOF
 endfunction
 " }

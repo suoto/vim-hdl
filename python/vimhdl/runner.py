@@ -31,6 +31,16 @@ try:
 except ImportError:
     import profile
 
+def _pathSetup():
+    import sys
+    path_to_this_file = os.path.realpath(__file__).split(os.path.sep)[:-2]
+    vimhdl_path = os.path.sep.join(path_to_this_file)
+    if vimhdl_path not in sys.path:
+        sys.path.insert(0, vimhdl_path)
+
+if __name__ == '__main__':
+    _pathSetup()
+
 from vimhdl.config import Config
 from vimhdl.project_builder import ProjectBuilder
 
@@ -56,39 +66,51 @@ def _fileExtentensionCompleter(extension):
 def parseArguments():
     parser = argparse.ArgumentParser()
     # pylint: disable=bad-whitespace
-    parser.add_argument('--verbose',      '-v', action='append_const', const=1,
+
+    # Options
+    parser.add_argument('--verbose', '-v', action='append_const', const=1,
             help="""Increases verbose level. Use multiple times to
             increase more""")
-    parser.add_argument('--clean',        '-c', action='store_true',
+
+    parser.add_argument('--clean', '-c', action='store_true',
             help="Cleans the project before building")
-    parser.add_argument('--build',        '-b', action='store_true',
-            help="Builds the project given by <library-file>")
-    parser.add_argument('--library-file', '-l', action='store',
-            help="""Library configuration file that defines sources,
-            libraries, options, etc""")
-    parser.add_argument('--target',       '-t', action='append', nargs='*',
+
+    parser.add_argument('--build', '-b', action='store_true',
+            help="Builds the project given by <project_file>")
+
+    parser.add_argument('--sources', '-s', action='append', nargs='*',
             help="""Source(s) file(s) to build individually""").completer \
                     = _fileExtentensionCompleter('vhd')
 
     # Debugging options
-    parser.add_argument('--print-dependency-map',
-            action='store', nargs='?', default='')
+    parser.add_argument('--print-dependency-map', action='store_true',
+            help = """Prints the dependency map of source file given by [source].
+            If [source] was not supplied, prints the dependency map of all
+            sources.""")
 
-    parser.add_argument('--print-reverse-dependency-map',
-            action='store', nargs='?', default='')
+    parser.add_argument('--print-reverse-dependency-map', action='store_true',
+            help = """Prints the reverse dependency map of source file given by
+            [source]. If [source] was not supplied, prints the reverse dependency
+            map of all sources.""")
 
-    parser.add_argument('--print-dependency-tree',
-            action='store_true', default=False)
+    parser.add_argument('--print-design-units', action='store_true')
+    parser.add_argument('--debug-print-build-steps', action='store_true')
+    parser.add_argument('--debug-profiling', action='store', nargs='?',
+            metavar='OUTPUT_FILENAME', const='vimhdl.pstats')
 
-    parser.add_argument('--print-design-units',       action='store',       default=False)
-    parser.add_argument('--debug-print-build-steps',  action='store_true',  default=False)
-    parser.add_argument('--debug-profiling',          action='store',       nargs='?', default='')
+    # Mandatory arguments
+    parser.add_argument('project_file', action='store', nargs=1,
+            help="""Configuration file that defines what should be built (lists
+            sources, libraries, build flags and so on""")
+
     # pylint: enable=bad-whitespace
 
     if _HAS_ARGCOMPLETE:
         argcomplete.autocomplete(parser)
 
     args = parser.parse_args()
+
+    args.project_file = args.project_file[0]
 
     args.log_level = logging.FATAL
     if args.verbose:
@@ -101,12 +123,11 @@ def parseArguments():
         elif len(args.verbose) >= 3:
             args.log_level = logging.DEBUG
 
-    if args.debug_profiling == '':
-        args.debug_profiling = None
-    else:
-        args.debug_profiling = args.debug_profiling or 'output.pstats'
+    # Planify source list if supplied
+    if args.sources:
+        args.sources = [source for sublist in args.sources for source in sublist]
 
-    Config.updateFromArgparse(args)
+    Config.log_level = args.log_level
     Config.setupBuild()
 
     return args
@@ -118,20 +139,29 @@ def main(args):
 
     if args.clean:
         _logger.info("Cleaning up")
-        ProjectBuilder.clean(args.library_file)
+        ProjectBuilder.clean(args.project_file)
 
-    project = ProjectBuilder(library_file=args.library_file)
+    project = ProjectBuilder(project_file=args.project_file)
 
-    if args.print_dependency_map != '':
-        project.printDependencyMap(args.print_dependency_map)
+    if args.print_dependency_map:
+        if args.sources:
+            for source in args.sources:
+                project.printDependencyMap(source)
+        else:
+            project.printDependencyMap()
 
-    if args.print_reverse_dependency_map != '':
-        project.printReverseDependencyMap(args.print_reverse_dependency_map)
+    if args.print_reverse_dependency_map:
+        if args.sources:
+            for source in args.sources:
+                project.printReverseDependencyMap(source)
+        else:
+            project.printReverseDependencyMap()
 
     if args.print_design_units:
-        lib, source = project.getLibraryAndSourceByPath(args.print_design_units)
-        for unit in source.getDesignUnits():
-            print unit
+        for source in args.sources:
+            _, _source = project.getLibraryAndSourceByPath(source)
+            for unit in _source.getDesignUnits():
+                print unit
 
     if args.debug_print_build_steps:
         step_cnt = 0
@@ -146,23 +176,20 @@ def main(args):
                     print "    - %s" % source
 
     if args.build:
-        project.buildByDependency()
-
-    if args.target:
-        for targets in args.target:
-            for target in targets:
+        if not args.sources:
+            project.buildByDependency()
+        else:
+            for source in args.sources:
                 try:
-                    _logger.info("Building target '%s'", target)
-                    project.buildByPath(target)
+                    _logger.info("Building source '%s'", source)
+                    project.buildByPath(source)
                 except RuntimeError as e:
-                    _logger.error("Unable to build '%s': '%s'", target, str(e))
+                    _logger.error("Unable to build '%s': '%s'", source, str(e))
                     continue
-
 
 if __name__ == '__main__':
     start = time.time()
     args = parseArguments()
-    print args
     if args.debug_profiling:
         profile.run('main(args)', args.debug_profiling)
     else:
