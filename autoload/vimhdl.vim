@@ -34,10 +34,15 @@ endfunction
 " Gets the configuration file giving preference to the buffer version
 function! vimhdl#getConfFile()
     if exists("b:vimhdl_conf_file")
-        return b:vimhdl_conf_file
+        let conf_file = b:vimhdl_conf_file
     else
-        return get(g:, 'vimhdl_conf_file', '')
+        let conf_file = get(g:, 'vimhdl_conf_file', '')
     endif
+    if !filereadable(conf_file)
+        let conf_file = ''
+    endif
+    return conf_file
+
 endfunction
 " }
 
@@ -96,11 +101,93 @@ endfunction
 " Shows vim-hdl log
 function! vimhdl#viewLog()
 python << EOF
-print open('/tmp/build.log').read()
+print "\n".join(open('/tmp/build.log').read().split("\n")[-30:])
 EOF
 
 endfunction
 " }
 
+" { vimhdl#cleanCache()
+" Clean internal vim-hdl cache
+function! vimhdl#cleanProjectCache()
+    let conf_file = vimhdl#getConfFile()
+
+python << EOF
+project = ProjectBuilder(library_file=vim.eval('conf_file'))
+project.cleanCache()
+EOF
+
+endfunction
+" }
+
+" { vimhdl#addSourceToLibrary(library, source=<current>)
+" Adds <source> to library <library>. If source is not defined, use the
+" current buffer name
+function! vimhdl#addSourceToLibrary(...)
+    let library = a:1
+    if a:0 == 1
+        let source = expand('%:p')
+    elseif a:0 == 2
+        let source = a:2
+    endif
+
+    let conf_file = vimhdl#getConfFile()
+
+python << EOF
+_source = vim.eval('source')
+_library = vim.eval('library')
+try:
+    project = ProjectBuilder(library_file=vim.eval('conf_file'))
+    project.libraries[_library].addSources(_source)
+    project.saveCache()
+
+    vim.command("echom \"Added source '%s' to library '%s'\"" % \
+        (_source, _library))
+except Exception as e:
+    vim.command("echom \"Error adding source '%s' to library '%s': '%s'\"" % \
+        (_source, _library, str(e)))
+finally:
+    del _source, _library
+EOF
+
+
+
+endfunction
+" }
+
+" { vimhdl#removeSourceFromLibrary(library, source=<current>)
+" Adds <source> to library <library>. If source is not defined, use the
+" current buffer name
+function! vimhdl#removeSourceFromLibrary(...)
+    let library = a:1
+    if a:0 == 1
+        let source = expand('%:p')
+    elseif a:0 == 2
+        let source = a:2
+    endif
+
+    let conf_file = vimhdl#getConfFile()
+
+python << EOF
+_source = vim.eval('source')
+_library = vim.eval('library')
+try:
+    project = ProjectBuilder(library_file=vim.eval('conf_file'))
+    project.libraries[_library].removeSources(_source)
+    project.saveCache()
+
+    vim.command("echom \"Removed source '%s' from library '%s'\"" % \
+        (_source, _library))
+except Exception as e:
+    vim.command("echom \"Error removing source '%s' from library '%s': '%s'\"" % \
+        (_source, _library, str(e)))
+finally:
+    del _source, _library
+EOF
+
+
+
+endfunction
+" }
 
 " vim: set foldmarker={,} foldlevel=0 foldmethod=marker :
