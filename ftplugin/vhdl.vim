@@ -79,6 +79,10 @@ command! -nargs=? VimhdlRemoveSourceFromLibrary call vimhdl#removeSourceFromLibr
 " }
 "
 " { Autocommands
+autocmd! BufEnter *.vhd :py vimhdl.vim_client.onBufEnter()
+" autocmd! BufWrite *.vhd :call vimhdl#onBufWrite()
+" autocmd! BufEnter *.vhd :call vimhdl#onBufEnter()
+" autocmd! BufWrite *.vhd :call vimhdl#onBufWrite()
 " }
 
 " vim: set foldmarker={,} foldlevel=0 foldmethod=marker :

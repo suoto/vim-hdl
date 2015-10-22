@@ -16,7 +16,7 @@
 
 import logging
 import os
-import atexit
+#  import atexit
 from threading import Thread
 try:
     import cPickle as pickle
@@ -97,7 +97,7 @@ class ProjectBuilder(object):
             except (EOFError, IOError):
                 self._logger.warning("Unable to unpickle cached filename")
 
-        atexit.register(saveCache, self, cache_fname)
+        #  atexit.register(saveCache, self, cache_fname)
 
         #  If the library file hasn't changed, we're up to date an return
         if os.path.getmtime(self._library_file) <= self._conf_file_timestamp:
