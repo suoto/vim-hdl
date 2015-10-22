@@ -38,7 +38,10 @@ call vimhdl#setup()
 " { vimhdl Syntastic definition
 function! SyntaxCheckers_vhdl_vimhdl_GetLocList() dict
     let conf_file = vimhdl#getConfFile()
-    let makeprg = self.makeprgBuild({'args': s:vimhdl_path . '/python/runner.py -l ' . conf_file . ' -t '})
+    let makeprg = self.makeprgBuild({
+                \ 'exe'       : s:vimhdl_path . '/python/vimhdl/runner.py ' . conf_file,
+                \ 'args'      : '--sources',
+                \ 'post_args' : '--build'})
 
     let errorformat =
         \ '** %tarning:\\s\*[\\d\\+]\\s\*%f(%l):\\s\*%m,' .

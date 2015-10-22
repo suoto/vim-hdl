@@ -29,12 +29,12 @@ from vimhdl.config import Config
 from vimhdl.config_parser import ExtendedConfigParser
 
 def _error(s):
-    _logger.error(s)
+    _logger.debug("[E] " + s)
     if Config.is_toolchain:
         print s
 
 def _warning(s):
-    _logger.warning(s)
+    _logger.debug("[W] " + s)
     if Config.is_toolchain:
         print s
 
@@ -50,12 +50,12 @@ class ProjectBuilder(object):
     "vim-hdl project builder class"
     MAX_BUILD_STEPS = 20
 
-    def __init__(self, library_file):
+    def __init__(self, project_file):
         self.builder = None
         self.libraries = {}
         self._logger = logging.getLogger(__name__)
         self._conf_file_timestamp = 0
-        self._library_file = library_file
+        self._project_file = project_file
 
         self.batch_build_flags = []
         self.single_build_flags = []
@@ -81,14 +81,14 @@ class ProjectBuilder(object):
         self.__dict__.update(state)
 
     def saveCache(self):
-        cache_fname = os.path.join(os.path.dirname(self._library_file), \
-            '.' + os.path.basename(self._library_file))
+        cache_fname = os.path.join(os.path.dirname(self._project_file), \
+            '.' + os.path.basename(self._project_file))
         pickle.dump(self, open(cache_fname, 'w'))
 
     def _readConfFile(self):
-        "Reads the configuration given by self._library_file"
-        cache_fname = os.path.join(os.path.dirname(self._library_file), \
-            '.' + os.path.basename(self._library_file))
+        "Reads the configuration given by self._project_file"
+        cache_fname = os.path.join(os.path.dirname(self._project_file), \
+            '.' + os.path.basename(self._project_file))
 
         if os.path.exists(cache_fname):
             try:
@@ -100,12 +100,12 @@ class ProjectBuilder(object):
         atexit.register(saveCache, self, cache_fname)
 
         #  If the library file hasn't changed, we're up to date an return
-        if os.path.getmtime(self._library_file) <= self._conf_file_timestamp:
+        if os.path.getmtime(self._project_file) <= self._conf_file_timestamp:
             return
 
         self._logger.info("Updating config file")
 
-        self._conf_file_timestamp = os.path.getmtime(self._library_file)
+        self._conf_file_timestamp = os.path.getmtime(self._project_file)
 
         defaults = {'build_flags' : '',
                     'global_build_flags' : '',
@@ -113,7 +113,7 @@ class ProjectBuilder(object):
                     'single_build_flags' : ''}
 
         parser = ExtendedConfigParser(defaults=defaults)
-        parser.read(self._library_file)
+        parser.read(self._project_file)
 
         # Get the global build definitions
         global_build_flags = parser.getlist('global', 'global_build_flags')
@@ -254,8 +254,8 @@ class ProjectBuilder(object):
 
     def cleanCache(self):
         "Remove the cached project data and clean all libraries as well"
-        cache_fname = os.path.join(os.path.dirname(self._library_file), \
-            '.' + os.path.basename(self._library_file))
+        cache_fname = os.path.join(os.path.dirname(self._project_file), \
+            '.' + os.path.basename(self._project_file))
 
         try:
             os.remove(cache_fname)
@@ -266,11 +266,11 @@ class ProjectBuilder(object):
         self._conf_file_timestamp = 0
 
     @staticmethod
-    def clean(library_file):
+    def clean(project_file):
         "Clean up generated files for a clean build"
         _logger = logging.getLogger(__name__)
-        cache_fname = os.path.join(os.path.dirname(library_file), \
-            '.' + os.path.basename(library_file))
+        cache_fname = os.path.join(os.path.dirname(project_file), \
+            '.' + os.path.basename(project_file))
 
         try:
             os.remove(cache_fname)
@@ -278,7 +278,7 @@ class ProjectBuilder(object):
             _logger.debug("Cache filename '%s' not found", cache_fname)
 
         parser = ExtendedConfigParser()
-        parser.read(library_file)
+        parser.read(project_file)
 
         target_dir = parser.get('global', 'target_dir')
 
