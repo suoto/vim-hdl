@@ -58,6 +58,11 @@ def _getRebuildUnits(line):
 class MSim(BaseCompiler):
     """Implementation of the ModelSim compiler"""
 
+    _MessageScanners = [
+            re.compile(r"^\*\*\s(Warning|Error):\s*\[\d+\]\s*([^\(]+)\((\d+)\):\s*\(vcom-(\d+)\)\s*(.*)"),
+            re.compile(r"^\*\*\s(Warning|Error):\s*([^:]+)\((\d+)\):\s*\(vcom-(\d+)\)\s*(.*)"),
+            re.compile(r"^\*\*\s(Warning|Error):.*"),
+            ]
     def __init__(self, target_folder):
         super(MSim, self).__init__(target_folder)
         self._modelsim_ini = os.path.join(self._target_folder, 'modelsim.ini')
@@ -67,52 +72,20 @@ class MSim(BaseCompiler):
         self.builtin_libraries = ['ieee', 'std', 'unisim', 'xilinxcorelib',
                 'synplify', 'synopsis', 'maxii', 'family_support']
 
-    @staticmethod
-    def _makeMessageRecord(message):
-        return
-        print "="*10
-        print message
-        print "="*10
-        record = {'line'          : None,
-                  'column'        : None,
-                  'filename'      : None,
-                  'error_number'  : None,
-                  'error_type'    : None,
-                  'error_message' : None,
+    def _makeMessageRecord(self, message):
+        record = {}
+        for scanner in self._MessageScanners:
+            result = scanner.findall(message)
+            if len(result) == 0:
+                continue
+            record = {'line_number'   : result[0][2],
+                      'column'        : None,
+                      'filename'      : result[0][1],
+                      'error_number'  : result[0][3],
+                      'error_type'    : result[0][0][0],
+                      'error_message' : result[0][4],
                   }
-
-
-	#  %t		error type (finds a single character)
-	#  %n		error number (finds a number)
-	#  %m		error message (finds a string)
-	#  %r		matches the "rest" of a single-line file message %O/P/Q
-	#  %p		pointer line (finds a sequence of '-', '.', ' ' or
-	#                  tabs and uses the length for the column number)
-	#  %*{conv}	any scanf non-assignable conversion
-	#  %%		the single '%' character
-	#  %s		search text (finds a string)
-
-        try:
-            # Level is E for error or W for warning
-            record['error_type'] = message[3]
-        except IndexError:
-            pass
-
-        _RE_ERROR_NUMBER = re.compile(r"(?<=\(vcom-)\d+(?=\))")
-
-        if '(vcom-' in message:
-            _error_number = _RE_ERROR_NUMBER.findall(message)
-            assert len(_error_number) < 2, "Invalid error number: %s" % str(_error_number)
-            try:
-                record['error_number'] = _error_number[0]
-            except:
-                print _error_number
-                print message
-                raise
-
-        for k, v in record.items():
-            print str(k), str(v)
-
+            print repr(record)
 
     def _checkEnvironment(self):
         try:

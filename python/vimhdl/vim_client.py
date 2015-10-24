@@ -12,24 +12,31 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with vim-hdl.  If not, see <http://www.gnu.org/licenses/>.
+"Wrapper for vim-hdl usage within Vim's Python interpreter"
 
 import logging
 import os
 import threading
 
+# pylint: disable=import-error
 import vim
+# pylint: enable=import-error
 
 from vimhdl.project_builder import ProjectBuilder
 
-_logger = logging.getLogger(__name__)
+__logger__ = logging.getLogger(__name__)
+__vimhdl_client__ = None
 
 class VimhdlClient(ProjectBuilder):
+    """Wrapper around ProjectBuilder class to make the interface between Vim
+    and vim-hdl"""
     def __init__(self, *args, **kwargs):
         super(VimhdlClient, self).__init__(*args, **kwargs)
         self._build_lock = threading.Lock()
         self._threads = []
 
     def buildByDependencyAsync(self, *args, **kwargs):
+        "Builds the project by dependency asynchronously"
         self._build_lock.acquire()
         this_thread = threading.Thread(target=self.buildByDependency,
             args=args, kwargs=kwargs)
@@ -37,17 +44,15 @@ class VimhdlClient(ProjectBuilder):
         self._threads.append(this_thread)
         self._build_lock.release()
 
-vimhdl_client = None
-
 def _getConfigFile():
     if 'vimhdl_conf_file' in vim.current.buffer.vars.keys():
-        _logger.debug("Using config file from buffer dict")
+        __logger__.debug("Using config file from buffer dict")
         conf_file = vim.current.buffer.vars['vimhdl_conf_file']
     elif 'vimhdl_conf_file' in vim.vars.keys():
-        _logger.debug("Using config file from global dict")
+        __logger__.debug("Using config file from global dict")
         conf_file = vim.vars['vimhdl_conf_file']
     else:
-        _logger.warning("No config file specified")
+        __logger__.warning("No config file specified")
         return
 
     conf_file_full_path = os.path.abspath(os.path.expanduser(conf_file))
@@ -55,21 +60,74 @@ def _getConfigFile():
     if os.path.exists(conf_file_full_path):
         return conf_file_full_path
     else:
-        _logger.warning("Config file '%s' doesn't exists", conf_file_full_path)
+        __logger__.warning("Config file '%s' doesn't exists", conf_file_full_path)
+
+#  pylint: disable=redefined-outer-name,missing-docstring
 
 def _getProjectObject():
-    global vimhdl_client
-    if vimhdl_client is None:
+    global __vimhdl_client__
+    if __vimhdl_client__ is None:
         config_file = _getConfigFile()
-        _logger.debug("Config file is '%s'", config_file)
-        vimhdl_client = VimhdlClient(config_file)
-        vimhdl_client.buildByDependencyAsync()
+        __logger__.debug("Config file is '%s'", config_file)
+        __vimhdl_client__ = VimhdlClient(config_file)
+        __vimhdl_client__.buildByDependencyAsync()
+    return __vimhdl_client__
 
-def onBufEnter():
-    _getProjectObject()
-    _logger.info("Entered buffer number %d", vim.current.buffer.number)
+def onBufRead():
+    __logger__.debug("[%d] No action defined for event 'onBufRead'",
+        vim.current.buffer.number)
 
 def onBufWrite():
-    _getProjectObject()
-    _logger.info("Wrote buffer number %d", vim.current.buffer.number)
+    __vimhdl_client__ = _getProjectObject()
+    __vimhdl_client__.buildByPath(vim.current.buffer.name)
+    __logger__.info("Wrote buffer number %d", vim.current.buffer.number)
+
+def onBufEnter():
+    __logger__.debug("[%d] No action defined for event 'onBufEnter'",
+        vim.current.buffer.number)
+
+def onBufLeave():
+    __logger__.debug("[%d] No action defined for event 'onBufLeave'",
+        vim.current.buffer.number)
+
+def onBufWinEnter():
+    __logger__.debug("[%d] No action defined for event 'onBufWinEnter'",
+        vim.current.buffer.number)
+
+def onBufWinLeave():
+    __logger__.debug("[%d] No action defined for event 'onBufWinLeave'",
+        vim.current.buffer.number)
+
+def onFocusGained():
+    __logger__.debug("[%d] No action defined for event 'onFocusGained'",
+        vim.current.buffer.number)
+
+def onFocusLost():
+    __logger__.debug("[%d] No action defined for event 'onFocusLost'",
+        vim.current.buffer.number)
+
+def onCursorHold():
+    __logger__.debug("[%d] No action defined for event 'onCursorHold'",
+        vim.current.buffer.number)
+
+def onCursorHoldI():
+    __logger__.debug("[%d] No action defined for event 'onCursorHoldI'",
+        vim.current.buffer.number)
+
+def onWinEnter():
+    __logger__.debug("[%d] No action defined for event 'onWinEnter'",
+        vim.current.buffer.number)
+
+def onWinLeave():
+    __logger__.debug("[%d] No action defined for event 'onWinLeave'",
+        vim.current.buffer.number)
+
+def onTabEnter():
+    __logger__.debug("[%d] No action defined for event 'onTabEnter'",
+        vim.current.buffer.number)
+
+def onTabLeave():
+    __logger__.debug("[%d] No action defined for event 'onTabLeave'",
+        vim.current.buffer.number)
+
 

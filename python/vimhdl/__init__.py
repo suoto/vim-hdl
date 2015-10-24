@@ -15,5 +15,6 @@
 
 from vimhdl.config import Config
 Config.setupBuild()
-from vimhdl import vim_client
+if Config.is_toolchain:
+    from vimhdl import vim_client
 

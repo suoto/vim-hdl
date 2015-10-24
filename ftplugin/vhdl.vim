@@ -38,7 +38,10 @@ call vimhdl#setup()
 " { vimhdl Syntastic definition
 function! SyntaxCheckers_vhdl_vimhdl_GetLocList() dict
     let conf_file = vimhdl#getConfFile()
-    let makeprg = self.makeprgBuild({'args': s:vimhdl_path . '/python/runner.py -l ' . conf_file . ' -t '})
+    let makeprg = self.makeprgBuild({
+                \ 'exe'       : s:vimhdl_path . '/python/vimhdl/runner.py ' . conf_file,
+                \ 'args'      : '--sources',
+                \ 'post_args' : '--build'})
 
     let errorformat =
         \ '** %tarning:\\s\*[\\d\\+]\\s\*%f(%l):\\s\*%m,' .
@@ -79,7 +82,22 @@ command! -nargs=? VimhdlRemoveSourceFromLibrary call vimhdl#removeSourceFromLibr
 " }
 "
 " { Autocommands
-autocmd! BufEnter *.vhd :py vimhdl.vim_client.onBufEnter()
+autocmd! BufRead     *.vhd :py vimhdl.vim_client.onBufRead()
+autocmd! BufWrite    *.vhd :py vimhdl.vim_client.onBufWrite()
+autocmd! BufEnter    *.vhd :py vimhdl.vim_client.onBufEnter()
+autocmd! BufLeave    *.vhd :py vimhdl.vim_client.onBufLeave()
+autocmd! BufWinEnter *.vhd :py vimhdl.vim_client.onBufWinEnter()
+autocmd! BufWinLeave *.vhd :py vimhdl.vim_client.onBufWinLeave()
+autocmd! FocusGained *.vhd :py vimhdl.vim_client.onFocusGained()
+autocmd! FocusLost   *.vhd :py vimhdl.vim_client.onFocusLost()
+autocmd! CursorHold  *.vhd :py vimhdl.vim_client.onCursorHold()
+autocmd! CursorHoldI *.vhd :py vimhdl.vim_client.onCursorHoldI()
+autocmd! WinEnter    *.vhd :py vimhdl.vim_client.onWinEnter()
+autocmd! WinLeave    *.vhd :py vimhdl.vim_client.onWinLeave()
+autocmd! TabEnter    *.vhd :py vimhdl.vim_client.onTabEnter()
+autocmd! TabLeave    *.vhd :py vimhdl.vim_client.onTabLeave()
+
+
 " autocmd! BufWrite *.vhd :call vimhdl#onBufWrite()
 " autocmd! BufEnter *.vhd :call vimhdl#onBufEnter()
 " autocmd! BufWrite *.vhd :call vimhdl#onBufWrite()
