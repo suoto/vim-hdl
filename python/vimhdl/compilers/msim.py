@@ -24,11 +24,6 @@ _RE_LIB_DOT_UNIT = re.compile(r"\b\w+\.\w+\b")
 
 _RE_ERROR = re.compile(r"^\*\*\sError:", flags=re.I)
 _RE_WARNING = re.compile(r"^\*\*\sWarning:", flags=re.I)
-_RE_IGNORED = re.compile('|'.join([
-    r"^\s*$",
-    r".*Unknown expanded name.\s*$",
-    r".*VHDL Compiler exiting\s*$",
-]))
 
 VLIB_ARGS = ['-type', 'directory']
 
@@ -55,14 +50,25 @@ def _getRebuildUnits(line):
         ]
     return rebuilds
 
+
 class MSim(BaseCompiler):
     """Implementation of the ModelSim compiler"""
 
-    _MessageScanners = [
-            re.compile(r"^\*\*\s(Warning|Error):\s*\[\d+\]\s*([^\(]+)\((\d+)\):\s*\(vcom-(\d+)\)\s*(.*)"),
-            re.compile(r"^\*\*\s(Warning|Error):\s*([^:]+)\((\d+)\):\s*\(vcom-(\d+)\)\s*(.*)"),
-            re.compile(r"^\*\*\s(Warning|Error):.*"),
-            ]
+    _BuildMessageScanner = re.compile('|'.join([
+                r"^\*\*\s*([WE])\w+:\s*",
+                r"\((\d+)\):",
+                r"[\[\(]([\w-]+)[\]\)]\s*",
+                r"(.*\.(vhd|sv|svh)\b)",
+                r"\s*\(([\w-]+)\)",
+                r"(.+)",
+                ]), re.I)
+
+    _BuildIgnoredLines = re.compile('|'.join([
+        r"^\s*$",
+        r"^[^\*][^\*]",
+        #  r".*VHDL Compiler exiting\s*$",
+    ]))
+
     def __init__(self, target_folder):
         super(MSim, self).__init__(target_folder)
         self._modelsim_ini = os.path.join(self._target_folder, 'modelsim.ini')
@@ -72,20 +78,40 @@ class MSim(BaseCompiler):
         self.builtin_libraries = ['ieee', 'std', 'unisim', 'xilinxcorelib',
                 'synplify', 'synopsis', 'maxii', 'family_support']
 
-    def _makeMessageRecord(self, message):
-        record = {}
-        for scanner in self._MessageScanners:
-            result = scanner.findall(message)
-            if len(result) == 0:
-                continue
-            record = {'line_number'   : result[0][2],
-                      'column'        : None,
-                      'filename'      : result[0][1],
-                      'error_number'  : result[0][3],
-                      'error_type'    : result[0][0][0],
-                      'error_message' : result[0][4],
-                  }
-            print repr(record)
+    def _makeMessageRecord(self, line):
+        line_number = None
+        column = None
+        filename = None
+        error_number = None
+        error_type = None
+        error_message = None
+
+        scan = self._BuildMessageScanner.scanner(line)
+
+        while True:
+            match = scan.match()
+            if not match:
+                break
+
+            if match.lastindex == 1:
+                error_type = match.group(match.lastindex)
+            if match.lastindex == 2:
+                line_number = match.group(match.lastindex)
+            if match.lastindex in (3, 6):
+                error_number = match.group(match.lastindex)
+            if match.lastindex == 4:
+                filename = match.group(match.lastindex)
+            if match.lastindex == 7:
+                error_message = match.group(match.lastindex)
+
+        return {
+            'line_number'    : line_number,
+            'column'         : column,
+            'filename'       : filename,
+            'error_number'   : error_number,
+            'error_type'     : error_type,
+            'error_message'  : error_message,
+        }
 
     def _checkEnvironment(self):
         try:
@@ -132,14 +158,15 @@ class MSim(BaseCompiler):
         warnings = []
         rebuilds = []
         for line in stdout:
-            if _RE_IGNORED.match(line):
+            if self._BuildIgnoredLines.match(line):
                 continue
             if _lineHasError(line):
                 errors.append(line)
             if _lineHasWarning(line):
                 warnings.append(line)
 
-            MSim._makeMessageRecord(line)
+            self._logger.info("Parsing '%s'", repr(line))
+            record = self._makeMessageRecord(line)
 
             rebuilds += _getRebuildUnits(line)
 
