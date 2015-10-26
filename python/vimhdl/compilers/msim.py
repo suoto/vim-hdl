@@ -50,11 +50,89 @@ def _getRebuildUnits(line):
         ]
     return rebuilds
 
+from prettytable import PrettyTable
+# TODO: Move this to a tests folder or something
+def isRecordValid(record):
+    is_valid = True
+
+    t = PrettyTable(["field", "value", "status"])
+    t.align['status'] = 'l'
+    record_info = dict(zip(record.keys(), ' '*len(record)))
+
+    # Error type check
+    if record['error_type'] in ('E', 'W'):
+        record_info['error_type'] = ''
+    else:
+        record_info['error_type'] = 'Invalid value'
+
+    # Line number check
+    try:
+        int(record['line_number'])
+        record_info['line_number'] = ''
+    except Exception as e:
+        if record['error_number'] not in ('vcom-11', 'vcom-13', 'vcom-19', 'vcom-7'):
+            record_info['line_number'] = 'NOK: %s: %s' % (e.__class__.__name__, str(e))
+            is_valid = False
+
+    # Error number check
+    if record['error_number'] is None:
+        record_info['error_number'] = 'No error number found'
+    else:
+        _errors = []
+        if record['error_number'] == ' ':
+            _errors += ['ops...']
+        for _d in record['error_number']:
+            if _d in ('[', ']', '(', ')'):
+                _errors += ['invalid char: ' + _d]
+                break
+        if _errors:
+            record_info['error_number'] = "NOK: " + ", ".join(_errors)
+            is_valid = False
+
+    # Error message check
+    _errors = []
+    if record['error_message'] == '':
+        _errors += ['empty']
+    if type(record['error_message']) is not str:
+        _errors += ['not string']
+
+    if _errors:
+        record_info['error_message'] = "NOK: " + ", ".join(_errors)
+        is_valid = False
+
+    # Filename check
+    if record['error_number'] not in ('vcom-11', 'vcom-13', 'vcom-19', 'vcom-7'):
+        _errors = []
+        if record['filename'] == '':
+            _errors += ['empty']
+        if type(record['filename']) is not str:
+            _errors += ['not string']
+        else:
+            if 'souto' in record['filename']:
+                if not os.path.isfile(record['filename']):
+                    _errors += ['file %s should exist!' % repr(record['filename'])]
+
+        if _errors:
+            record_info['filename'] = "NOK: " + ", ".join(_errors)
+            is_valid = False
+
+
+    for k, v in record.items():
+        if len(str(v)) > 80:
+            v = str(v)[:80] + '...'
+        info = record_info[k]
+        if len(str(info)) > 80:
+            info = str(info)[:80] + '...'
+        t.add_row([k, v, info])
+
+    print t
+
+    return is_valid
 
 class MSim(BaseCompiler):
     """Implementation of the ModelSim compiler"""
 
-    _BuildMessageScanner = re.compile('|'.join([
+    _BuilderStdoutMessageScanner = re.compile('|'.join([
                 r"^\*\*\s*([WE])\w+:\s*",
                 r"\((\d+)\):",
                 r"[\[\(]([\w-]+)[\]\)]\s*",
@@ -63,10 +141,10 @@ class MSim(BaseCompiler):
                 r"(.+)",
                 ]), re.I)
 
-    _BuildIgnoredLines = re.compile('|'.join([
+    _BuilderStdoutIgnoreLines = re.compile('|'.join([
         r"^\s*$",
-        r"^[^\*][^\*]",
-        #  r".*VHDL Compiler exiting\s*$",
+        r"^(?!\*\*\s(Error|Warning):).*",
+        r".*VHDL Compiler exiting\s*$",
     ]))
 
     def __init__(self, target_folder):
@@ -86,7 +164,7 @@ class MSim(BaseCompiler):
         error_type = None
         error_message = None
 
-        scan = self._BuildMessageScanner.scanner(line)
+        scan = self._BuilderStdoutMessageScanner.scanner(line)
 
         while True:
             match = scan.match()
@@ -158,7 +236,7 @@ class MSim(BaseCompiler):
         warnings = []
         rebuilds = []
         for line in stdout:
-            if self._BuildIgnoredLines.match(line):
+            if self._BuilderStdoutIgnoreLines.match(line):
                 continue
             if _lineHasError(line):
                 errors.append(line)
@@ -167,6 +245,8 @@ class MSim(BaseCompiler):
 
             self._logger.info("Parsing '%s'", repr(line))
             record = self._makeMessageRecord(line)
+            if not isRecordValid(record):
+                self._logger.error("Error parsing %s", repr(line))
 
             rebuilds += _getRebuildUnits(line)
 
