@@ -21,8 +21,7 @@ except ImportError:
     _COLOR_LOGGING = False
 
 class Config(object):
-    is_toolchain = True
-    silent = True
+    is_toolchain = None
     thread_limit = 20
     log_file = os.path.sep.join(['', 'tmp', 'build.log'])
     log_level = logging.DEBUG
@@ -52,13 +51,17 @@ class Config(object):
             stream_handler = RainbowLoggingHandler(
                 stream,
                 #  Customizing each column's color
-                color_pathname=('black', 'red'  , False), color_module=('yellow', None, False),
-                color_funcName=('blue' , 'white', False), color_lineno=('green' , None, False),
-                color_message_debug    = ('white'  , None , False),
-                color_message_info     = ('green' , None , False),
-                color_message_warning  = ('yellow', None , False),
-                color_message_error    = ('red'   , None , True),
-                color_message_critical = ('white' , 'red', True))
+                color_name=('blue', 'black', True),
+                color_pathname=('black', 'red', False),
+                color_module=('yellow', None, False),
+                color_funcName=('blue', 'black', False),
+                color_lineno=('green', None, False),
+                color_asctime=('cyan', 'black', False),
+                color_message_debug=('white', None, False),
+                color_message_info=('green', None, False),
+                color_message_warning=('yellow', None, False),
+                color_message_error=('red', None, True),
+                color_message_critical=('white', 'red', True))
         else:
             stream_handler = logging.StreamHandler(stream)
 
@@ -83,17 +86,17 @@ class Config(object):
         Config._setupFileHandler(Config.log_file)
         Config._logger.info("Setup for toolchain")
         Config.is_toolchain = True
-        Config.silent = True
 
     @staticmethod
     def _setupStandalone():
         Config._setupStreamHandler(sys.stdout)
         Config._logger.info("Setup for standalone")
         Config.is_toolchain = False
-        Config.silent = False
 
     @staticmethod
     def setupBuild():
+        if Config.is_toolchain is not None:
+            return
         logging.getLogger("requests").setLevel(logging.WARNING)
         try:
             import vim

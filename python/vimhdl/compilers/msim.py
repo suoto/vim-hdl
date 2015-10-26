@@ -50,6 +50,8 @@ def _getRebuildUnits(line):
         ]
     return rebuilds
 
+from prettytable import PrettyTable
+# TODO: Move this to a tests folder or something
 def isRecordValid(record):
     is_valid = True
 
@@ -130,7 +132,7 @@ def isRecordValid(record):
 class MSim(BaseCompiler):
     """Implementation of the ModelSim compiler"""
 
-    _BuildMessageScanner = re.compile('|'.join([
+    _BuilderStdoutMessageScanner = re.compile('|'.join([
                 r"^\*\*\s*([WE])\w+:\s*",
                 r"\((\d+)\):",
                 r"[\[\(]([\w-]+)[\]\)]\s*",
@@ -139,10 +141,10 @@ class MSim(BaseCompiler):
                 r"(.+)",
                 ]), re.I)
 
-    _BuildIgnoredLines = re.compile('|'.join([
+    _BuilderStdoutIgnoreLines = re.compile('|'.join([
         r"^\s*$",
-        r"^[^\*][^\*]",
-        #  r".*VHDL Compiler exiting\s*$",
+        r"^(?!\*\*\s(Error|Warning):).*",
+        r".*VHDL Compiler exiting\s*$",
     ]))
 
     def __init__(self, target_folder):
@@ -162,7 +164,7 @@ class MSim(BaseCompiler):
         error_type = None
         error_message = None
 
-        scan = self._BuildMessageScanner.scanner(line)
+        scan = self._BuilderStdoutMessageScanner.scanner(line)
 
         while True:
             match = scan.match()
@@ -234,7 +236,7 @@ class MSim(BaseCompiler):
         warnings = []
         rebuilds = []
         for line in stdout:
-            if self._BuildIgnoredLines.match(line):
+            if self._BuilderStdoutIgnoreLines.match(line):
                 continue
             if _lineHasError(line):
                 errors.append(line)
@@ -243,6 +245,8 @@ class MSim(BaseCompiler):
 
             self._logger.info("Parsing '%s'", repr(line))
             record = self._makeMessageRecord(line)
+            if not isRecordValid(record):
+                self._logger.error("Error parsing %s", repr(line))
 
             rebuilds += _getRebuildUnits(line)
 
