@@ -16,7 +16,6 @@
 
 import logging
 import os
-import threading
 
 # pylint: disable=import-error
 import vim
@@ -32,17 +31,10 @@ class VimhdlClient(ProjectBuilder):
     and vim-hdl"""
     def __init__(self, *args, **kwargs):
         super(VimhdlClient, self).__init__(*args, **kwargs)
-        self._build_lock = threading.Lock()
-        self._threads = []
 
     def buildByDependencyAsync(self, *args, **kwargs):
         "Builds the project by dependency asynchronously"
-        self._build_lock.acquire()
-        this_thread = threading.Thread(target=self.buildByDependency,
-            args=args, kwargs=kwargs)
-        this_thread.start()
-        self._threads.append(this_thread)
-        self._build_lock.release()
+        self.buildByDependency(*args, **kwargs)
 
 def _getConfigFile():
     if 'vimhdl_conf_file' in vim.current.buffer.vars.keys():
@@ -78,9 +70,14 @@ def onBufRead():
         vim.current.buffer.number)
 
 def onBufWrite():
-    __vimhdl_client__ = _getProjectObject()
-    __vimhdl_client__.buildByPath(vim.current.buffer.name)
+    __logger__.debug("[%d] No action defined for event 'onBufWrite'",
+        vim.current.buffer.number)
+    #  __vimhdl_client__.buildByPath(vim.current.buffer.name)
+
+def onBufWritePost():
     __logger__.info("Wrote buffer number %d", vim.current.buffer.number)
+    #  __vimhdl_client__ = _getProjectObject()
+    #  __vimhdl_client__.buildByPath(vim.current.buffer.name)
 
 def onBufEnter():
     __logger__.debug("[%d] No action defined for event 'onBufEnter'",
@@ -91,6 +88,7 @@ def onBufLeave():
         vim.current.buffer.number)
 
 def onBufWinEnter():
+    __vimhdl_client__ = _getProjectObject()
     __logger__.debug("[%d] No action defined for event 'onBufWinEnter'",
         vim.current.buffer.number)
 
@@ -130,4 +128,28 @@ def onTabLeave():
     __logger__.debug("[%d] No action defined for event 'onTabLeave'",
         vim.current.buffer.number)
 
+def buildByPath(path):
+    __vimhdl_client__ = _getProjectObject()
+    __vimhdl_client__.buildByPath(path)
+
+# More info on :help getqflist()
+def getLatestBuildMessages():
+    result = []
+    for message in __vimhdl_client__.getLatestBuildMessages():
+        vim_fmt_dict = vim.Dictionary({
+            'lnum'     : message['line_number'] or '<none>',
+            'bufnr'    : '0',
+            'filename' : message['filename'],
+            'valid'    : '1',
+            'text'     : message['error_message'] or '<none>',
+            'nr'       : message['error_number'] or '0',
+            'type'     : message['error_type'] or 'E',
+            'col'      : message['column'] or '0'
+        })
+
+        __logger__.warning(str(message))
+        __logger__.warning(dict(vim_fmt_dict))
+        result.append(vim_fmt_dict)
+
+    vim.vars['vimhdl_latest_build_messages'] = vim.List(result)
 

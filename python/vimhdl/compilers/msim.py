@@ -125,7 +125,8 @@ def isRecordValid(record):
             info = str(info)[:80] + '...'
         t.add_row([k, v, info])
 
-    print t
+    if not is_valid:
+        print t
 
     return is_valid
 
@@ -138,7 +139,7 @@ class MSim(BaseCompiler):
                 r"[\[\(]([\w-]+)[\]\)]\s*",
                 r"(.*\.(vhd|sv|svh)\b)",
                 r"\s*\(([\w-]+)\)",
-                r"(.+)",
+                r"\s*(.+)",
                 ]), re.I)
 
     _BuilderStdoutIgnoreLines = re.compile('|'.join([
@@ -176,13 +177,17 @@ class MSim(BaseCompiler):
             if match.lastindex == 2:
                 line_number = match.group(match.lastindex)
             if match.lastindex in (3, 6):
-                error_number = match.group(match.lastindex)
+                try:
+                    error_number = re.findall(r"\d+", match.group(match.lastindex))[0]
+                except IndexError:
+                    error_number = 0
             if match.lastindex == 4:
                 filename = match.group(match.lastindex)
             if match.lastindex == 7:
                 error_message = match.group(match.lastindex)
 
         return {
+            'checker'        : 'msim',
             'line_number'    : line_number,
             'column'         : column,
             'filename'       : filename,
@@ -232,29 +237,30 @@ class MSim(BaseCompiler):
         return self.createOrMapLibrary(library)
 
     def _postBuild(self, library, source, stdout):
-        errors = []
-        warnings = []
         rebuilds = []
+        records = []
+
         for line in stdout:
+            self._logger.error(line)
             if self._BuilderStdoutIgnoreLines.match(line):
                 continue
-            if _lineHasError(line):
-                errors.append(line)
-            if _lineHasWarning(line):
-                warnings.append(line)
-
             self._logger.info("Parsing '%s'", repr(line))
-            record = self._makeMessageRecord(line)
-            if not isRecordValid(record):
-                self._logger.error("Error parsing %s", repr(line))
+            records.append(self._makeMessageRecord(line))
+
+            #  if not isRecordValid(records[-1]):
+            #      self._logger.error("Error parsing %s", repr(line))
 
             rebuilds += _getRebuildUnits(line)
 
-        if errors:
-            self._logger.debug("Messages for (%s) %s:", library, source)
-            for msg in errors + warnings:
-                self._logger.debug(msg)
-        return errors, warnings, rebuilds
+        #  for record in records:
+        #      self._logger.warning(repr(record))
+        return records, rebuilds
+
+        #  if errors:
+        #      self._logger.debug("Messages for (%s) %s:", library, source)
+        #      for msg in errors + warnings:
+        #          self._logger.debug(msg)
+        #  return errors, warnings, rebuilds
 
     def createLibrary(self, library):
         self._logger.info("Library %s not found, creating", library)

@@ -28,17 +28,6 @@ from vimhdl.compilers.msim import MSim
 from vimhdl.config import Config
 from vimhdl.config_parser import ExtendedConfigParser
 
-def _error(s):
-    _logger.debug("[E] " + s)
-    if Config.is_toolchain:
-        print s
-
-def _warning(s):
-    _logger.debug("[W] " + s)
-    if Config.is_toolchain:
-        print s
-
-
 # pylint: disable=star-args, bad-continuation
 
 def saveCache(obj, fname):
@@ -60,6 +49,7 @@ class ProjectBuilder(object):
         self.batch_build_flags = []
         self.single_build_flags = []
         self._build_cnt = 0
+        self._latest_build_messages = []
 
         self._readConfFile()
 
@@ -310,6 +300,7 @@ class ProjectBuilder(object):
             lib.createOrMapLibrary()
 
         step_cnt = 0
+        message_list = []
         for step in self.getBuildSteps():
             step_cnt += 1
             if not step:
@@ -323,7 +314,7 @@ class ProjectBuilder(object):
                 for source in sources:
                     self._logger.debug("    - %s", str(source))
 
-                for source, errors, warnings, rebuilds in \
+                for source, errors, rebuilds in \
                         self.libraries[lib_name].buildSources(sources, \
                                 flags=self.batch_build_flags):
                     for rebuild in rebuilds:
@@ -333,18 +324,13 @@ class ProjectBuilder(object):
                         self.buildByDesignUnit(*rebuild)
 
                     for error in errors:
-                        if filter(error):
-                            _error(error)
+                        message_list.append(error)
 
-                    for warning in warnings:
-                        if filter(warning):
-                            _warning(warning)
-
+        self._latest_build_messages += message_list
         self._build_cnt += 1
 
     def buildByDesignUnit(self, lib_name, unit):
-        """Builds a source file given a design unit, in the format
-        """
+        "Builds a source file given a design unit, in the format"
         if lib_name not in self.libraries.keys():
             raise RuntimeError("Design unit '%s' not found" % unit)
         lib = self.libraries[lib_name]
@@ -369,20 +355,19 @@ class ProjectBuilder(object):
         [t.start() for t in threads]
 
         self._logger.info("Building [%s] '%s'", library.name, str(source))
-        errors, warnings, rebuilds = library.buildSource(source,
+        errors, rebuilds = library.buildSource(source,
                 *args, **kwargs)
 
         # Join the dependency mapping threads before we need that
         # information
         [t.join() for t in threads]
 
-        for dep_errors, dep_warnings, dep_rebuilds in \
+        for dep_errors, dep_rebuilds in \
                 self._buildReverseDependencies(library, source):
             errors += dep_errors
-            warnings += dep_warnings
             rebuilds += dep_rebuilds
 
-        return errors, warnings, rebuilds
+        return errors, rebuilds
 
     def _buildReverseDependencies(self, library, source):
         """Builds sources that depends on the given library/source.
@@ -445,8 +430,7 @@ class ProjectBuilder(object):
         for dep_lib, dep_source in build_list:
             self._logger.info("Building scheduled [%s] '%s'",
                     dep_lib.name, str(dep_source))
-            errors, warnings, rebuilds = \
-                dep_lib.buildSource(dep_source, forced=True, \
+            errors, rebuilds = dep_lib.buildSource(dep_source, forced=True, \
                 flags=self.single_build_flags)
 
             # Append errors and/or warnings according to
@@ -454,9 +438,7 @@ class ProjectBuilder(object):
             # errors before the warnings
             if not Config.show_reverse_dependencies_errors:
                 errors = []
-            elif not Config.show_reverse_dependencies_warnings:
-                warnings = []
-            yield errors, warnings, rebuilds
+            yield errors, rebuilds
 
     def buildByPath(self, path):
         """Finds the library of a given path and builds it. Use the reverse
@@ -465,18 +447,20 @@ class ProjectBuilder(object):
 
         # Find out which library has this path
         lib, source = self.getLibraryAndSourceByPath(path)
-        errors, warnings, rebuilds = self.buildSource(lib, source, \
+        messages, rebuilds = self.buildSource(lib, source, \
                 forced=True, flags=self.single_build_flags)
 
-        for error in errors:
-            _error(error)
-
-        for warning in warnings:
-            _warning(warning)
+        self._latest_build_messages += messages
 
         if rebuilds:
             self._logger.warning("Rebuild units: %s", str(rebuilds))
             self.buildByDependency(lambda s: not Config.show_only_current_file)
+
+    def getLatestBuildMessages(self):
+        messages = self._latest_build_messages
+        self._logger.info("We have %d messages", len(messages))
+        self._latest_build_messages = []
+        return messages
 
     # Methods for displaying info about the project
     def printDependencyMap(self, source=None):

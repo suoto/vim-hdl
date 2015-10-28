@@ -37,32 +37,29 @@ call vimhdl#setup()
 
 " { vimhdl Syntastic definition
 function! SyntaxCheckers_vhdl_vimhdl_GetLocList() dict
-    let conf_file = vimhdl#getConfFile()
     let makeprg = self.makeprgBuild({
-                \ 'exe'       : s:vimhdl_path . '/python/vimhdl/runner.py ' . conf_file,
-                \ 'args'      : '--sources',
-                \ 'post_args' : '--build'})
+                \'args' : 'messages',
+                \'fname' : ''})
 
-    let errorformat =
-        \ '** %tarning:\\s\*[\\d\\+]\\s\*%f(%l):\\s\*%m,' .
-        \ '** %tarning:\\s\*[\\d\\+]\\s\*%f(%l):\\s\*(vcom-%n)\\s\*%m,' .
-        \ '** %trror:\\s\*%f(%l):\\s\*(vcom-%n)\\s\*%m,' .
-        \ '** %trror:\\s\*%f(%l):\\s\*%m,' .
-        \ '** %tarning:\\s\*%f\\s\*(%l)\\s\*:\\s\*(vcom-%n)\\s\*%m,' .
-        \ '** %tarning:\\s\*%f(%l):\\s\*%m,' .
-        \ '** %trror:\\s\*(vcom-%n)\\s\*%m,' .
-        \ '** %trror: %m,' .
-        \ '** %tarning: %m'
+    let errorformat = 'msim %t %n %f %l %m'
 
-    return SyntasticMake({
-        \ 'makeprg': makeprg,
-        \ 'errorformat': errorformat })
+    py vimhdl.vim_client.buildByPath(vim.current.buffer.name)
+    py vimhdl.vim_client.getLatestBuildMessages()
+    return g:vimhdl_latest_build_messages
+
+
+    " let r = SyntasticMake({
+    "     \ 'makeprg': makeprg,
+    "     \ 'errorformat': errorformat })
+    " py print vim.eval('r')
+    
+    " return r
 endfunction
 " }
 
 " { Register vimhdl within Syntastic
 call g:SyntasticRegistry.CreateAndRegisterChecker({
-    \ 'exec'     : 'python',
+    \ 'exec'     : 'cat',
     \ 'filetype' : 'vhdl',
     \ 'name'     : 'vimhdl'})
 " }
@@ -82,20 +79,21 @@ command! -nargs=? VimhdlRemoveSourceFromLibrary call vimhdl#removeSourceFromLibr
 " }
 "
 " { Autocommands
-autocmd! BufRead     *.vhd :py vimhdl.vim_client.onBufRead()
-autocmd! BufWrite    *.vhd :py vimhdl.vim_client.onBufWrite()
-autocmd! BufEnter    *.vhd :py vimhdl.vim_client.onBufEnter()
-autocmd! BufLeave    *.vhd :py vimhdl.vim_client.onBufLeave()
-autocmd! BufWinEnter *.vhd :py vimhdl.vim_client.onBufWinEnter()
-autocmd! BufWinLeave *.vhd :py vimhdl.vim_client.onBufWinLeave()
-autocmd! FocusGained *.vhd :py vimhdl.vim_client.onFocusGained()
-autocmd! FocusLost   *.vhd :py vimhdl.vim_client.onFocusLost()
-autocmd! CursorHold  *.vhd :py vimhdl.vim_client.onCursorHold()
-autocmd! CursorHoldI *.vhd :py vimhdl.vim_client.onCursorHoldI()
-autocmd! WinEnter    *.vhd :py vimhdl.vim_client.onWinEnter()
-autocmd! WinLeave    *.vhd :py vimhdl.vim_client.onWinLeave()
-autocmd! TabEnter    *.vhd :py vimhdl.vim_client.onTabEnter()
-autocmd! TabLeave    *.vhd :py vimhdl.vim_client.onTabLeave()
+autocmd! BufRead      *.vhd :py vimhdl.vim_client.onBufRead()
+autocmd! BufWrite     *.vhd :py vimhdl.vim_client.onBufWrite()
+autocmd! BufWritePost *.vhd :py vimhdl.vim_client.onBufWritePost()
+autocmd! BufEnter     *.vhd :py vimhdl.vim_client.onBufEnter()
+autocmd! BufLeave     *.vhd :py vimhdl.vim_client.onBufLeave()
+autocmd! BufWinEnter  *.vhd :py vimhdl.vim_client.onBufWinEnter()
+autocmd! BufWinLeave  *.vhd :py vimhdl.vim_client.onBufWinLeave()
+autocmd! FocusGained  *.vhd :py vimhdl.vim_client.onFocusGained()
+autocmd! FocusLost    *.vhd :py vimhdl.vim_client.onFocusLost()
+autocmd! CursorHold   *.vhd :py vimhdl.vim_client.onCursorHold()
+autocmd! CursorHoldI  *.vhd :py vimhdl.vim_client.onCursorHoldI()
+autocmd! WinEnter     *.vhd :py vimhdl.vim_client.onWinEnter()
+autocmd! WinLeave     *.vhd :py vimhdl.vim_client.onWinLeave()
+autocmd! TabEnter     *.vhd :py vimhdl.vim_client.onTabEnter()
+autocmd! TabLeave     *.vhd :py vimhdl.vim_client.onTabLeave()
 
 
 " autocmd! BufWrite *.vhd :call vimhdl#onBufWrite()

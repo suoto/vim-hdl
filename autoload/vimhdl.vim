@@ -20,7 +20,9 @@ let s:vimhdl_path = escape(expand('<sfile>:p:h'), '\') . "/../"
 " Setup Vim's Python environment to call vim-hdl within Vim
 function! vimhdl#setup()
 python << EOF
-import sys, os, vim
+import sys
+import os
+import vim
 vimhdl_path = os.path.join(vim.eval('s:vimhdl_path'), 'python')
 if vimhdl_path not in sys.path:
     sys.path.insert(0, vimhdl_path)

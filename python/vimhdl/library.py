@@ -87,7 +87,7 @@ class Library(object):
         errors."""
         if source.abspath() not in self._build_info_cache.keys():
             self._build_info_cache[source.abspath()] = {
-                'compile_time': 0, 'size' : 0, 'errors': (), 'warnings': ()
+                'compile_time': 0, 'size' : 0, 'errors': ()
             }
 
         cached_info = self._build_info_cache[source.abspath()]
@@ -121,8 +121,7 @@ class Library(object):
                 if flag not in build_flags:
                     build_flags.append(flag)
 
-            errors, warnings, rebuilds = self.builder.build(
-                self.name, source, build_flags)
+            errors, rebuilds = self.builder.build(self.name, source, build_flags)
 
             for i in range(len(rebuilds)):
                 lib, unit = rebuilds[i]
@@ -132,12 +131,10 @@ class Library(object):
 
             cached_info['compile_time'] = source.getmtime()
             cached_info['errors'] = errors
-            cached_info['warnings'] = warnings
             cached_info['rebuilds'] = rebuilds
             cached_info['size'] = os.stat(source.abspath()).st_size
         else:
             errors = cached_info['errors']
-            warnings = cached_info['warnings']
             rebuilds = cached_info['rebuilds']
 
         if not Config.cache_error_messages and errors or rebuilds:
@@ -145,7 +142,7 @@ class Library(object):
 
         if tags_t is not None:
             tags_t.join()
-        return errors, warnings, rebuilds
+        return errors, rebuilds
 
     def addSources(self, sources):
         "Adds a source or a list of sources to this library"
@@ -330,7 +327,7 @@ class Library(object):
         path = source.abspath()
         if path not in self._build_info_cache.keys():
             self._build_info_cache[path] = {
-                'compile_time': 0, 'size' : 0, 'errors': (), 'warnings': ()
+                'compile_time': 0, 'size' : 0, 'errors': ()
             }
             self._logger.info("Adding '%s'", path)
         self._build_info_cache[path]['compile_time'] = 0

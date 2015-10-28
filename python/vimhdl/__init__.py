@@ -13,8 +13,8 @@
 # You should have received a copy of the GNU General Public License
 # along with vim-hdl.  If not, see <http://www.gnu.org/licenses/>.
 
-#  from vimhdl.config import Config
-#  Config.setupBuild()
+from vimhdl.config import Config
+Config.setupBuild()
 #  if Config.is_toolchain:
-#      from vimhdl import vim_client
+from vimhdl import vim_client
 
