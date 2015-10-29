@@ -35,6 +35,16 @@ set cpo&vim
 let s:vimhdl_path = escape(expand('<sfile>:p:h'), '\') . "/../"
 call vimhdl#setup()
 
+" { vimhdl checker availability
+function! SyntaxCheckers_vhdl_vimhdl_IsAvailable() dict
+    let conf_file = vimhdl#getConfFile()
+    if filereadable(conf_file)
+        return 1
+    else
+        return 0
+    endif
+endfunction
+
 " { vimhdl Syntastic definition
 function! SyntaxCheckers_vhdl_vimhdl_GetLocList() dict
     let conf_file = vimhdl#getConfFile()
