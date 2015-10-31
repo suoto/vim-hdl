@@ -21,10 +21,12 @@ let s:vimhdl_path = escape(expand('<sfile>:p:h'), '\') . "/../"
 function! vimhdl#setup()
 python << EOF
 import sys, os, vim
+import threading
 vimhdl_path = os.path.join(vim.eval('s:vimhdl_path'), 'python')
 if vimhdl_path not in sys.path:
     sys.path.insert(0, vimhdl_path)
 from vimhdl.project_builder import ProjectBuilder
+from vimhdl.static_check import vhdStaticCheck
 EOF
 endfunction
 " }

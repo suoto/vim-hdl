@@ -37,26 +37,51 @@ call vimhdl#setup()
 
 " { vimhdl Syntastic definition
 function! SyntaxCheckers_vhdl_vimhdl_GetLocList() dict
+
+python << EOF
+vimhdl_sta_t = threading.Thread(target=vhdStaticCheck, args=(vim.current.buffer,))
+vimhdl_sta_t.start()
+EOF
+
     let conf_file = vimhdl#getConfFile()
-    let makeprg = self.makeprgBuild({
-                \ 'exe'       : s:vimhdl_path . '/python/vimhdl/runner.py ' . conf_file,
-                \ 'args'      : '--sources',
-                \ 'post_args' : '--build'})
+    if conf_file != '' && executable('vcom') 
+        let makeprg = self.makeprgBuild({
+            \ 'exe'       : s:vimhdl_path . '/python/vimhdl/runner.py ' . conf_file,
+            \ 'args'      : '--sources',
+            \ 'post_args' : '--build'})
 
-    let errorformat =
-        \ '** %tarning:\\s\*[\\d\\+]\\s\*%f(%l):\\s\*%m,' .
-        \ '** %tarning:\\s\*[\\d\\+]\\s\*%f(%l):\\s\*(vcom-%n)\\s\*%m,' .
-        \ '** %trror:\\s\*%f(%l):\\s\*(vcom-%n)\\s\*%m,' .
-        \ '** %trror:\\s\*%f(%l):\\s\*%m,' .
-        \ '** %tarning:\\s\*%f\\s\*(%l)\\s\*:\\s\*(vcom-%n)\\s\*%m,' .
-        \ '** %tarning:\\s\*%f(%l):\\s\*%m,' .
-        \ '** %trror:\\s\*(vcom-%n)\\s\*%m,' .
-        \ '** %trror: %m,' .
-        \ '** %tarning: %m'
+        let errorformat =
+            \ '** %tarning:\\s\*[\\d\\+]\\s\*%f(%l):\\s\*%m,' .
+            \ '** %tarning:\\s\*[\\d\\+]\\s\*%f(%l):\\s\*(vcom-%n)\\s\*%m,' .
+            \ '** %trror:\\s\*%f(%l):\\s\*(vcom-%n)\\s\*%m,' .
+            \ '** %trror:\\s\*%f(%l):\\s\*%m,' .
+            \ '** %tarning:\\s\*%f\\s\*(%l)\\s\*:\\s\*(vcom-%n)\\s\*%m,' .
+            \ '** %tarning:\\s\*%f(%l):\\s\*%m,' .
+            \ '** %trror:\\s\*(vcom-%n)\\s\*%m,' .
+            \ '** %trror: %m,' .
+            \ '** %tarning: %m'
 
-    return SyntasticMake({
-        \ 'makeprg': makeprg,
-        \ 'errorformat': errorformat })
+        let result = SyntasticMake({
+            \ 'makeprg': makeprg,
+            \ 'errorformat': errorformat})
+    else
+        let result = [{
+            \ 'lnum'     : 0,
+            \ 'bufnr'    : bufnr("%"),
+            \ 'filename' : bufname("%") ,
+            \ 'valid'    : '1',
+            \ 'text'     : "Builder executable not available",
+            \ 'nr'       : 0,
+            \ 'type'     : 'W',
+            \ 'col'      : 0 }]
+    endif
+
+python << EOF
+vimhdl_sta_t.join()
+EOF
+
+    return result + g:vimhdl_static_check_result
+
 endfunction
 " }
 
