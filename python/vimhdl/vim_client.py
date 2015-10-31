@@ -21,14 +21,15 @@ import os
 import vim
 # pylint: enable=import-error
 
-from vimhdl.project_builder import ProjectBuilder
+import vimhdl.project_builder
+import vimhdl.static_check
 
 __logger__ = logging.getLogger(__name__)
 __vimhdl_client__ = None
 
-class VimhdlClient(ProjectBuilder):
-    """Wrapper around ProjectBuilder class to make the interface between Vim
-    and vim-hdl"""
+class VimhdlClient(vimhdl.project_builder.ProjectBuilder):
+    """Wrapper around vimhdl.project_builder.ProjectBuilder class to
+    make the interface between Vim and vim-hdl"""
     def __init__(self, *args, **kwargs):
         super(VimhdlClient, self).__init__(*args, **kwargs)
 
@@ -66,11 +67,11 @@ def _getProjectObject():
     return __vimhdl_client__
 
 def onBufRead():
-    __logger__.debug("[%d] No action defined for event 'onBufRead'",
+    __logger__.debug("[%d] Running actions for event 'onBufRead'",
         vim.current.buffer.number)
 
 def onBufWrite():
-    __logger__.debug("[%d] No action defined for event 'onBufWrite'",
+    __logger__.debug("[%d] Running actions for event 'onBufWrite'",
         vim.current.buffer.number)
     #  __vimhdl_client__.buildByPath(vim.current.buffer.name)
 
@@ -80,53 +81,59 @@ def onBufWritePost():
     #  __vimhdl_client__.buildByPath(vim.current.buffer.name)
 
 def onBufEnter():
-    __logger__.debug("[%d] No action defined for event 'onBufEnter'",
+    __logger__.debug("[%d] Running actions for event 'onBufEnter'",
         vim.current.buffer.number)
 
 def onBufLeave():
-    __logger__.debug("[%d] No action defined for event 'onBufLeave'",
+    __logger__.debug("[%d] Running actions for event 'onBufLeave'",
         vim.current.buffer.number)
 
 def onBufWinEnter():
     __vimhdl_client__ = _getProjectObject()
-    __logger__.debug("[%d] No action defined for event 'onBufWinEnter'",
+    __logger__.debug("[%d] Running actions for event 'onBufWinEnter'",
         vim.current.buffer.number)
 
 def onBufWinLeave():
-    __logger__.debug("[%d] No action defined for event 'onBufWinLeave'",
+    __logger__.debug("[%d] Running actions for event 'onBufWinLeave'",
         vim.current.buffer.number)
 
 def onFocusGained():
-    __logger__.debug("[%d] No action defined for event 'onFocusGained'",
+    __logger__.debug("[%d] Running actions for event 'onFocusGained'",
         vim.current.buffer.number)
 
 def onFocusLost():
-    __logger__.debug("[%d] No action defined for event 'onFocusLost'",
+    __logger__.debug("[%d] Running actions for event 'onFocusLost'",
         vim.current.buffer.number)
 
 def onCursorHold():
-    __logger__.debug("[%d] No action defined for event 'onCursorHold'",
+    __logger__.debug("[%d] Running actions for event 'onCursorHold'",
         vim.current.buffer.number)
 
 def onCursorHoldI():
-    __logger__.debug("[%d] No action defined for event 'onCursorHoldI'",
+    __logger__.debug("[%d] Running actions for event 'onCursorHoldI'",
         vim.current.buffer.number)
 
 def onWinEnter():
-    __logger__.debug("[%d] No action defined for event 'onWinEnter'",
+    __logger__.debug("[%d] Running actions for event 'onWinEnter'",
         vim.current.buffer.number)
 
 def onWinLeave():
-    __logger__.debug("[%d] No action defined for event 'onWinLeave'",
+    __logger__.debug("[%d] Running actions for event 'onWinLeave'",
         vim.current.buffer.number)
 
 def onTabEnter():
-    __logger__.debug("[%d] No action defined for event 'onTabEnter'",
+    __logger__.debug("[%d] Running actions for event 'onTabEnter'",
         vim.current.buffer.number)
 
 def onTabLeave():
-    __logger__.debug("[%d] No action defined for event 'onTabLeave'",
+    __logger__.debug("[%d] Running actions for event 'onTabLeave'",
         vim.current.buffer.number)
+
+def onVimLeave():
+    __logger__.debug("[%d] Running actions for event 'onVimLeave'",
+        vim.current.buffer.number)
+    if __vimhdl_client__ is not None:
+        __vimhdl_client__.saveCache()
 
 def buildByPath(path):
     __vimhdl_client__ = _getProjectObject()
@@ -152,4 +159,8 @@ def getLatestBuildMessages():
         result.append(vim_fmt_dict)
 
     vim.vars['vimhdl_latest_build_messages'] = vim.List(result)
+
+def runStaticCheck():
+    assert 0
+
 

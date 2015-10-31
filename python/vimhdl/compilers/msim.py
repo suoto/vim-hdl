@@ -129,10 +129,8 @@ def isRecordValid(record):
         print t
 
     return is_valid
-
 class MSim(BaseCompiler):
     """Implementation of the ModelSim compiler"""
-
     _BuilderStdoutMessageScanner = re.compile('|'.join([
                 r"^\*\*\s*([WE])\w+:\s*",
                 r"\((\d+)\):",
@@ -195,6 +193,7 @@ class MSim(BaseCompiler):
             'error_type'     : error_type,
             'error_message'  : error_message,
         }
+
 
     def _checkEnvironment(self):
         try:

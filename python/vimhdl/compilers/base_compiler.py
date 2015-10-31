@@ -21,6 +21,7 @@ import time
 
 _logger = logging.getLogger(__name__)
 
+
 class BaseCompiler(object):
     "Class that implements the base compiler flow"
 

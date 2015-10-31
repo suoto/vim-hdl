@@ -12,9 +12,17 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with vim-hdl.  If not, see <http://www.gnu.org/licenses/>.
+"""
+vim-hdl is a VHDL syntax check provider that relies on third-party tools.
+See https://github.com/suoto/vim-hdl for more information
+"""
 
 from vimhdl.config import Config
 Config.setupBuild()
 #  if Config.is_toolchain:
-from vimhdl import vim_client
-
+try:
+    from vimhdl import vim_client
+except ImportError:
+    pass
+from vimhdl.project_builder import ProjectBuilder
+from vimhdl.static_check import vhdStaticCheck

@@ -37,29 +37,42 @@ call vimhdl#setup()
 
 " { vimhdl Syntastic definition
 function! SyntaxCheckers_vhdl_vimhdl_GetLocList() dict
-    let makeprg = self.makeprgBuild({
+
+    py vimhdl_sta_t = threading.Thread(target=vhdStaticCheck, args=(vim.current.buffer,))
+    py vimhdl_sta_t.start()
+
+    let conf_file = vimhdl#getConfFile()
+    if conf_file != '' && executable('vcom') 
+        let makeprg = self.makeprgBuild({
                 \'args' : 'messages',
                 \'fname' : ''})
 
-    let errorformat = 'msim %t %n %f %l %m'
+        let errorformat = 'msim %t %n %f %l %m'
 
-    py vimhdl.vim_client.buildByPath(vim.current.buffer.name)
-    py vimhdl.vim_client.getLatestBuildMessages()
-    return g:vimhdl_latest_build_messages
+        py vimhdl.vim_client.buildByPath(vim.current.buffer.name)
+        py vimhdl.vim_client.getLatestBuildMessages()
+        let result = g:vimhdl_latest_build_messages
+    else
+        let result = [{
+            \ 'lnum'     : 0,
+            \ 'bufnr'    : bufnr("%"),
+            \ 'filename' : bufname("%") ,
+            \ 'valid'    : '1',
+            \ 'text'     : "Builder executable not available",
+            \ 'nr'       : 0,
+            \ 'type'     : 'W',
+            \ 'col'      : 0 }]
+    endif
 
+    py vimhdl_sta_t.join()
 
-    " let r = SyntasticMake({
-    "     \ 'makeprg': makeprg,
-    "     \ 'errorformat': errorformat })
-    " py print vim.eval('r')
-    
-    " return r
+    return result + g:vimhdl_static_check_result
 endfunction
 " }
 
 " { Register vimhdl within Syntastic
 call g:SyntasticRegistry.CreateAndRegisterChecker({
-    \ 'exec'     : 'cat',
+    \ 'exec'     : 'python',
     \ 'filetype' : 'vhdl',
     \ 'name'     : 'vimhdl'})
 " }
@@ -94,6 +107,7 @@ autocmd! WinEnter     *.vhd :py vimhdl.vim_client.onWinEnter()
 autocmd! WinLeave     *.vhd :py vimhdl.vim_client.onWinLeave()
 autocmd! TabEnter     *.vhd :py vimhdl.vim_client.onTabEnter()
 autocmd! TabLeave     *.vhd :py vimhdl.vim_client.onTabLeave()
+autocmd! VimLeave     *     :py vimhdl.vim_client.onVimLeave()
 
 
 " autocmd! BufWrite *.vhd :call vimhdl#onBufWrite()

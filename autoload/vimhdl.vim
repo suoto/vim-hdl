@@ -20,14 +20,14 @@ let s:vimhdl_path = escape(expand('<sfile>:p:h'), '\') . "/../"
 " Setup Vim's Python environment to call vim-hdl within Vim
 function! vimhdl#setup()
 python << EOF
-import sys
-import os
-import vim
+import sys, os, vim
+import threading
 vimhdl_path = os.path.join(vim.eval('s:vimhdl_path'), 'python')
 if vimhdl_path not in sys.path:
     sys.path.insert(0, vimhdl_path)
+from vimhdl.project_builder import ProjectBuilder
+from vimhdl.static_check import vhdStaticCheck
 import vimhdl
-project = None
 EOF
 endfunction
 " }
@@ -123,6 +123,7 @@ function! vimhdl#addSourceToLibrary(...)
         let source = a:2
     endif
 
+
 python << EOF
 _source = vim.eval('source')
 _library = vim.eval('library')
@@ -139,25 +140,10 @@ finally:
     del _source, _library
 EOF
 
+
+
 endfunction
 " }
-
-
-function! vimhdl#onBufEnter()
-    let conf_file = vimhdl#getConfFile()
-python << EOF
-if project is None:
-    project = ProjectBuilder(library_file=vim.eval('conf_file'))
-EOF
-endfunction
-
-function! vimhdl#onBufWrite()
-python << EOF
-if project is not None:
-    project.buildByPath(vim.current.buffer.name)
-EOF
-endfunction
-
 
 " { vimhdl#removeSourceFromLibrary(library, source=<current>)
 " Adds <source> to library <library>. If source is not defined, use the
@@ -188,8 +174,6 @@ except Exception as e:
 finally:
     del _source, _library
 EOF
-
-
 
 endfunction
 " }
