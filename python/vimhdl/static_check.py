@@ -16,6 +16,10 @@
 
 import re
 import logging
+try:
+    import vim
+except ImportError:
+    pass
 
 __logger__ = logging.getLogger(__name__)
 
@@ -24,19 +28,21 @@ __SCANNER__ = re.compile('|'.join([
     r"^\s*(\w+)\s*:\s*\w+\s*$",
     r"^\s*constant\s+(\w+)\s*:",
     r"^\s*signal\s+(\w+)\s*:",
+    r"^\s*shared\s+variable\s+(\w+)\s*:",
     #  r"^\s*type\s+(\w+)\s+is",
     r"^\s*(\w+)\s*:\s*in\s+\w+",
     r"^\s*(\w+)\s*:\s*out\s+\w+",
     r"^\s*(\w+)\s*:\s*inout\s+\w+",
     r"^\s*(\w+)\s*:\s*\w+[^:]*:=",
-    #  r"^\s*library\s+(\w+)",
-    #  r"^\s*attribute\s+(\w+)\s*:",
+    r"^\s*library\s+(\w+)",
+    r"^\s*attribute\s+(\w+)\s*:",
 ]), flags=re.I)
 
 __SCANNER_INDEX_TO_TYPE_MAP__ = {
     3  : 'Constant',
     4  : 'Signal',
-    5  : 'Type',
+    5  : 'Shared variable',
+    #  6  : 'Type',
     6  : 'Input port',
     7  : 'Output port',
     8  : 'IO port',
@@ -67,8 +73,6 @@ def _getObjectsFromText(text_buffer):
             start = match.start(match.lastindex)
             end = match.end(match.lastindex)
             text = match.group(match.lastindex)
-            __logger__.info("%d, %d => %s", lnum, match.lastindex, \
-                    repr(match.group(match.lastindex)))
 
             if match.lastindex >= 3:
                 if text not in objects.keys():
@@ -78,7 +82,8 @@ def _getObjectsFromText(text_buffer):
                 objects[text]['end'] = end
 
             if match.lastindex in __SCANNER_INDEX_TO_TYPE_MAP__.keys():
-                objects[text]['type'] = __SCANNER_INDEX_TO_TYPE_MAP__[match.lastindex]
+                objects[text]['type'] = \
+                        __SCANNER_INDEX_TO_TYPE_MAP__[match.lastindex]
 
         lnum += 1
 
@@ -99,7 +104,7 @@ def _getUnusedObjects(text_buffer, objects):
     for _object in objects:
         r_len = 0
         single = True
-        for _ in re.finditer(r"\b%s\b" % _object, text):
+        for _ in re.finditer(r"\b%s\b" % _object, text, flags=re.I):
             r_len += 1
             if r_len > 1:
                 single = False
@@ -109,11 +114,47 @@ def _getUnusedObjects(text_buffer, objects):
 
 def vhdStaticCheck(text_buffer=None):
     "VHDL static checking"
-    import vim
     text_buffer = text_buffer or vim.current.buffer
+
+    __logger__.info("Parsing %s", vim.current.buffer.name)
+
     objects = _getObjectsFromText(text_buffer)
 
     result = []
+
+    for _object, obj_dict in objects.items():
+        if obj_dict['type'] in ('Constant', 'Generic', 'Attribute'):
+            if not _object.isupper():
+                vim_fmt_dict = vim.Dictionary({
+                    'lnum'     : obj_dict['lnum'] + 1,
+                    'bufnr'    : vim.current.buffer.number,
+                    'filename' : vim.current.buffer.name,
+                    'valid'    : '1',
+                    'text'     : "Invalid {obj_type} name '{obj_name}'".format(
+                        obj_type=obj_dict['type'], obj_name=_object),
+                    'nr'       : '0',
+                    'type'     : 'W',
+                    'subtype'  : 'Style',
+                    'col'      : obj_dict['start'] + 1
+                })
+                result.append(vim_fmt_dict)
+        elif obj_dict['type'] in ('Signal', 'Shared Variable', 'Input port', \
+                'Output port', 'IO ports'):
+            if not _object.islower():
+                vim_fmt_dict = vim.Dictionary({
+                    'lnum'     : obj_dict['lnum'] + 1,
+                    'bufnr'    : vim.current.buffer.number,
+                    'filename' : vim.current.buffer.name,
+                    'valid'    : '1',
+                    'text'     : "Invalid {obj_type} name '{obj_name}'".format(
+                        obj_type=obj_dict['type'], obj_name=_object),
+                    'nr'       : '0',
+                    'type'     : 'W',
+                    'subtype'  : 'Style',
+                    'col'      : obj_dict['start'] + 1
+                })
+                result.append(vim_fmt_dict)
+
 
     for _object in _getUnusedObjects(text_buffer, objects.keys()):
         obj_dict = objects[_object]
