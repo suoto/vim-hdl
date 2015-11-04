@@ -30,8 +30,6 @@ _RE_IGNORED = re.compile('|'.join([
     r".*VHDL Compiler exiting\s*$",
 ]))
 
-VLIB_ARGS = ['-type', 'directory']
-
 def _lineHasError(line):
     "Parses <line> and return True or False if it contains an error"
     if '(vcom-11)' in line:
@@ -51,27 +49,43 @@ def _getRebuildUnits(line):
     rebuilds = []
     if '(vcom-13)' in line:
         rebuilds = [x.split('.') for x in re.findall(
-            r"(?<=recompile)\s*(\w+\.\w+)", line, flags=re.I)
-        ]
+            r"(?<=recompile)\s*(\w+\.\w+)", line, flags=re.I) \
+            ]
     return rebuilds
 
 class MSim(BaseCompiler):
     """Implementation of the ModelSim compiler"""
 
     def __init__(self, target_folder):
+        self._version = ''
         super(MSim, self).__init__(target_folder)
         self._modelsim_ini = os.path.join(self._target_folder, 'modelsim.ini')
 
         # FIXME: Built-in libraries should not be statically defined
         # like this. Review this at some point
-        self.builtin_libraries = ['ieee', 'std', 'unisim', 'xilinxcorelib',
+        self.builtin_libraries = ['ieee', 'std', 'unisim', 'xilinxcorelib', \
                 'synplify', 'synopsis', 'maxii', 'family_support']
+
+        # FIXME: Check ModelSim changelog to find out which version
+        # started to support 'vlib -type directory' flags. We know
+        # 10.3a accepts and 10.1a doesn't. ModelSim 10.3a reference
+        # manual mentions 3 library formats (6.2-, 6.3 to 10.2, 10.2+)
+        if self._version >= '10.2':
+            self._vlib_args = ['-type', 'directory']
+        else:
+            self._vlib_args = []
+        self._logger.debug("vlib arguments: '%s'", str(self._vlib_args))
 
     def _checkEnvironment(self):
         try:
-            version = subprocess.check_output(['vcom', '-version'],
+            version = subprocess.check_output(['vcom', '-version'], \
                 stderr=subprocess.STDOUT)
-            self._logger.info("vcom version string: '%s'", version[:-1])
+            self._version = \
+                    re.findall(r"(?<=vcom)\s+([\w\.]+)\s+(?=Compiler)", \
+                    version)[0]
+            self._logger.info("vcom version string: '%s'. " + \
+                    "Version number is '%s'", \
+                    version[:-1], self._version)
         except Exception as exc:
             self._logger.fatal("Sanity check failed")
             raise exceptions.SanityCheckError(str(exc))
@@ -82,7 +96,7 @@ class MSim(BaseCompiler):
         else:
             flags = self._getBuildFlags(library, source)
 
-        cmd = ['vcom', '-modelsimini', self._modelsim_ini,
+        cmd = ['vcom', '-modelsimini', self._modelsim_ini, \
                 '-work', os.path.join(self._target_folder, library)]
         cmd += flags
         cmd += [source.filename]
@@ -132,7 +146,7 @@ class MSim(BaseCompiler):
         shell('cd {target_folder} && vlib {vlib_args} {library}'.format(
             target_folder=self._target_folder,
             library=os.path.join(self._target_folder, library),
-            vlib_args=" ".join(VLIB_ARGS)
+            vlib_args=" ".join(self._vlib_args)
             ))
         shell('cd {target_folder} && vmap {library} {library_path}'.format(
             target_folder=self._target_folder,
@@ -151,7 +165,7 @@ class MSim(BaseCompiler):
         self._logger.info("modelsim.ini found, adding %s", library)
 
         shell('vlib {vlib_args} {library}'.format(
-            vlib_args=" ".join(VLIB_ARGS),
+            vlib_args=" ".join(self._vlib_args),
             library=os.path.join(self._target_folder, library)))
         shell('vmap -modelsimini {modelsimini} {library} {library_path}'.format(
             modelsimini=self._modelsim_ini,
