@@ -44,13 +44,16 @@ def _lineHasWarning(line):
         return True
     return False
 
+_RE_REBUILDS = re.compile(r"Recompile\s*([^\s]+)\s+because\s+[^\s]+\s+has changed")
 def _getRebuildUnits(line):
     "Finds units that the compilers is telling us to rebuild"
     rebuilds = []
     if '(vcom-13)' in line:
-        rebuilds = [x.split('.') for x in re.findall(
-            r"(?<=recompile)\s*(\w+\.\w+)", line, flags=re.I) \
-            ]
+        for match in _RE_REBUILDS.finditer(line):
+            if not match:
+                continue
+            rebuilds.append(match.group(match.lastindex).split('.'))
+
     return rebuilds
 
 class MSim(BaseCompiler):
