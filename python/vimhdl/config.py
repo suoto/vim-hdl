@@ -57,11 +57,11 @@ class Config(object):
                 color_funcName=('blue', 'black', False),
                 color_lineno=('green', None, False),
                 color_asctime=('cyan', 'black', False),
-                color_message_debug=('white', None, False),
-                color_message_info=('green', None, False),
-                color_message_warning=('yellow', None, False),
-                color_message_error=('red', None, True),
-                color_message_critical=('white', 'red', True))
+                color_message_debug    = ('white'  , None , False),
+                color_message_info     = ('green' , None , False),
+                color_message_warning  = ('yellow', None , False),
+                color_message_error    = ('red'   , None , True),
+                color_message_critical = ('white' , 'red', True))
         else:
             stream_handler = logging.StreamHandler(stream)
 

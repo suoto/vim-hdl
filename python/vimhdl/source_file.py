@@ -42,7 +42,14 @@ _RE_USE_CLAUSES = re.compile(r"(?<=use)\s+\w+\.\w+\b", flags=re.I)
 
 _RE_WHITESPACES = re.compile(r"^\s*|\s*$")
 
-_RE_PRE_PROC = re.compile(r"\s*--[^\n]*\n|\s+")
+_RE_PRE_PROC = re.compile(r"\s*--[^\n]*|\s+$|^\s+")
+
+__SCANNER__ = re.compile('|'.join([
+    r"^\s*package\s+(\w+)\s+is\b",
+    r"^\s*package\s+body\s+(\w+)\s+is\b",
+    r"^\s*entity\s+(\w+)\s+is\b",
+    r"^\s*library\s+(\w+)\b",
+]), flags=re.I)
 
 class VhdlSourceFile(object):
 
@@ -50,15 +57,18 @@ class VhdlSourceFile(object):
     # an exception for this)
     _semaphore = threading.BoundedSemaphore(_MAX_OPEN_FILES)
 
-    def __init__(self, filename):
+    def __init__(self, filename, library='work'):
         self.filename = os.path.normpath(filename)
+        self.library = library
+        self.flags = []
         self._design_units = None
         self._deps = None
         self._has_package = None
         self._mtime = 0
 
         self._lock = threading.Lock()
-        threading.Thread(target=self._parse).start()
+        self._parse()
+        #  threading.Thread(target=self._parse).start()
 
     def __getstate__(self):
         state = self.__dict__.copy()
@@ -73,7 +83,7 @@ class VhdlSourceFile(object):
         return "VhdlSourceFile('%s')" % self.abspath()
 
     def __str__(self):
-        return str(self.filename)
+        return "[%s] %s" % (self.library, self.filename)
 
     def _parse(self):
         "Wraps self._doParse with lock acquire/release"
@@ -97,46 +107,54 @@ class VhdlSourceFile(object):
         # Replace everything from comment ('--') until a line break and
         # converts to lowercase
         VhdlSourceFile._semaphore.acquire()
-        text = _RE_PRE_PROC.sub(" ", open(self.filename, 'r').read()).lower()
+        lines = list([re.sub(r"\s*--.*", "", x).lower() for x in \
+                open(self.filename, 'r').read().split("\n")])
         VhdlSourceFile._semaphore.release()
 
-        # Search for design units. We should get things like entities
-        # and packages
         self._design_units = []
-        for unit in _RE_DESIGN_UNITS.findall(text):
-            self._design_units.append(_RE_WHITESPACES.sub("", unit))
+        libraries = ['work']
 
-        if _RE_PACKAGES.findall(text):
-            _logger.debug("Source %s has packages", self.filename)
-            self._has_package = True
-        else:
-            _logger.debug("Source %s has no packages", self.filename)
-            self._has_package = False
+        for line in lines:
+            scan = __SCANNER__.scanner(line)
+            while True:
+                match = scan.match()
+                if not match:
+                    break
 
-        # Get libraries referred and add library 'work', which is
-        # referred implicitly
-        libs = list(set(['work'] +
-            [_RE_WHITESPACES.sub("", x) for x in _RE_LIBRARIES.findall(text)]))
+                match_text = match.group(match.lastindex)
 
-        # If there are no libraries, we won't search for units
-        # instantiated using the format 'lib.unit'
+                unit = {'name' : match_text}
+
+                if match.lastindex == 1:
+                    unit['type'] = 'package'
+                elif match.lastindex == 2:
+                    unit['type'] = 'package body'
+                elif match.lastindex == 3:
+                    unit['type'] = 'entity'
+                elif match.lastindex == 4:
+                    libraries.append(match_text)
+
+                if 'type' in unit.keys():
+                    self._design_units.append(unit)
+
+        lib_deps_regex = re.compile(r'|'.join([ \
+                r"%s\.\w+" % x for x in libraries]), flags=re.I)
+
         dependencies = []
-        if libs:
-            _re_deps = re.compile(r'|'.join([r"%s\.\w+" % x for x in libs]), flags=re.I)
-
-            for dep in [_RE_WHITESPACES.sub("", x) for x in _re_deps.findall(text)]:
-                dep = dep.split('.')
-                if dep not in dependencies:
-                    dependencies.append(dep)
-
-        # Search for occurrences of use lib.unit
-        for use_clause in [_RE_WHITESPACES.sub("", x) \
-                for x in _RE_USE_CLAUSES.findall(text)]:
-            dep = use_clause.split('.')
-            if dep not in dependencies:
-                dependencies.append(dep)
+        for line in lines:
+            for match in lib_deps_regex.finditer(line):
+                dependency = {}
+                dependency['library'], dependency['unit'] = match.group().split('.')[:2]
+                # Library 'work' means 'this' library, so we replace it
+                # by the library name itself
+                if dependency['library'] == 'work':
+                    dependency['library'] = self.library
+                if dependency not in dependencies:
+                    dependencies.append(dependency)
 
         self._deps = dependencies
+        _logger.info("Source '%s' depends on: %s", str(self),
+                ", ".join(["{library}.{unit}".format(**x) for x in self._deps]))
 
         self._sanityCheckNames()
 
@@ -144,18 +162,18 @@ class VhdlSourceFile(object):
         """Sanity check on the names we found to catch errors we
         haven't covered"""
         for unit in self._design_units:
-            if not _RE_VALID_NAME_CHECK.match(unit):
-                raise RuntimeError("Unit name %s is invalid" % unit)
+            if not _RE_VALID_NAME_CHECK.match(unit['name']):
+                raise RuntimeError("Unit name %s is invalid" % unit['name'])
 
-        for dep_lib, dep_unit in self._deps:
-            if not _RE_VALID_NAME_CHECK.match(dep_lib):
-                raise RuntimeError("Dependency library %s is invalid" % dep_lib)
-            if not len(dep_lib):
-                raise RuntimeError("Dependency library %s is invalid" % dep_lib)
-            if not _RE_VALID_NAME_CHECK.match(dep_unit):
-                raise RuntimeError("Dependency unit %s is invalid" % dep_unit)
-            if not len(dep_unit):
-                raise RuntimeError("Dependency unit %s is invalid" % dep_unit)
+        for dependency in self._deps:
+            if not _RE_VALID_NAME_CHECK.match(dependency['library']):
+                raise RuntimeError("Dependency library %s is invalid" % dependency['library'])
+            if not len(dependency['library']):
+                raise RuntimeError("Dependency library %s is invalid" % dependency['library'])
+            if not _RE_VALID_NAME_CHECK.match(dependency['unit']):
+                raise RuntimeError("Dependency unit %s is invalid" % dependency['unit'])
+            if not len(dependency['unit']):
+                raise RuntimeError("Dependency unit %s is invalid" % dependency['unit'])
 
     def getDesignUnits(self):
         self._parse()
@@ -175,4 +193,23 @@ class VhdlSourceFile(object):
     @memoid
     def abspath(self):
         return os.path.abspath(self.filename)
+
+def test():
+    import sys
+    for arg in sys.argv[1:]:
+        source = VhdlSourceFile(arg)
+        print "Source: %s" % source
+        design_units = source.getDesignUnits()
+        if design_units:
+            print " - Design_units:"
+            for unit in design_units:
+                print " -- %s" % str(unit)
+        dependencies = source.getDependencies()
+        if dependencies:
+            print " - Dependencies:"
+            for dependency in dependencies:
+                print " -- %s.%s" % (dependency['library'], dependency['unit'])
+
+if __name__ == '__main__':
+    test()
 

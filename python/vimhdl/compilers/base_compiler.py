@@ -19,6 +19,8 @@ import os
 import abc
 import time
 
+from config import Config
+
 _logger = logging.getLogger(__name__)
 
 
@@ -32,6 +34,7 @@ class BaseCompiler(object):
         self._target_folder = os.path.abspath(os.path.expanduser(target_folder))
 
         self.builtin_libraries = []
+        self._build_info_cache = {}
 
         if not os.path.exists(self._target_folder):
             self._logger.info("%s doens't exists", self._target_folder)
@@ -52,25 +55,21 @@ class BaseCompiler(object):
         classes. Nothing is done with the return, the child class should
         raise an exception by itself"""
 
-    @abc.abstractmethod
-    def _preBuild(self, library, source):
-        """Callback called before building anything. Usually to create
-        stuff needed by the compiler (library, clean up, checking,
-        etc"""
+    #  @abc.abstractmethod
+    #  def _preBuild(self, library, source):
+    #      """Callback called before building anything. Usually to create
+    #      stuff needed by the compiler (library, clean up, checking,
+    #      etc"""
 
     @abc.abstractmethod
-    def _doBuild(self, library, source, flags=None):
+    def _doBuild(self, source, flags=None):
         """Callback called to actually build the source"""
 
-    @abc.abstractmethod
-    def _postBuild(self, library, source, stdout):
-        """Callback to process output to stdout by the compiler.
-        Use this to parse the output and find errors and warnings
-        issued"""
-
-    def _getBuildFlags(self, library, source):
-        "Holds compiler based build flags"
-        return []
+    #  @abc.abstractmethod
+    #  def _postBuild(self, library, source, stdout):
+    #      """Callback to process output to stdout by the compiler.
+    #      Use this to parse the output and find errors and warnings
+    #      issued"""
 
     def __getstate__(self):
         state = self.__dict__.copy()
@@ -82,15 +81,43 @@ class BaseCompiler(object):
         del state['_logger']
         self.__dict__.update(state)
 
-    def build(self, library, source, flags=None):
+    def build(self, source, forced=False, flags=None):
         """Method that interfaces with parents and implements the
         building chain"""
+
         start = time.time()
-        self._preBuild(library, source)
-        stdout = self._doBuild(library, source, flags)
-        result = self._postBuild(library, source, stdout)
-        end = time.time()
-        self._logger.debug("Compiling took %.2fs", (end - start))
-        return result
+        if source.abspath() not in self._build_info_cache.keys():
+            self._build_info_cache[source.abspath()] = {
+                'compile_time': 0, 'size' : 0, 'records': ()
+            }
+
+        cached_info = self._build_info_cache[source.abspath()]
+
+        build = False
+        if forced:
+            build = True
+            self._logger.info("Forcing build of %s", str(source))
+        if source.getmtime() > cached_info['compile_time']:
+            build = True
+            self._logger.info("Building %s because it has changed", str(source))
+
+        if build:
+            records, rebuilds = self._doBuild(source, flags=flags)
+
+            cached_info['compile_time'] = source.getmtime()
+            cached_info['records'] = records
+            cached_info['rebuilds'] = rebuilds
+            cached_info['size'] = os.stat(source.abspath()).st_size
+
+            end = time.time()
+            self._logger.debug("Compiling took %.2fs", (end - start))
+        else:
+            records = cached_info['records']
+            rebuilds = cached_info['rebuilds']
+
+        if not Config.cache_error_messages and errors or rebuilds:
+            cached_info['compile_time'] = 0
+
+        return records, rebuilds
 
 

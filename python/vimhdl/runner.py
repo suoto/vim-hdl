@@ -187,6 +187,9 @@ def main(args):
                     _logger.error("Unable to build '%s': '%s'", source, str(e))
                     continue
 
+    project.saveCache()
+
+
 if __name__ == '__main__':
     start = time.time()
     args = parseArguments()

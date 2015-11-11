@@ -22,10 +22,10 @@ try:
 except ImportError:
     import pickle
 
-from vimhdl.library import Library
+#  from vimhdl.library import Library
 from vimhdl.compilers.msim import MSim
-from vimhdl.config import Config
 from vimhdl.config_parser import ExtendedConfigParser
+from vimhdl.source_file import VhdlSourceFile
 
 # pylint: disable=star-args, bad-continuation
 
@@ -40,15 +40,16 @@ class ProjectBuilder(object):
 
     def __init__(self, project_file):
         self.builder = None
-        self.libraries = {}
+        self.sources = {}
         self._logger = logging.getLogger(__name__)
         self._conf_file_timestamp = 0
         self._project_file = project_file
 
-        self.batch_build_flags = []
-        self.single_build_flags = []
-        self._build_cnt = 0
-        self._latest_build_messages = []
+        self._build_flags = {
+                'batch' : [],
+                'single' : [],
+                'global' : []
+                }
 
         self._readConfFile()
 
@@ -103,9 +104,11 @@ class ProjectBuilder(object):
         parser.read(self._project_file)
 
         # Get the global build definitions
-        global_build_flags = parser.getlist('global', 'global_build_flags')
-        self.batch_build_flags = parser.getlist('global', 'batch_build_flags')
-        self.single_build_flags = parser.getlist('global', 'single_build_flags')
+        self._build_flags = {
+                'batch' : parser.getlist('global', 'batch_build_flags'),
+                'single' : parser.getlist('global', 'single_build_flags'),
+                'global' : parser.getlist('global', 'global_build_flags'),
+                }
 
         builder = parser.get('global', 'builder')
         target_dir = parser.get('global', 'target_dir')
@@ -123,121 +126,75 @@ class ProjectBuilder(object):
         for section in parser.sections():
             if section == 'global':
                 continue
+
             sources = parser.getlist(section, 'sources')
             flags = parser.getlist(section, 'build_flags')
 
-            if section not in self.libraries.keys():
-                self._logger.info("Found library '%s'", section)
-                self.addLibrary(section, sources, target_dir)
-            else:
-                self.addLibrarySources(section, sources)
+            for source in sources:
+                _source = VhdlSourceFile(source, section)
+                if flags:
+                    _source.flags = set(flags + self._build_flags['global'])
+                else:
+                    _source.flags = set(self._build_flags['global'])
+                self.sources[_source.abspath()] = _source
 
-            if global_build_flags:
-                self.addBuildFlags(section, global_build_flags)
-
-            if flags:
-                self.addBuildFlags(section, flags)
-
-        for lib_name, lib in self.libraries.iteritems():
-            if not lib.sources:
-                self._logger.warning("Library '%s' has no sources", lib_name)
-
-    def _getReverseDependencyMap(self):
-        """Returns a dict that relates which source files depend on a
-        given library/unit"""
-        result = {}
-        for lib in self.libraries.values():
-            for src_file, src_deps in lib.getDependencies():
-                for dep_lib, dep_pkg in src_deps:
-                    dep_key = (dep_lib, dep_pkg)
-                    if dep_key not in result.keys():
-                        result[dep_key] = []
-                    result[dep_key].append(src_file.filename)
-        return result
-
-    def _getDependencyMap(self):
-        """Returns a dict which library/units a given source file
-        depens on"""
-        result = {}
-        for lib_name, lib in self.libraries.items():
-            this_lib_map = {}
-            for src_file, src_deps in lib.getDependencies():
-                if src_file not in this_lib_map.keys():
-                    this_lib_map[src_file] = []
-                for dep_lib, dep_unit in src_deps:
-                    if (dep_lib, dep_unit) not in this_lib_map[src_file]:
-                        this_lib_map[src_file].append((dep_lib, dep_unit))
-
-            result[lib_name] = this_lib_map
-        return result
+    def _filterSourceDependencies(self, source):
+        filtered_dependencies = []
+        for dependency in source.getDependencies():
+            if dependency['library'] in self.builder.builtin_libraries:
+                continue
+            if dependency['unit'] == 'all':
+                continue
+            if dependency['library'] == source.library and \
+                    dependency['unit'] in source.getDesignUnits():
+                continue
+            filtered_dependencies += [dependency]
+        return filtered_dependencies
 
     def getBuildSteps(self):
         """Yields a dict that has all the library/sources that can be
         built on a given step"""
-
-        this_build = []
         units_built = []
-
+        sources_built = []
         for step in range(self.MAX_BUILD_STEPS):
-            units_built += list(set(this_build) - set(units_built))
+            self._logger.debug("Step %d, units built: %s", step, str(units_built))
+            empty_step = True
+            for source in self.sources.values():
+                design_units = set(["%s.%s" % (source.library, x['name']) \
+                        for x in source.getDesignUnits()])
+                if design_units.issubset(units_built):
+                    continue
 
-            this_build = []
-            this_step = {}
-            for lib_name, lib_deps in self._getDependencyMap().iteritems():
-                for src, src_deps in lib_deps.iteritems():
+                dependencies = set(["{library}.{unit}".format(**x) \
+                        for x in self._filterSourceDependencies(source)])
 
-                    for design_unit in src.getDesignUnits():
-                        if (lib_name, design_unit) in units_built:
-                            continue
-                        if (lib_name, 'all') not in this_build:
-                            this_build.append((lib_name, 'all'))
-                        if set(src_deps).issubset(units_built):
-                            if (lib_name, design_unit) not in this_build:
-                                this_build.append((lib_name, design_unit))
-                            if lib_name not in this_step.keys():
-                                this_step[lib_name] = []
-                            if src not in this_step[lib_name]:
-                                this_step[lib_name].append(src)
+                self._logger.debug("Source '%s' depends on %s", str(source),
+                        ", ".join(["'%s'" % str(x) for x in dependencies]))
 
-            yield this_step
+                if dependencies.issubset(set(units_built)):
+                    if source.abspath() not in sources_built:
+                        sources_built += [source.abspath()]
+                    empty_step = False
+                    units_built += list(design_units)
+                    yield source
+                else:
+                    self._logger.debug("Dependencies needed to build %s: %s",
+                            str(source),
+                            ", ".join([str(x) for x in dependencies - set(units_built)]))
+            if empty_step:
+                for source in self.sources.values():
+                    if source.abspath() not in sources_built:
+                        dependencies = set(["{library}.{unit}".format(**x) \
+                                for x in self._filterSourceDependencies(source)])
+                        self._logger.warning("Couldn't build source '%s' due to "
+                            "missing dependencies %s",
+                            str(source),
+                            ", ".join([str(x) for x in dependencies - set(units_built)]))
 
-            if step == self.MAX_BUILD_STEPS or not this_build:
-                self._logger.error("Max build steps of %d reached, stopping",
-                                   self.MAX_BUILD_STEPS)
 
-                for lib_name, src, missing_deps, in \
-                        self._getSourcesWithMissingDeps(units_built):
-                    assert 0
-                    self._logger.warning("[%s] %s has missing dependencies: %s",
-                            lib_name, src, str(missing_deps))
-                break
 
-    def _getSourcesWithMissingDeps(self, units_built):
-        """Searches for files that weren't build given the units_built
-        and returns their dependencies"""
-        for lib_name, lib_deps in self._getDependencyMap().iteritems():
-            for src, src_deps in lib_deps.iteritems():
-                for design_unit in src.getDesignUnits():
-                    if (lib_name, design_unit) not in units_built:
-                        missing_deps = []
-                        for dep_lib_name, unit_name in \
-                                set(src_deps) - set(units_built):
-                            if "%s.%s" % (dep_lib_name, unit_name) not in \
-                                    missing_deps:
-                                missing_deps.append(
-                                    "%s.%s" % (dep_lib_name, unit_name))
-                        yield lib_name, src, missing_deps
-
-    def getLibraryAndSourceByPath(self, path):
-        """Gets the library containing the path. Raises RuntimeError
-        if the source is not found anywhere"""
-        if not os.path.exists(path):
-            raise OSError("Path %s doesn't exists" % path)
-        for lib in self.libraries.values():
-            source = lib.hasSource(path)
-            if source:
-                return lib, source
-        raise RuntimeError("Source %s not found" % path)
+                raise StopIteration()
+        assert 0
 
     def cleanCache(self):
         "Remove the cached project data and clean all libraries as well"
@@ -248,8 +205,6 @@ class ProjectBuilder(object):
             os.remove(cache_fname)
         except OSError:
             self._logger.debug("Cache filename '%s' not found", cache_fname)
-        while self.libraries:
-            self.libraries.popitem()[1].deleteLibrary()
         self._conf_file_timestamp = 0
 
     @staticmethod
@@ -271,231 +226,39 @@ class ProjectBuilder(object):
 
         assert not os.system("rm -rf " + target_dir)
 
-    def addLibrary(self, library_name, sources, target_dir):
-        "Adds a library with the given sources"
-        self.libraries[library_name] = \
-                Library(builder=self.builder,
-                        sources=sources,
-                        name=library_name,
-                        target_dir=target_dir)
-
-    def hasLibrary(self, library_name):
-        "Returns True is library_name has been added"
-        return library_name.lower() in self.libraries.keys()
-
-    def addLibrarySources(self, library_name, sources):
-        "Adds sources to library_name"
-        self.libraries[library_name].addSources(sources)
-
-    def addBuildFlags(self, library, flags):
-        "Adds build flags to the given library"
-        self.libraries[library].addBuildFlags(flags)
-
-    def buildByDependency(self, filter=lambda x: 1):
+    def buildByDependency(self):
         "Build the project by checking source file dependencies"
-        for lib in self.libraries.itervalues():
-            lib.createOrMapLibrary()
-
-        step_cnt = 0
-        message_list = []
-        for step in self.getBuildSteps():
-            step_cnt += 1
-            if not step:
-                self._logger.debug("Empty step at iteration %d", step_cnt)
-                break
-
-            self._logger.debug("Step %d", step_cnt)
-
-            for lib_name, sources in step.iteritems():
-                self._logger.debug("  - %s", lib_name)
-                for source in sources:
-                    self._logger.debug("    - %s", str(source))
-
-                for source, errors, rebuilds in \
-                        self.libraries[lib_name].buildSources(sources, \
-                                flags=self.batch_build_flags):
-                    for rebuild in rebuilds:
-                        self._logger.info("Rebuilding %s before %s", \
-                                str(rebuild), \
-                                [str(x) for x in sources])
-                        self.buildByDesignUnit(*rebuild)
-
-                    for error in errors:
-                        message_list.append(error)
-
-        self._latest_build_messages += message_list
-        self._build_cnt += 1
-
-    def buildByDesignUnit(self, lib_name, unit):
-        "Builds a source file given a design unit, in the format"
-        if lib_name not in self.libraries.keys():
-            raise RuntimeError("Design unit '%s' not found" % unit)
-        lib = self.libraries[lib_name]
-        source = lib.getSourceByDesignUnit(unit)
-
-        return self.buildSource(lib, source)
+        for source in self.getBuildSteps():
+            records, _ = self.builder.build(source,
+                    flags=self._build_flags['batch'])
+            for record in records:
+                if record['error_type'] == 'W':
+                    _logger.warn(str(record))
+                elif record['error_type'] == 'E':
+                    _logger.error(str(record))
+                else:
+                    _logger.fatal(str(record))
+                    assert 0
 
     def buildSource(self, library, source, *args, **kwargs):
         "Flow for building library.source"
 
-        self._logger.debug("Build count: %d", self._build_cnt)
-        if self._build_cnt == 0:
-            self._logger.info("Running project build before building '%s'",
-                    str(source))
-            self.buildByDependency(filter=lambda x: 1)
-
-        # Start the direct and reverse dependency mapping in a thread
-        # to save time
-        threads = [Thread(target=self._getDependencyMap),
-                   Thread(target=self._getReverseDependencyMap)]
-
-        [t.start() for t in threads]
-
-        self._logger.info("Building [%s] '%s'", library.name, str(source))
-        errors, rebuilds = library.buildSource(source,
-                *args, **kwargs)
-
-        # Join the dependency mapping threads before we need that
-        # information
-        [t.join() for t in threads]
-
-        for dep_errors, dep_rebuilds in \
-                self._buildReverseDependencies(library, source):
-            errors += dep_errors
-            rebuilds += dep_rebuilds
-
-        return errors, rebuilds
-
-    def _buildReverseDependencies(self, library, source):
-        """Builds sources that depends on the given library/source.
-        Notes on current implementation:
-        1) We won't build recursively because this can lead to to
-        rebuilding the entire library, which may take much more time
-        than we want to wait for a syntax check. However, building only
-        first level dependencies makes second level dependencies out of
-        date. This should be handled (maybe in background), or else
-        things can get very messy
-        2) The build order is not checked. If A triggers rebuilding B
-        and C but C also depends on B (and thus should be built after
-        B), there is no guarantee that B will be built before C"""
-
-        if not (Config.show_reverse_dependencies_errors or \
-                Config.show_reverse_dependencies_warnings):
-            raise StopIteration()
-
-        # Find out which design units are found on the source to use
-        # as key to the reverse dependency map
-        units = source.getDesignUnits()
-        reverse_dependency_map = self._getReverseDependencyMap()
-
-        # We'll insert packages at the start of the list and append
-        # non packages at the end. We need to do this before actually
-        # building anything to check if the amount of sources that
-        # should be rebuilt doesn't exceeds the value given by
-        # Config.max_reverse_dependency_sources
-        build_list = []
-
-        for unit in units:
-            rev_dep_key = library.name, unit
-            if rev_dep_key in reverse_dependency_map.keys():
-                self._logger.info("Building '%s' triggers rebuild of %s",
-                    str(source), ", ".join(reverse_dependency_map[rev_dep_key]))
-
-                for _source in reverse_dependency_map[rev_dep_key]:
-                    dep_lib, _source = self.getLibraryAndSourceByPath(_source)
-
-                    if _source.hasPackage():
-                        self._logger.debug("Inserting [%s] '%s'", dep_lib.name,
-                                str(_source))
-                        build_list.insert(0, (dep_lib, _source))
-                    else:
-                        self._logger.debug("Appending [%s] '%s'", dep_lib.name,
-                                str(_source))
-                        build_list.append((dep_lib, _source))
-
-        # TODO: If we exceed the maximum number of dependencies allowed
-        # to be rebuilt, we should warn the user we're not rebuilding
-        # anything
-        if len(build_list) > Config.max_reverse_dependency_sources:
-            self._logger.warning("Number of tracked rebuilds of %d exceeds "
-                    "the maximum configured of %d", len(build_list),
-                    Config.max_reverse_dependency_sources)
-            raise StopIteration()
-        else:
-            self._logger.info("Tracked %d rebuilds", len(build_list))
-
-        for dep_lib, dep_source in build_list:
-            self._logger.info("Building scheduled [%s] '%s'",
-                    dep_lib.name, str(dep_source))
-            errors, rebuilds = dep_lib.buildSource(dep_source, forced=True, \
-                flags=self.single_build_flags)
-
-            # Append errors and/or warnings according to
-            # user preferences to make sure we keep printing
-            # errors before the warnings
-            if not Config.show_reverse_dependencies_errors:
-                errors = []
-            yield errors, rebuilds
 
     def buildByPath(self, path):
         """Finds the library of a given path and builds it. Use the reverse
         dependency map to reset the compile time of the sources that depend on
         'path' to build later"""
 
-        # Find out which library has this path
-        lib, source = self.getLibraryAndSourceByPath(path)
-        messages, rebuilds = self.buildSource(lib, source, \
-                forced=True, flags=self.single_build_flags)
+        records, _ = self.builder.build(
+                self.sources[os.path.abspath(path)], forced=True,
+                flags=self._build_flags['single'])
 
-        self._latest_build_messages += messages
-
-        if rebuilds:
-            self._logger.warning("Rebuild units: %s", str(rebuilds))
-            self.buildByDependency(lambda s: not Config.show_only_current_file)
-
-    def getLatestBuildMessages(self):
-        messages = self._latest_build_messages
-        self._logger.info("We have %d messages", len(messages))
-        self._latest_build_messages = []
-        return messages
-
-    # Methods for displaying info about the project
-    def printDependencyMap(self, source=None):
-        "Prints the dependencies of all sources or of a single file"
-        if source is None:
-            for lib_name, lib_deps in self._getDependencyMap().iteritems():
-                print "Library %s" % lib_name
-                for src, src_deps in lib_deps.iteritems():
-                    if src_deps:
-                        print " - %s: %s" % \
-                            (src, ", ".join(
-                                ["%s.%s" % (x[0], x[1]) for x in src_deps]
-                            ))
-                    else:
-                        print " - %s: None" % src
-        else:
-            _, source = self.getLibraryAndSourceByPath(source)
-            print "\n".join(["%s.%s" % tuple(x) for x in source.getDependencies()])
-
-    def printReverseDependencyMap(self, source=None):
-        """Prints the reverse dependency map (i.e., 'who depends on
-        me?', as opposite to the direct dependency map 'who do I depend
-        on?')
-        """
-        if source is None:
-            for (lib_name, design_unit), deps in \
-                    self._getReverseDependencyMap().iteritems():
-                _s =  "- %s.%s: " % (lib_name, design_unit)
-                if deps:
-                    _s += " ".join(deps)
-                else:
-                    _s += "None"
-                print _s
-        else:
-            lib, source = self.getLibraryAndSourceByPath(source)
-            rev_depmap = self._getReverseDependencyMap()
-            for unit in source.getDesignUnits():
-                k = lib.name, unit
-                print "\n".join(rev_depmap[k])
-
+        for record in records:
+            if record['error_type'] == 'W':
+                _logger.warn(str(record))
+            elif record['error_type'] == 'E':
+                _logger.error(str(record))
+            else:
+                _logger.fatal(str(record))
+                assert 0
 

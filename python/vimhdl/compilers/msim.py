@@ -204,46 +204,30 @@ class MSim(BaseCompiler):
             self._logger.fatal("Sanity check failed")
             raise exceptions.SanityCheckError(str(exc))
 
-    def _doBuild(self, library, source, flags=None):
-        if flags:
-            flags += self._getBuildFlags(library, source)
-        else:
-            flags = self._getBuildFlags(library, source)
+    def _doBuild(self, source, flags=None):
+        self.createOrMapLibrary(source.library)
 
         cmd = ['vcom', '-modelsimini', self._modelsim_ini,
-                '-work', os.path.join(self._target_folder, library)]
-        cmd += flags
+                '-work', os.path.join(self._target_folder, source.library)]
+        cmd += source.flags
+        if flags:
+            cmd += flags
         cmd += [source.filename]
 
         self._logger.debug(" ".join(cmd))
 
         try:
-            result = list(subprocess.check_output(cmd,
+            stdout = list(subprocess.check_output(cmd,
                 stderr=subprocess.STDOUT).split("\n"))
         except subprocess.CalledProcessError as exc:
-            result = list(exc.output.split("\n"))
-        return result
+            stdout = list(exc.output.split("\n"))
 
-    def createOrMapLibrary(self, library):
-        if os.path.exists(os.path.join(self._target_folder, library)):
-            return
-        if os.path.exists(self._modelsim_ini):
-            self.mapLibrary(library)
-        else:
-            self.createLibrary(library)
-
-    def _preBuild(self, library, source):
-        return self.createOrMapLibrary(library)
-
-    def _postBuild(self, library, source, stdout):
         rebuilds = []
         records = []
 
         for line in stdout:
-            self._logger.error(line)
             if self._BuilderStdoutIgnoreLines.match(line):
                 continue
-            self._logger.info("Parsing '%s'", repr(line))
             records.append(self._makeMessageRecord(line))
 
             #  if not isRecordValid(records[-1]):
@@ -261,6 +245,17 @@ class MSim(BaseCompiler):
         #          self._logger.debug(msg)
         #  return errors, warnings, rebuilds
 
+
+    def createOrMapLibrary(self, library):
+        if os.path.exists(os.path.join(self._target_folder, library)):
+            return
+        if os.path.exists(self._modelsim_ini):
+            self.mapLibrary(library)
+        else:
+            self.createLibrary(library)
+
+    #  def _postBuild(self, library, source, stdout):
+    #      pass
     def createLibrary(self, library):
         self._logger.info("Library %s not found, creating", library)
         shell('cd {target_folder} && vlib {vlib_args} {library}'.format(
