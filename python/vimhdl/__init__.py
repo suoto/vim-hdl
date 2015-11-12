@@ -18,6 +18,11 @@ See https://github.com/suoto/vim-hdl for more information
 """
 
 from vimhdl.config import Config
-from vimhdl.project_builder import ProjectBuilder
-from vimhdl.static_check import vhdStaticCheck
+try:
+    import vim
+    Config.setupBuild()
+except ImportError:
+    pass
+#  from vimhdl.project_builder import ProjectBuilder
+#  from vimhdl.static_check import vhdStaticCheck
 
