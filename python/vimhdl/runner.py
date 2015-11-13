@@ -182,7 +182,8 @@ def main(args):
             for source in args.sources:
                 try:
                     _logger.info("Building source '%s'", source)
-                    project.buildByPath(source)
+                    for record in project.buildByPath(source):
+                        print str(record)
                 except RuntimeError as e:
                     _logger.error("Unable to build '%s': '%s'", source, str(e))
                     continue

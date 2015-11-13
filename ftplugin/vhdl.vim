@@ -49,8 +49,7 @@ function! SyntaxCheckers_vhdl_vimhdl_GetLocList() dict
 
         let errorformat = 'msim %t %n %f %l %m'
 
-        py vimhdl.vim_client.buildByPath(vim.current.buffer.name)
-        py vimhdl.vim_client.getLatestBuildMessages()
+        py vimhdl.vim_client.buildByPath(vim.current.buffer)
         let result = g:vimhdl_latest_build_messages
     else
         let result = [{

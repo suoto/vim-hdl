@@ -67,7 +67,7 @@ def _getObjectsFromText(text_buffer):
             start = match.start(match.lastindex)
             end = match.end(match.lastindex)
             text = match.group(match.lastindex)
-            __logger__.info("%d, %d => %s", lnum, match.lastindex, \
+            __logger__.debug("%d, %d => %s", lnum, match.lastindex, \
                     repr(match.group(match.lastindex)))
 
             if match.lastindex >= 3:

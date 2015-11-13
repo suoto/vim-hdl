@@ -240,9 +240,9 @@ class ProjectBuilder(object):
                     _logger.fatal(str(record))
                     assert 0
 
-    def buildSource(self, library, source, *args, **kwargs):
-        "Flow for building library.source"
-
+    def _sortBuildMessages(self, records):
+        return sorted(records, key=lambda x: \
+                (x['error_type'], x['line_number'], x['error_number']))
 
     def buildByPath(self, path):
         """Finds the library of a given path and builds it. Use the reverse
@@ -253,12 +253,5 @@ class ProjectBuilder(object):
                 self.sources[os.path.abspath(path)], forced=True,
                 flags=self._build_flags['single'])
 
-        for record in records:
-            if record['error_type'] == 'W':
-                _logger.warn(str(record))
-            elif record['error_type'] == 'E':
-                _logger.error(str(record))
-            else:
-                _logger.fatal(str(record))
-                assert 0
+        return self._sortBuildMessages(records)
 

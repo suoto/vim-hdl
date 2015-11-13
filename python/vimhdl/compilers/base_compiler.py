@@ -19,7 +19,7 @@ import os
 import abc
 import time
 
-from config import Config
+from vimhdl.config import Config
 
 _logger = logging.getLogger(__name__)
 
