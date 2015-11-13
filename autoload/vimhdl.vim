@@ -27,6 +27,8 @@ if vimhdl_path not in sys.path:
     sys.path.insert(0, vimhdl_path)
 from vimhdl.project_builder import ProjectBuilder
 from vimhdl.static_check import vhdStaticCheck
+from vimhdl.config import Config
+Config._setupToolchain()
 import vimhdl
 EOF
 endfunction
