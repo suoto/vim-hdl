@@ -135,27 +135,28 @@ def onVimLeave():
     if __vimhdl_client__ is not None:
         __vimhdl_client__.saveCache()
 
-def buildByPath(path):
-    __vimhdl_client__ = _getProjectObject()
-    __vimhdl_client__.buildByPath(path)
 
 # More info on :help getqflist()
-def getLatestBuildMessages():
+def buildByPath(vbuffer):
+    __vimhdl_client__ = _getProjectObject()
     result = []
-    for message in __vimhdl_client__.getLatestBuildMessages():
-        vim_fmt_dict = vim.Dictionary({
-            'lnum'     : message['line_number'] or '<none>',
-            'bufnr'    : '0',
-            'filename' : message['filename'],
-            'valid'    : '1',
-            'text'     : message['error_message'] or '<none>',
-            'nr'       : message['error_number'] or '0',
-            'type'     : message['error_type'] or 'E',
-            'col'      : message['column'] or '0'
-        })
+    for message in __vimhdl_client__.buildByPath(vbuffer.name):
+        try:
 
-        __logger__.warning(str(message))
-        __logger__.warning(dict(vim_fmt_dict))
+            vim_fmt_dict = vim.Dictionary({
+                'lnum'     : message['line_number'] or '',
+                'bufnr'    : vbuffer.number,
+                'filename' : message['filename'] or vbuffer.name,
+                'valid'    : '1',
+                'text'     : message['error_message'] or '<none>',
+                'nr'       : message['error_number'] or '0',
+                'type'     : message['error_type'] or 'E',
+                'col'      : message['column'] or '0'
+            })
+        except:
+            print str(message)
+            raise
+
         result.append(vim_fmt_dict)
 
     vim.vars['vimhdl_latest_build_messages'] = vim.List(result)
