@@ -37,35 +37,10 @@ call vimhdl#setup()
 
 " { vimhdl Syntastic definition
 function! SyntaxCheckers_vhdl_vimhdl_GetLocList() dict
-
-    py vimhdl_sta_t = threading.Thread(target=vhdStaticCheck, args=(vim.current.buffer,))
-    py vimhdl_sta_t.start()
-
-    let conf_file = vimhdl#getConfFile()
-    if conf_file != '' && executable('vcom') 
-        let makeprg = self.makeprgBuild({
-                \'args' : 'messages',
-                \'fname' : ''})
-
-        let errorformat = 'msim %t %n %f %l %m'
-
-        py vimhdl.vim_client.buildByPath(vim.current.buffer)
-        let result = g:vimhdl_latest_build_messages
-    else
-        let result = [{
-            \ 'lnum'     : 0,
-            \ 'bufnr'    : bufnr("%"),
-            \ 'filename' : bufname("%") ,
-            \ 'valid'    : '1',
-            \ 'text'     : "Builder executable not available",
-            \ 'nr'       : 0,
-            \ 'type'     : 'W',
-            \ 'col'      : 0 }]
-    endif
-
-    py vimhdl_sta_t.join()
-
-    return result + g:vimhdl_static_check_result
+    " py vimhdl.vim_client.buildByPath(vim.current.buffer)
+    py vimhdl.vim_client.getMessages(vim.current.buffer)
+    " return []
+    return g:vimhdl_latest_build_messages
 endfunction
 " }
 
