@@ -52,12 +52,12 @@ __END_OF_SCAN__ = re.compile('|'.join([
     r"\bprocess\b",
     ]))
 
-def _getObjectsFromText(text_buffer):
+def _getObjectsFromText(vbuffer):
     """Returns a dict containing the objects found at the given text
     buffer"""
     objects = {}
     lnum = 0
-    for _line in text_buffer:
+    for _line in vbuffer:
         line = re.sub(r"\s*--.*", "", _line)
         scan = __SCANNER__.scanner(line)
         while True:
@@ -87,13 +87,13 @@ def _getObjectsFromText(text_buffer):
 
     return objects
 
-def _getUnusedObjects(text_buffer, objects):
+def _getUnusedObjects(vbuffer, objects):
     """Generator that yields objects that are only found once at the
     given buffer and thus are considered unused (i.e., we only found
     its declaration"""
 
     text = ''
-    for line in text_buffer:
+    for line in vbuffer:
         text += re.sub(r"\s*--.*", "", line) + ' '
 
     for _object in objects:
@@ -107,23 +107,23 @@ def _getUnusedObjects(text_buffer, objects):
         if single:
             yield _object
 
-def vhdStaticCheck(text_buffer=None):
+def vhdStaticCheck(vbuffer=None):
     "VHDL static checking"
     try:
         import vim
     except ImportError:
-        return
-    text_buffer = text_buffer or vim.current.buffer
-    objects = _getObjectsFromText(text_buffer)
+        return 'none'
+    vbuffer = vbuffer or vim.current.buffer
+    objects = _getObjectsFromText(vbuffer)
 
     result = []
 
-    for _object in _getUnusedObjects(text_buffer, objects.keys()):
+    for _object in _getUnusedObjects(vbuffer, objects.keys()):
         obj_dict = objects[_object]
         vim_fmt_dict = vim.Dictionary({
             'lnum'     : obj_dict['lnum'] + 1,
-            'bufnr'    : vim.current.buffer.number,
-            'filename' : vim.current.buffer.name,
+            'bufnr'    : vbuffer.number,
+            'filename' : vbuffer.name,
             'valid'    : '1',
             'text'     : "{obj_type} '{obj_name}' is never used".format(
                 obj_type=obj_dict['type'], obj_name=_object),
@@ -135,6 +135,6 @@ def vhdStaticCheck(text_buffer=None):
 
         result.append(vim_fmt_dict)
 
-    vim.vars['vimhdl_static_check_result'] = vim.List(result)
+    return vim.List(result)
 
 

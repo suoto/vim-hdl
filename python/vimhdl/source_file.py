@@ -27,28 +27,11 @@ _MAX_OPEN_FILES = 100
 # Regexes
 _RE_VALID_NAME_CHECK = re.compile(r"^[a-z]\w*$", flags=re.I)
 
-_RE_PACKAGES = re.compile('|'.join([
-    r"(?<=package)\s+\w+\s+(?=is\b)",
-    r"(?<=package)\s+(?<=body)\s+\w+\s+(?=is\b)",
-    ]), flags=re.I)
-
-_RE_ENTITIES = re.compile(r"(?<=entity)\s+\w+\s+(?=is\b)", flags=re.I)
-
-_RE_DESIGN_UNITS = re.compile('|'.join([
-    _RE_PACKAGES.pattern, _RE_ENTITIES.pattern]), flags=re.I)
-
-_RE_LIBRARIES = re.compile(r"(?<=library)\s+\w+\b", flags=re.I)
-_RE_USE_CLAUSES = re.compile(r"(?<=use)\s+\w+\.\w+\b", flags=re.I)
-
-_RE_WHITESPACES = re.compile(r"^\s*|\s*$")
-
-_RE_PRE_PROC = re.compile(r"\s*--[^\n]*|\s+$|^\s+")
-
 __SCANNER__ = re.compile('|'.join([
-    r"^\s*package\s+(\w+)\s+is\b",
-    r"^\s*package\s+body\s+(\w+)\s+is\b",
-    r"^\s*entity\s+(\w+)\s+is\b",
-    r"^\s*library\s+(\w+)\b",
+    r"^\s*package\s+(?P<package_name>\w+)\s+is\b",
+    r"^\s*package\s+body\s+(?P<package_body_name>\w+)\s+is\b",
+    r"^\s*entity\s+(?P<entity_name>\w+)\s+is\b",
+    r"^\s*library\s+(?P<library_name>\w+)\b",
 ]), flags=re.I)
 
 class VhdlSourceFile(object):
@@ -121,20 +104,22 @@ class VhdlSourceFile(object):
                 if not match:
                     break
 
-                match_text = match.group(match.lastindex)
+                match_dict = match.groupdict()
 
-                unit = {'name' : match_text}
+                unit = None
+                if match_dict['package_name'] is not None:
+                    unit = {'name' : match_dict['package_name'],
+                            'type' : 'package'}
+                elif match_dict['package_body_name'] is not None:
+                    unit = {'name' : match_dict['package_body_name'],
+                            'type' : 'package body'}
+                elif match_dict['entity_name'] is not None:
+                    unit = {'name' : match_dict['entity_name'],
+                            'type' : 'entity'}
+                elif match_dict['library_name'] is not None:
+                    libraries += [match_dict['library_name']]
 
-                if match.lastindex == 1:
-                    unit['type'] = 'package'
-                elif match.lastindex == 2:
-                    unit['type'] = 'package body'
-                elif match.lastindex == 3:
-                    unit['type'] = 'entity'
-                elif match.lastindex == 4:
-                    libraries.append(match_text)
-
-                if 'type' in unit.keys():
+                if unit:
                     self._design_units.append(unit)
 
         lib_deps_regex = re.compile(r'|'.join([ \

@@ -16,13 +16,15 @@
 
 import logging
 import os
+import threading
+from multiprocessing.pool import ThreadPool
 
 # pylint: disable=import-error
 import vim
 # pylint: enable=import-error
 
 import vimhdl.project_builder
-import vimhdl.static_check
+from vimhdl.static_check import vhdStaticCheck
 
 __logger__ = logging.getLogger(__name__)
 __vimhdl_client__ = None
@@ -30,12 +32,42 @@ __vimhdl_client__ = None
 class VimhdlClient(vimhdl.project_builder.ProjectBuilder):
     """Wrapper around vimhdl.project_builder.ProjectBuilder class to
     make the interface between Vim and vim-hdl"""
+
+    _lock = threading.Lock()
+
     def __init__(self, *args, **kwargs):
         super(VimhdlClient, self).__init__(*args, **kwargs)
+        self.startup()
 
-    def buildByDependencyAsync(self, *args, **kwargs):
-        "Builds the project by dependency asynchronously"
-        self.buildByDependency(*args, **kwargs)
+    def startup(self):
+        "Wrapper to setup stuff in background"
+        if self._lock.locked():
+            _postVimMessage("Thread is running, won't do anything")
+            return
+        _postVimMessage("Running vim-hdl setup")
+        threading.Thread(target=self._startupAsync).start()
+
+    def _startupAsync(self):
+        "Read configuration file and build project in background"
+        with self._lock:
+            __logger__.debug("Reading config file")
+            self.readConfigFile()
+            __logger__.debug("Building by dependency")
+            self.buildByDependency()
+
+    def buildByPath(self, *args, **kwargs):
+        if self._lock.locked():
+            return [{
+            'checker'        : 'msim',
+            'line_number'    : '1',
+            'column'         : '',
+            'filename'       : '',
+            'error_number'   : '',
+            'error_type'     : 'W',
+            'error_message'  : 'Project setup is still running, skipping check',}]
+
+        with self._lock:
+            return super(VimhdlClient, self).buildByPath(*args, **kwargs)
 
 def _getConfigFile():
     if 'vimhdl_conf_file' in vim.current.buffer.vars.keys():
@@ -60,10 +92,10 @@ def _getConfigFile():
 def _getProjectObject():
     global __vimhdl_client__
     if __vimhdl_client__ is None:
+        __logger__.debug("__vimhdl_client__ is None!")
         config_file = _getConfigFile()
         __logger__.debug("Config file is '%s'", config_file)
         __vimhdl_client__ = VimhdlClient(config_file)
-        __vimhdl_client__.buildByDependencyAsync()
     return __vimhdl_client__
 
 def onBufRead():
@@ -73,12 +105,12 @@ def onBufRead():
 def onBufWrite():
     __logger__.debug("[%d] Running actions for event 'onBufWrite'",
         vim.current.buffer.number)
-    #  __vimhdl_client__.buildByPath(vim.current.buffer.name)
+    #  __vimhdl_client__.buildBuffer(vim.current.buffer.name)
 
 def onBufWritePost():
     __logger__.info("Wrote buffer number %d", vim.current.buffer.number)
     #  __vimhdl_client__ = _getProjectObject()
-    #  __vimhdl_client__.buildByPath(vim.current.buffer.name)
+    #  __vimhdl_client__.buildBuffer(vim.current.buffer.name)
 
 def onBufEnter():
     __logger__.debug("[%d] Running actions for event 'onBufEnter'",
@@ -136,13 +168,31 @@ def onVimLeave():
         __vimhdl_client__.saveCache()
 
 
+def _sortBuildMessages(records):
+    return sorted(records, key=lambda x: \
+            (x['type'], x['lnum'], x['nr']))
+
+def getMessages(vbuffer):
+    pool = ThreadPool()
+    result = []
+    __logger__.info("Getting messages for %s", vbuffer.name)
+    static_r = pool.apply_async(vhdStaticCheck, args=(vbuffer, ))
+    build_r = pool.apply_async(buildBuffer, args=(vbuffer, ))
+
+    result += static_r.get()
+    result += build_r.get()
+
+    pool.terminate()
+    pool.join()
+
+    vim.vars['vimhdl_latest_build_messages'] = vim.List(_sortBuildMessages(result))
+
 # More info on :help getqflist()
-def buildByPath(vbuffer):
+def buildBuffer(vbuffer):
     __vimhdl_client__ = _getProjectObject()
     result = []
     for message in __vimhdl_client__.buildByPath(vbuffer.name):
         try:
-
             vim_fmt_dict = vim.Dictionary({
                 'lnum'     : message['line_number'] or '',
                 'bufnr'    : vbuffer.number,
@@ -159,9 +209,15 @@ def buildByPath(vbuffer):
 
         result.append(vim_fmt_dict)
 
-    vim.vars['vimhdl_latest_build_messages'] = vim.List(result)
+    return vim.List(result)
 
-def runStaticCheck():
-    assert 0
+# "Borrowed" from YCM (https://github.com/Valloric/YouCompleteMe)
+def _escapeForVim(text):
+    return text.replace("'", "''")
+
+# "Borrowed" from YCM (https://github.com/Valloric/YouCompleteMe)
+def _postVimMessage(message):
+    vim.command("redraw | echohl WarningMsg | echom '{0}' | echohl None"
+        .format(_escapeForVim(str(message))))
 
 

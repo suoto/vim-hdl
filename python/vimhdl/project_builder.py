@@ -51,7 +51,7 @@ class ProjectBuilder(object):
                 'global' : []
                 }
 
-        self._readConfFile()
+        #  self.readConfigFile()
 
     def __getstate__(self):
         "Pickle dump implementation"
@@ -75,7 +75,7 @@ class ProjectBuilder(object):
             '.' + os.path.basename(self._project_file))
         pickle.dump(self, open(cache_fname, 'w'))
 
-    def _readConfFile(self):
+    def readConfigFile(self):
         "Reads the configuration given by self._project_file"
         cache_fname = os.path.join(os.path.dirname(self._project_file), \
             '.' + os.path.basename(self._project_file))
@@ -146,9 +146,13 @@ class ProjectBuilder(object):
             if dependency['unit'] == 'all':
                 continue
             if dependency['library'] == source.library and \
-                    dependency['unit'] in source.getDesignUnits():
+                    dependency['unit'] in [x['name'] for x in source.getDesignUnits()]:
                 continue
             filtered_dependencies += [dependency]
+            #  if source.filename.endswith('leaves.vhd'):
+            #      print "\n".join([str(x) for x in filtered_dependencies])
+            #      print str(source.getDesignUnits())
+            #      assert 0
         return filtered_dependencies
 
     def getBuildSteps(self):
@@ -157,7 +161,6 @@ class ProjectBuilder(object):
         units_built = []
         sources_built = []
         for step in range(self.MAX_BUILD_STEPS):
-            self._logger.debug("Step %d, units built: %s", step, str(units_built))
             empty_step = True
             for source in self.sources.values():
                 design_units = set(["%s.%s" % (source.library, x['name']) \
@@ -182,16 +185,21 @@ class ProjectBuilder(object):
                             str(source),
                             ", ".join([str(x) for x in dependencies - set(units_built)]))
             if empty_step:
+                sources_not_built = False
                 for source in self.sources.values():
                     if source.abspath() not in sources_built:
+                        sources_not_built = True
                         dependencies = set(["{library}.{unit}".format(**x) \
                                 for x in self._filterSourceDependencies(source)])
-                        self._logger.warning("Couldn't build source '%s' due to "
-                            "missing dependencies %s",
+                        self._logger.warning("Couldn't build source '%s'. "
+                            "Missing dependencies: %s",
                             str(source),
                             ", ".join([str(x) for x in dependencies - set(units_built)]))
+                if sources_not_built:
+                    self._logger.warning("Some sources were not built")
 
-
+                self._logger.debug("Braking at step %d. Units built: %s",
+                        step, ", ".join(units_built))
 
                 raise StopIteration()
         assert 0
@@ -226,23 +234,21 @@ class ProjectBuilder(object):
 
         assert not os.system("rm -rf " + target_dir)
 
+    def _sortBuildMessages(self, records):
+        return sorted(records, key=lambda x: \
+                (x['error_type'], x['line_number'], x['error_number']))
+
     def buildByDependency(self):
         "Build the project by checking source file dependencies"
         for source in self.getBuildSteps():
             records, _ = self.builder.build(source,
                     flags=self._build_flags['batch'])
-            for record in records:
-                if record['error_type'] == 'W':
-                    _logger.warn(str(record))
-                elif record['error_type'] == 'E':
-                    _logger.error(str(record))
+            for record in self._sortBuildMessages(records):
+                if record['error_type'] in ('E', 'W'):
+                    _logger.debug(str(record))
                 else:
                     _logger.fatal(str(record))
                     assert 0
-
-    def _sortBuildMessages(self, records):
-        return sorted(records, key=lambda x: \
-                (x['error_type'], x['line_number'], x['error_number']))
 
     def buildByPath(self, path):
         """Finds the library of a given path and builds it. Use the reverse

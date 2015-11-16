@@ -142,6 +142,7 @@ def main(args):
         ProjectBuilder.clean(args.project_file)
 
     project = ProjectBuilder(project_file=args.project_file)
+    project.readConfigFile()
 
     if args.print_dependency_map:
         if args.sources:
