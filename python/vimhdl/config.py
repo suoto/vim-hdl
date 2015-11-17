@@ -24,7 +24,7 @@ class Config(object):
     is_toolchain = None
     thread_limit = 20
     log_file = os.path.sep.join(['', 'tmp', 'build.log'])
-    log_level = logging.INFO
+    log_level = logging.DEBUG
     show_only_current_file = False
 
     # When building a specific source, we can build its first level
@@ -82,7 +82,7 @@ class Config(object):
 
     @staticmethod
     def _setupToolchain():
-        Config.log_level = logging.INFO
+        Config.log_level = logging.DEBUG
         Config._setupFileHandler(Config.log_file)
         Config._logger.info("Setup for toolchain")
         Config.is_toolchain = True

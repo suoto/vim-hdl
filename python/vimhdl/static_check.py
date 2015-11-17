@@ -19,31 +19,29 @@ import logging
 
 __logger__ = logging.getLogger(__name__)
 
-__SCANNER__ = re.compile('|'.join([
-    r"^\s*(\w+)\s*:\s*entity\s+\w+",
-    r"^\s*(\w+)\s*:\s*\w+\s*$",
-    r"^\s*constant\s+(\w+)\s*:",
-    r"^\s*signal\s+(\w+)\s*:",
-    #  r"^\s*type\s+(\w+)\s+is",
-    r"^\s*(\w+)\s*:\s*in\s+\w+",
-    r"^\s*(\w+)\s*:\s*out\s+\w+",
-    r"^\s*(\w+)\s*:\s*inout\s+\w+",
-    r"^\s*(\w+)\s*:\s*\w+[^:]*:=",
-    #  r"^\s*library\s+(\w+)",
-    #  r"^\s*attribute\s+(\w+)\s*:",
-]), flags=re.I)
+__AREA_SCANNER__ = re.compile('|'.join([
+    r"^\s*entity\s+(?P<entity_name>\w+)\s+is\b",
+    r"^\s*architecture\s+(?P<architecture_name>\w+)\s+of\s+(?P<arch_entity>\w+)",
+    r"^\s*package\s+(?P<package_name>\w+)\s+is\b",
+    r"^\s*package\s+body\s+(?P<package_body_name>\w+)\s+is\b",
+    ]), flags=re.I)
 
-__SCANNER_INDEX_TO_TYPE_MAP__ = {
-    3  : 'Constant',
-    4  : 'Signal',
-    5  : 'Type',
-    6  : 'Input port',
-    7  : 'Output port',
-    8  : 'IO port',
-    9  : 'Generic',
-    10 : 'Library',
-    11 : 'Attribute',
-}
+__NO_AREA_SCANNER__ = re.compile('|'.join([
+    r"^\s*library\s+(?P<library>\w+)",
+    r"^\s*attribute\s+(?P<attribute>\w+)\s*:",
+    ]), flags=re.I)
+
+__ENTITY_SCANNER__ = re.compile('|'.join([
+    r"^\s*(?P<port>\w+)\s*:\s*(in|out|inout)\s+\w+",
+    r"^\s*(?P<generic>\w+)\s*:\s*\w+[^:]*:=",
+    ]), flags=re.I)
+
+__ARCH_SCANNER__ = re.compile('|'.join([
+    r"^\s*constant\s+(?P<constant>\w+)\s*:",
+    r"^\s*signal\s+(?P<signal>\w+)\s*:",
+    r"^\s*type\s+(?P<type>\w+)\s*:",
+    r"^\s*shared\s+variable\s+(?P<shared_variable>\w+)\s*:",
+    ]), flags=re.I)
 
 __END_OF_SCAN__ = re.compile('|'.join([
     r"\bport\s+map",
@@ -57,31 +55,44 @@ def _getObjectsFromText(vbuffer):
     buffer"""
     objects = {}
     lnum = 0
+    area = None
     for _line in vbuffer:
         line = re.sub(r"\s*--.*", "", _line)
-        scan = __SCANNER__.scanner(line)
-        while True:
-            match = scan.match()
-            if not match:
-                break
-            start = match.start(match.lastindex)
-            end = match.end(match.lastindex)
-            text = match.group(match.lastindex)
-            __logger__.debug("%d, %d => %s", lnum, match.lastindex, \
-                    repr(match.group(match.lastindex)))
+        for match in __AREA_SCANNER__.finditer(line):
+            _dict = match.groupdict()
+            if _dict['entity_name'] is not None:
+                area = 'entity'
+            elif _dict['architecture_name'] is not None:
+                area = 'architecture'
+            elif _dict['package_name'] is not None:
+                area = 'package'
+            elif _dict['package_body_name'] is not None:
+                area = 'package_body'
 
-            if match.lastindex >= 3:
+        matches = []
+        if area is None:
+            for match in __NO_AREA_SCANNER__.finditer(line):
+                matches += [match]
+        elif area == 'entity':
+            for match in __ENTITY_SCANNER__.finditer(line):
+                matches += [match]
+        elif area == 'architecture':
+            for match in __ARCH_SCANNER__.finditer(line):
+                matches += [match]
+
+        for match in matches:
+            for key, value in match.groupdict().items():
+                if value is None: continue
+                start = match.start(match.lastindex)
+                end = match.end(match.lastindex)
+                text = match.group(match.lastindex)
                 if text not in objects.keys():
                     objects[text] = {}
                 objects[text]['lnum'] = lnum
                 objects[text]['start'] = start
                 objects[text]['end'] = end
-
-            if match.lastindex in __SCANNER_INDEX_TO_TYPE_MAP__.keys():
-                objects[text]['type'] = __SCANNER_INDEX_TO_TYPE_MAP__[match.lastindex]
-
+                objects[text]['type'] = key
         lnum += 1
-
         if __END_OF_SCAN__.findall(line):
             break
 
@@ -109,32 +120,37 @@ def _getUnusedObjects(vbuffer, objects):
 
 def vhdStaticCheck(vbuffer=None):
     "VHDL static checking"
-    try:
-        import vim
-    except ImportError:
-        return 'none'
-    vbuffer = vbuffer or vim.current.buffer
     objects = _getObjectsFromText(vbuffer)
 
     result = []
 
     for _object in _getUnusedObjects(vbuffer, objects.keys()):
         obj_dict = objects[_object]
-        vim_fmt_dict = vim.Dictionary({
-            'lnum'     : obj_dict['lnum'] + 1,
-            'bufnr'    : vbuffer.number,
-            'filename' : vbuffer.name,
-            'valid'    : '1',
-            'text'     : "{obj_type} '{obj_name}' is never used".format(
+        message = {
+            'checker'        : 'vim-hdl/static',
+            'line_number'    : obj_dict['lnum'] + 1,
+            'column'         : obj_dict['start'] + 1,
+            'filename'       : None,
+            'error_number'   : '0',
+            'error_type'     : 'W',
+            'error_subtype'  : 'Style',
+            'error_message'  : "{obj_type} '{obj_name}' is never used".format(
                 obj_type=obj_dict['type'], obj_name=_object),
-            'nr'       : '0',
-            'type'     : 'W',
-            'subtype'  : 'Style',
-            'col'      : obj_dict['start'] + 1
-        })
+            }
 
-        result.append(vim_fmt_dict)
+        result.append(message)
 
-    return vim.List(result)
+    return result
+
+def standalone():
+    import sys
+    for arg in sys.argv[1:]:
+        print arg
+        for message in vhdStaticCheck(open(arg, 'r').read().split('\n')):
+            print message
+        print "="*10
+
+if __name__ == '__main__':
+    standalone()
 
 

@@ -55,16 +55,24 @@ class VimhdlClient(vimhdl.project_builder.ProjectBuilder):
             __logger__.debug("Building by dependency")
             self.buildByDependency()
 
+
+    def saveCache(self):
+        if self._lock.locked():
+            _postVimMessage("Build thread is running, waiting until it "
+                            "finishes before saving project cache...")
+        with self._lock:
+            return super(VimhdlClient, self).saveCache()
+
     def buildByPath(self, *args, **kwargs):
         if self._lock.locked():
             return [{
-            'checker'        : 'msim',
-            'line_number'    : '1',
-            'column'         : '',
-            'filename'       : '',
-            'error_number'   : '',
-            'error_type'     : 'W',
-            'error_message'  : 'Project setup is still running, skipping check',}]
+                'checker'        : 'msim',
+                'line_number'    : '1',
+                'column'         : '',
+                'filename'       : '',
+                'error_number'   : '',
+                'error_type'     : 'W',
+                'error_message'  : 'Project setup is still running, skipping check',}]
 
         with self._lock:
             return super(VimhdlClient, self).buildByPath(*args, **kwargs)
@@ -176,7 +184,7 @@ def getMessages(vbuffer):
     pool = ThreadPool()
     result = []
     __logger__.info("Getting messages for %s", vbuffer.name)
-    static_r = pool.apply_async(vhdStaticCheck, args=(vbuffer, ))
+    static_r = pool.apply_async(runStaticCheck, args=(vbuffer, ))
     build_r = pool.apply_async(buildBuffer, args=(vbuffer, ))
 
     result += static_r.get()
@@ -193,8 +201,8 @@ def buildBuffer(vbuffer):
     result = []
     for message in __vimhdl_client__.buildByPath(vbuffer.name):
         try:
-            vim_fmt_dict = vim.Dictionary({
-                'lnum'     : message['line_number'] or '',
+            vim_fmt_dict = {
+                'lnum'     : message['line_number'] or '-1',
                 'bufnr'    : vbuffer.number,
                 'filename' : message['filename'] or vbuffer.name,
                 'valid'    : '1',
@@ -202,12 +210,35 @@ def buildBuffer(vbuffer):
                 'nr'       : message['error_number'] or '0',
                 'type'     : message['error_type'] or 'E',
                 'col'      : message['column'] or '0'
-            })
+            }
+            __logger__.debug("Vim qf dict: %s", repr(vim_fmt_dict))
+            result.append(vim.Dictionary(vim_fmt_dict))
         except:
-            print str(message)
-            raise
+            __logger__.exception("Error processing message '%s'", str(message))
+            _postVimMessage("Error processing message '%s'" % str(message))
 
-        result.append(vim_fmt_dict)
+    return vim.List(result)
+
+def runStaticCheck(vbuffer):
+    result = []
+    for message in vhdStaticCheck(vbuffer):
+        try:
+            vim_fmt_dict = {
+                'lnum'     : message['line_number'] or '-1',
+                'bufnr'    : vbuffer.number,
+                'filename' : message['filename'] or vbuffer.name,
+                'valid'    : '1',
+                'text'     : message['error_message'] or '<none>',
+                'nr'       : message['error_number'] or '0',
+                'type'     : message['error_type'] or 'E',
+                'subtype'  : message['error_subtype'] or '',
+                'col'      : message['column'] or '0'
+            }
+            __logger__.debug("Vim qf dict: %s", repr(vim_fmt_dict))
+            result.append(vim.Dictionary(vim_fmt_dict))
+        except:
+            __logger__.exception("Error processing message '%s'", str(message))
+            _postVimMessage("Error processing message '%s'" % str(message))
 
     return vim.List(result)
 
