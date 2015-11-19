@@ -16,6 +16,7 @@
 
 import logging
 import os
+import time
 import threading
 from multiprocessing.pool import ThreadPool
 
@@ -42,9 +43,9 @@ class VimhdlClient(vimhdl.project_builder.ProjectBuilder):
     def startup(self):
         "Wrapper to setup stuff in background"
         if self._lock.locked():
-            _postVimMessage("Thread is running, won't do anything")
+            _postVimWarning("Thread is running, won't do anything")
             return
-        _postVimMessage("Running vim-hdl setup")
+        _postVimWarning("Running vim-hdl setup")
         threading.Thread(target=self._startupAsync).start()
 
     def _startupAsync(self):
@@ -57,7 +58,7 @@ class VimhdlClient(vimhdl.project_builder.ProjectBuilder):
 
     def saveCache(self):
         if self._lock.locked():
-            _postVimMessage("Build thread is running, waiting until it "
+            _postVimWarning("Build thread is running, waiting until it "
                             "finishes before saving project cache...")
         with self._lock:
             return super(VimhdlClient, self).saveCache()
@@ -78,30 +79,47 @@ class VimhdlClient(vimhdl.project_builder.ProjectBuilder):
         dependencies = set(["%s.%s" % (x['library'], x['unit']) \
                 for x in self._filterSourceDependencies(source)])
 
-        self._logger.debug("Source '%s' depends on %s", str(source),
+        self._logger.debug("Source '%s' depends on %s", str(source), \
                 ", ".join(["'%s'" % str(x) for x in dependencies]))
 
         if dependencies.issubset(set(self._units_built)):
-            self._logger.debug("Dependencies for source '%s' are met",
+            self._logger.debug("Dependencies for source '%s' are met", \
                     str(source))
             return super(VimhdlClient, self).buildByPath(path)
 
         if self._lock.locked():
-            _postVimMessage("Project setup is still running...")
+            _postVimWarning("Project setup is still running...")
             return []
 
         with self._lock:
             return super(VimhdlClient, self).buildByPath(path)
 
 def _getConfigFile():
+    """Searches for a valid vimhdl configuration file in buffer vars
+    (i.e., inside b:) then in global vars (i.e., inside g:)
+    """
+    conf_file = None
     if 'vimhdl_conf_file' in vim.current.buffer.vars.keys():
-        __logger__.debug("Using config file from buffer dict")
         conf_file = vim.current.buffer.vars['vimhdl_conf_file']
-    elif 'vimhdl_conf_file' in vim.vars.keys():
-        __logger__.debug("Using config file from global dict")
-        conf_file = vim.vars['vimhdl_conf_file']
-    else:
-        __logger__.warning("No config file specified")
+        if os.path.exists(conf_file):
+            __logger__.debug("Using config file from buffer dict")
+        else:
+            __logger__.warning("Buffer config file '%s' is set but not " \
+                    "readable", conf_file)
+            conf_file = None
+
+    if conf_file is None:
+        if 'vimhdl_conf_file' in vim.vars.keys():
+            conf_file = vim.vars['vimhdl_conf_file']
+            if os.path.exists(conf_file):
+                __logger__.debug("Using config file from global dict")
+            else:
+                __logger__.warning("Global config file '%s' is set but not " \
+                        "readable", conf_file)
+                conf_file = None
+
+    if conf_file is None:
+        __logger__.warning("Couldn't find a valid config file")
         return
 
     conf_file_full_path = os.path.abspath(os.path.expanduser(conf_file))
@@ -111,10 +129,9 @@ def _getConfigFile():
     else:
         __logger__.warning("Config file '%s' doesn't exists", conf_file_full_path)
 
-#  pylint: disable=redefined-outer-name,missing-docstring
-
 def _getProjectObject():
-    global __vimhdl_client__
+    "Try to get a valid configuration file and create the project object"
+    global __vimhdl_client__ # pylint: disable=global-statement
     if __vimhdl_client__ is None:
         __logger__.debug("__vimhdl_client__ is None!")
         config_file = _getConfigFile()
@@ -123,78 +140,81 @@ def _getProjectObject():
             __vimhdl_client__ = VimhdlClient(config_file)
     return __vimhdl_client__
 
+#  pylint: disable=missing-docstring
 def onBufRead():
-    __logger__.debug("[%d] Running actions for event 'onBufRead'",
+    __logger__.debug("[%d] Running actions for event 'onBufRead'", \
         vim.current.buffer.number)
 
 def onBufWrite():
-    __logger__.debug("[%d] Running actions for event 'onBufWrite'",
+    __logger__.debug("[%d] Running actions for event 'onBufWrite'", \
         vim.current.buffer.number)
 
 def onBufWritePost():
     __logger__.info("Wrote buffer number %d", vim.current.buffer.number)
 
 def onBufEnter():
-    __logger__.debug("[%d] Running actions for event 'onBufEnter'",
+    __logger__.debug("[%d] Running actions for event 'onBufEnter'", \
         vim.current.buffer.number)
 
 def onBufLeave():
-    __logger__.debug("[%d] Running actions for event 'onBufLeave'",
+    __logger__.debug("[%d] Running actions for event 'onBufLeave'", \
         vim.current.buffer.number)
 
 def onBufWinEnter():
+    global __vimhdl_client__ # pylint: disable=global-statement
     __vimhdl_client__ = _getProjectObject()
-    __logger__.debug("[%d] Running actions for event 'onBufWinEnter'",
+    __logger__.debug("[%d] Running actions for event 'onBufWinEnter'", \
         vim.current.buffer.number)
 
 def onBufWinLeave():
-    __logger__.debug("[%d] Running actions for event 'onBufWinLeave'",
+    __logger__.debug("[%d] Running actions for event 'onBufWinLeave'", \
         vim.current.buffer.number)
 
 def onFocusGained():
-    __logger__.debug("[%d] Running actions for event 'onFocusGained'",
+    __logger__.debug("[%d] Running actions for event 'onFocusGained'", \
         vim.current.buffer.number)
 
 def onFocusLost():
-    __logger__.debug("[%d] Running actions for event 'onFocusLost'",
+    __logger__.debug("[%d] Running actions for event 'onFocusLost'", \
         vim.current.buffer.number)
 
 def onCursorHold():
-    __logger__.debug("[%d] Running actions for event 'onCursorHold'",
+    __logger__.debug("[%d] Running actions for event 'onCursorHold'", \
         vim.current.buffer.number)
 
 def onCursorHoldI():
-    __logger__.debug("[%d] Running actions for event 'onCursorHoldI'",
+    __logger__.debug("[%d] Running actions for event 'onCursorHoldI'", \
         vim.current.buffer.number)
 
 def onWinEnter():
-    __logger__.debug("[%d] Running actions for event 'onWinEnter'",
+    __logger__.debug("[%d] Running actions for event 'onWinEnter'", \
         vim.current.buffer.number)
 
 def onWinLeave():
-    __logger__.debug("[%d] Running actions for event 'onWinLeave'",
+    __logger__.debug("[%d] Running actions for event 'onWinLeave'", \
         vim.current.buffer.number)
 
 def onTabEnter():
-    __logger__.debug("[%d] Running actions for event 'onTabEnter'",
+    __logger__.debug("[%d] Running actions for event 'onTabEnter'", \
         vim.current.buffer.number)
 
 def onTabLeave():
-    __logger__.debug("[%d] Running actions for event 'onTabLeave'",
+    __logger__.debug("[%d] Running actions for event 'onTabLeave'", \
         vim.current.buffer.number)
 
 def onVimLeave():
-    __logger__.debug("[%d] Running actions for event 'onVimLeave'",
+    __logger__.debug("[%d] Running actions for event 'onVimLeave'", \
         vim.current.buffer.number)
     if __vimhdl_client__ is not None:
         __vimhdl_client__.saveCache()
-
 
 def _sortBuildMessages(records):
     return sorted(records, key=lambda x: \
             (x['type'], x['lnum'], x['nr']))
 
 def getMessages(vbuffer):
+    start = time.time()
+
     pool = ThreadPool()
     result = []
     __logger__.info("Getting messages for %s", vbuffer.name)
@@ -207,11 +227,13 @@ def getMessages(vbuffer):
     pool.terminate()
     pool.join()
 
+    end = time.time()
+
+    _postVimInfo("Building took %.2fs" % (end - start))
     vim.vars['vimhdl_latest_build_messages'] = vim.List(_sortBuildMessages(result))
 
 # More info on :help getqflist()
 def buildBuffer(vbuffer):
-    __vimhdl_client__ = _getProjectObject()
     if __vimhdl_client__ is None:
         return vim.List([])
     result = []
@@ -229,9 +251,9 @@ def buildBuffer(vbuffer):
             }
             __logger__.debug("Vim qf dict: %s", repr(vim_fmt_dict))
             result.append(vim.Dictionary(vim_fmt_dict))
-        except:
+        except: # pylint: disable=bare-except
             __logger__.exception("Error processing message '%s'", str(message))
-            _postVimMessage("Error processing message '%s'" % str(message))
+            _postVimWarning("Error processing message '%s'" % str(message))
 
     return vim.List(result)
 
@@ -254,17 +276,21 @@ def runStaticCheck(vbuffer):
             result.append(vim.Dictionary(vim_fmt_dict))
         except BaseException:
             __logger__.exception("Error processing message '%s'", str(message))
-            _postVimMessage("Error processing message '%s'" % str(message))
+            _postVimWarning("Error processing message '%s'" % str(message))
 
     return vim.List(result)
 
-# "Borrowed" from YCM (https://github.com/Valloric/YouCompleteMe)
+# Vim message functions were "Borrowed" from YCM.
+# See https://github.com/Valloric/YouCompleteMe
 def _escapeForVim(text):
     return text.replace("'", "''")
 
-# "Borrowed" from YCM (https://github.com/Valloric/YouCompleteMe)
-def _postVimMessage(message):
-    vim.command("redraw | echohl WarningMsg | echom '{0}' | echohl None"
+def _postVimWarning(message):
+    vim.command("redraw | echohl WarningMsg | echom '{0}' | echohl None" \
+        .format(_escapeForVim(str(message))))
+
+def _postVimInfo(message):
+    vim.command("redraw | echom '{0}' | echohl None" \
         .format(_escapeForVim(str(message))))
 
 
