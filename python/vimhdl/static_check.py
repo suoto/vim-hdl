@@ -32,7 +32,7 @@ __NO_AREA_SCANNER__ = re.compile('|'.join([
     ]), flags=re.I)
 
 __ENTITY_SCANNER__ = re.compile('|'.join([
-    r"^\s*(?P<port>\w+)\s*:\s*(in|out|inout)\s+\w+",
+    r"^\s*(?P<port>\w+)\s*:\s*(in|out|inout|buffer|linkage)\s+\w+",
     r"^\s*(?P<generic>\w+)\s*:\s*\w+[^:]*:=",
     ]), flags=re.I)
 
@@ -83,9 +83,15 @@ def _getObjectsFromText(vbuffer):
         for match in matches:
             for key, value in match.groupdict().items():
                 if value is None: continue
-                start = match.start(match.lastindex)
-                end = match.end(match.lastindex)
-                text = match.group(match.lastindex)
+                _group_d = match.groupdict()
+                index = match.lastindex
+                # Need to decrement the last index because we have a group that
+                # catches the port type (in, out, inout, etc)
+                if 'port' in _group_d.keys() and _group_d['port'] is not None:
+                    index -= 1
+                start = match.start(index)
+                end = match.end(index)
+                text = match.group(index)
                 if text not in objects.keys():
                     objects[text] = {}
                 objects[text]['lnum'] = lnum
@@ -96,6 +102,12 @@ def _getObjectsFromText(vbuffer):
         if __END_OF_SCAN__.findall(line):
             break
 
+    if objects:
+        __logger__.debug("Objects found:")
+        for _name, _object in objects.items():
+            __logger__.debug("%s => %s", _name, str(_object))
+    else:
+        __logger__.debug("No objects found")
     return objects
 
 def _getUnusedObjects(vbuffer, objects):
@@ -144,6 +156,7 @@ def vhdStaticCheck(vbuffer=None):
 
 def standalone():
     import sys
+    logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
     for arg in sys.argv[1:]:
         print arg
         for message in vhdStaticCheck(open(arg, 'r').read().split('\n')):
