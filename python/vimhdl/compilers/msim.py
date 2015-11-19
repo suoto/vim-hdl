@@ -12,6 +12,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with vim-hdl.  If not, see <http://www.gnu.org/licenses/>.
+"ModelSim builder implementation"
 
 import os
 import re
@@ -207,18 +208,16 @@ class MSim(BaseCompiler):
     def _doBuild(self, source, flags=None):
         self.createOrMapLibrary(source.library)
 
-        cmd = ['vcom', '-modelsimini', self._modelsim_ini,
-                '-work', os.path.join(self._target_folder, source.library)]
-        cmd += source.flags
-        if flags:
-            cmd += flags
+        cmd = ['vcom', '-modelsimini', self._modelsim_ini, '-work', \
+                os.path.join(self._target_folder, source.library)]
+        cmd += flags
         cmd += [source.filename]
 
         self._logger.debug(" ".join(cmd))
 
         try:
-            stdout = list(subprocess.check_output(cmd,
-                stderr=subprocess.STDOUT).split("\n"))
+            stdout = list(subprocess.check_output(cmd, \
+                    stderr=subprocess.STDOUT).split("\n"))
         except subprocess.CalledProcessError as exc:
             stdout = list(exc.output.split("\n"))
 

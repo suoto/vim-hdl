@@ -91,8 +91,12 @@ class BaseCompiler(object):
             self._logger.info("Building %s because it has changed", str(source))
 
         if build:
+            # Build a set of unique flags and pass it as tuple
+            build_flags = set()
+            build_flags.update(source.flags)
+            build_flags.update(flags)
             with self._lock:
-                records, rebuilds = self._doBuild(source, flags=flags)
+                records, rebuilds = self._doBuild(source, flags=tuple(build_flags))
 
             cached_info['compile_time'] = source.getmtime()
             cached_info['records'] = records

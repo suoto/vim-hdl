@@ -26,7 +26,7 @@ class ExtendedConfigParser(ConfigParser.SafeConfigParser):
         entry = self.get(section, option)
         entry = _RE_LEADING_AND_TRAILING_WHITESPACES.sub("", entry)
         if entry:
-            return _RE_MULTIPLE_WHITESPACES.split(entry)
+            return tuple(set(_RE_MULTIPLE_WHITESPACES.split(entry)))
         else:
-            return []
+            return ()
 
