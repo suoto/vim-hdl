@@ -18,16 +18,17 @@ import logging
 import os
 import abc
 import time
-
-from vimhdl.config import Config
+from threading import Lock
 
 _logger = logging.getLogger(__name__)
-
 
 class BaseCompiler(object):
     "Class that implements the base compiler flow"
 
     __metaclass__ = abc.ABCMeta
+
+    # Shell accesses must be atomic
+    _lock = Lock()
 
     def __init__(self, target_folder):
         self._logger = logging.getLogger(__name__)
@@ -55,21 +56,9 @@ class BaseCompiler(object):
         classes. Nothing is done with the return, the child class should
         raise an exception by itself"""
 
-    #  @abc.abstractmethod
-    #  def _preBuild(self, library, source):
-    #      """Callback called before building anything. Usually to create
-    #      stuff needed by the compiler (library, clean up, checking,
-    #      etc"""
-
     @abc.abstractmethod
     def _doBuild(self, source, flags=None):
         """Callback called to actually build the source"""
-
-    #  @abc.abstractmethod
-    #  def _postBuild(self, library, source, stdout):
-    #      """Callback to process output to stdout by the compiler.
-    #      Use this to parse the output and find errors and warnings
-    #      issued"""
 
     def __getstate__(self):
         state = self.__dict__.copy()
@@ -102,7 +91,8 @@ class BaseCompiler(object):
             self._logger.info("Building %s because it has changed", str(source))
 
         if build:
-            records, rebuilds = self._doBuild(source, flags=flags)
+            with self._lock:
+                records, rebuilds = self._doBuild(source, flags=flags)
 
             cached_info['compile_time'] = source.getmtime()
             cached_info['records'] = records
@@ -115,9 +105,5 @@ class BaseCompiler(object):
             records = cached_info['records']
             rebuilds = cached_info['rebuilds']
 
-        if not Config.cache_error_messages and errors or rebuilds:
-            cached_info['compile_time'] = 0
-
         return records, rebuilds
-
 
