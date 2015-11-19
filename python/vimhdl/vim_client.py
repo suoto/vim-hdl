@@ -55,7 +55,6 @@ class VimhdlClient(vimhdl.project_builder.ProjectBuilder):
             __logger__.debug("Building by dependency")
             self.buildByDependency()
 
-
     def saveCache(self):
         if self._lock.locked():
             _postVimMessage("Build thread is running, waiting until it "
@@ -63,8 +62,10 @@ class VimhdlClient(vimhdl.project_builder.ProjectBuilder):
         with self._lock:
             return super(VimhdlClient, self).saveCache()
 
-    def buildByPath(self, *args, **kwargs):
-        if self._lock.locked():
+    def buildByPath(self, path):
+        try:
+            source = self.sources[os.path.abspath(path)]
+        except KeyError:
             return [{
                 'checker'        : 'msim',
                 'line_number'    : '1',
@@ -72,10 +73,25 @@ class VimhdlClient(vimhdl.project_builder.ProjectBuilder):
                 'filename'       : '',
                 'error_number'   : '',
                 'error_type'     : 'W',
-                'error_message'  : 'Project setup is still running, skipping check',}]
+                'error_message'  : 'File not found in project file'}]
+
+        dependencies = set(["%s.%s" % (x['library'], x['unit']) \
+                for x in self._filterSourceDependencies(source)])
+
+        self._logger.debug("Source '%s' depends on %s", str(source),
+                ", ".join(["'%s'" % str(x) for x in dependencies]))
+
+        if dependencies.issubset(set(self._units_built)):
+            self._logger.debug("Dependencies for source '%s' are met",
+                    str(source))
+            return super(VimhdlClient, self).buildByPath(path)
+
+        if self._lock.locked():
+            _postVimMessage("Project setup is still running...")
+            return []
 
         with self._lock:
-            return super(VimhdlClient, self).buildByPath(*args, **kwargs)
+            return super(VimhdlClient, self).buildByPath(path)
 
 def _getConfigFile():
     if 'vimhdl_conf_file' in vim.current.buffer.vars.keys():
@@ -103,7 +119,8 @@ def _getProjectObject():
         __logger__.debug("__vimhdl_client__ is None!")
         config_file = _getConfigFile()
         __logger__.debug("Config file is '%s'", config_file)
-        __vimhdl_client__ = VimhdlClient(config_file)
+        if config_file:
+            __vimhdl_client__ = VimhdlClient(config_file)
     return __vimhdl_client__
 
 def onBufRead():
@@ -113,12 +130,9 @@ def onBufRead():
 def onBufWrite():
     __logger__.debug("[%d] Running actions for event 'onBufWrite'",
         vim.current.buffer.number)
-    #  __vimhdl_client__.buildBuffer(vim.current.buffer.name)
 
 def onBufWritePost():
     __logger__.info("Wrote buffer number %d", vim.current.buffer.number)
-    #  __vimhdl_client__ = _getProjectObject()
-    #  __vimhdl_client__.buildBuffer(vim.current.buffer.name)
 
 def onBufEnter():
     __logger__.debug("[%d] Running actions for event 'onBufEnter'",
@@ -198,6 +212,8 @@ def getMessages(vbuffer):
 # More info on :help getqflist()
 def buildBuffer(vbuffer):
     __vimhdl_client__ = _getProjectObject()
+    if __vimhdl_client__ is None:
+        return vim.List([])
     result = []
     for message in __vimhdl_client__.buildByPath(vbuffer.name):
         try:
@@ -236,7 +252,7 @@ def runStaticCheck(vbuffer):
             }
             __logger__.debug("Vim qf dict: %s", repr(vim_fmt_dict))
             result.append(vim.Dictionary(vim_fmt_dict))
-        except:
+        except BaseException:
             __logger__.exception("Error processing message '%s'", str(message))
             _postVimMessage("Error processing message '%s'" % str(message))
 
