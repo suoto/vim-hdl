@@ -70,16 +70,12 @@ class VhdlSourceFile(object):
 
     def _parse(self):
         "Wraps self._doParse with lock acquire/release"
-        try:
-            # If we need to parse, acquire the lock
-            self._lock.acquire()
+        with self._lock:
             # We have the lock, so if the source changed, parse it!
             if self.changed():
                 _logger.debug("Parsing %s", str(self))
                 self._mtime = self.getmtime()
                 self._doParse()
-        finally:
-            self._lock.release()
 
     def changed(self):
         return self.getmtime() > self._mtime

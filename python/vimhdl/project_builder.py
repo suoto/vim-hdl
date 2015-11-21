@@ -21,15 +21,11 @@ try:
 except ImportError:
     import pickle
 
-#  from vimhdl.library import Library
 from vimhdl.compilers.msim import MSim
 from vimhdl.config_parser import ExtendedConfigParser
 from vimhdl.source_file import VhdlSourceFile
 
 # pylint: disable=bad-continuation
-
-def saveCache(obj, fname):
-    pickle.dump(obj, open(fname, 'w'))
 
 _logger = logging.getLogger('build messages')
 
@@ -44,13 +40,7 @@ class ProjectBuilder(object):
         self._conf_file_timestamp = 0
         self._project_file = project_file
 
-        self._build_flags = {
-                'batch' : [],
-                'single' : [],
-                'global' : []
-                }
-
-        self._units_built = []
+        self._build_flags = {'batch' : [], 'single' : [], 'global' : []}
 
     def __getstate__(self):
         "Pickle dump implementation"
@@ -68,11 +58,6 @@ class ProjectBuilder(object):
         self._logger.setLevel(logging.INFO)
         del state['_logger']
         self.__dict__.update(state)
-
-    def saveCache(self):
-        cache_fname = os.path.join(os.path.dirname(self._project_file), \
-            '.' + os.path.basename(self._project_file))
-        pickle.dump(self, open(cache_fname, 'w'))
 
     def readConfigFile(self):
         "Reads the configuration given by self._project_file"
@@ -139,61 +124,11 @@ class ProjectBuilder(object):
                     _source.flags = set(self._build_flags['global'])
                 self.sources[_source.abspath()] = _source
 
-    def _filterSourceDependencies(self, source):
-        filtered_dependencies = []
-        for dependency in source.getDependencies():
-            if dependency['library'] in self.builder.builtin_libraries:
-                continue
-            if dependency['unit'] == 'all':
-                continue
-            if dependency['library'] == source.library and \
-                    dependency['unit'] in [x['name'] for x in source.getDesignUnits()]:
-                continue
-            filtered_dependencies += [dependency]
-        return filtered_dependencies
-
-    def getBuildSteps(self):
-        """Yields a dict that has all the library/sources that can be
-        built on a given step"""
-        sources_built = []
-        for step in range(self.MAX_BUILD_STEPS):
-            empty_step = True
-            for source in self.sources.values():
-                design_units = set(["%s.%s" % (source.library, x['name']) \
-                        for x in source.getDesignUnits()])
-                if design_units.issubset(self._units_built):
-                    continue
-
-                dependencies = set(["%s.%s" % (x['library'], x['unit']) \
-                        for x in self._filterSourceDependencies(source)])
-
-                self._logger.debug("Source '%s' depends on %s", str(source),
-                        ", ".join(["'%s'" % str(x) for x in dependencies]))
-
-                if dependencies.issubset(set(self._units_built)):
-                    if source.abspath() not in sources_built:
-                        sources_built += [source.abspath()]
-                    empty_step = False
-                    yield source
-            if empty_step:
-                sources_not_built = False
-                for source in self.sources.values():
-                    if source.abspath() not in sources_built:
-                        sources_not_built = True
-                        dependencies = set(["%s.%s" % (x['library'], x['unit']) \
-                                for x in self._filterSourceDependencies(source)])
-                        self._logger.warning("Couldn't build source '%s'. "
-                            "Missing dependencies: %s",
-                            str(source),
-                            ", ".join([str(x) for x in dependencies - set(self._units_built)]))
-                if sources_not_built:
-                    self._logger.warning("Some sources were not built")
-
-                self._logger.debug("Braking at step %d. Units built: %s",
-                        step, ", ".join(self._units_built))
-
-                raise StopIteration()
-        #  assert 0
+    def saveCache(self):
+        "Dumps project object to a file to recover its state later"
+        cache_fname = os.path.join(os.path.dirname(self._project_file), \
+            '.' + os.path.basename(self._project_file))
+        pickle.dump(self, open(cache_fname, 'w'))
 
     def cleanCache(self):
         "Remove the cached project data and clean all libraries as well"
@@ -209,7 +144,7 @@ class ProjectBuilder(object):
     @staticmethod
     def clean(project_file):
         "Clean up generated files for a clean build"
-        _logger = logging.getLogger(__name__)
+        _logger = logging.getLogger(__name__) # pylint: disable=redefined-outer-name
         cache_fname = os.path.join(os.path.dirname(project_file), \
             '.' + os.path.basename(project_file))
 
@@ -225,75 +160,106 @@ class ProjectBuilder(object):
 
         assert not os.system("rm -rf " + target_dir)
 
+    def _findSourceByDesignUnit(self, design_unit):
+        "Finds the source files that have 'design_unit' defined"
+        sources = []
+        for source in self.sources.values():
+            design_units = set(["%s.%s" % (source.library, x['name']) \
+                    for x in source.getDesignUnits()])
+            if design_unit in design_units:
+                sources += [source]
+        assert sources, "Design unit %s not found" % design_unit
+        return sources
+
+    def _translateSourceDependencies(self, source):
+        """Translate raw dependency list parsed from a given source to the
+        project name space"""
+        filtered_dependencies = []
+        for dependency in source.getDependencies():
+            if dependency['library'] in self.builder.builtin_libraries:
+                continue
+            if dependency['unit'] == 'all':
+                continue
+            if dependency['library'] == source.library and \
+                    dependency['unit'] in [x['name'] for x in source.getDesignUnits()]:
+                continue
+            filtered_dependencies += [dependency]
+        return filtered_dependencies
+
+    def _getBuildSteps(self):
+        "Yields source objects that can be built given the units already built"
+        units_built = []
+        sources_built = []
+        for step in range(self.MAX_BUILD_STEPS):
+            empty_step = True
+            for source in self.sources.values():
+                design_units = set(["%s.%s" % (source.library, x['name']) \
+                        for x in source.getDesignUnits()])
+                if design_units.issubset(units_built):
+                    continue
+
+                dependencies = set(["%s.%s" % (x['library'], x['unit']) \
+                        for x in self._translateSourceDependencies(source)])
+
+                self._logger.debug("Source '%s' depends on %s", str(source),
+                        ", ".join(["'%s'" % str(x) for x in dependencies]))
+
+                if dependencies.issubset(set(units_built)):
+                    if source.abspath() not in sources_built:
+                        units_built += list(design_units)
+                        sources_built += [source.abspath()]
+                        empty_step = False
+                        yield source
+            if empty_step:
+                sources_not_built = False
+                for source in self.sources.values():
+                    if source.abspath() not in sources_built:
+                        sources_not_built = True
+                        dependencies = set(["%s.%s" % (x['library'], x['unit']) \
+                                for x in self._translateSourceDependencies(source)])
+                        self._logger.warning("Couldn't build source '%s'. "
+                            "Missing dependencies: %s",
+                            str(source), ", ".join(
+                                [str(x) for x in dependencies - set(units_built)]))
+                if sources_not_built:
+                    self._logger.warning("Some sources were not built")
+
+                self._logger.info("Braking at step %d. Units built: %s",
+                        step, ", ".join(sorted(units_built)))
+
+                raise StopIteration()
+
     def _sortBuildMessages(self, records):
+        "Sorts a given set of build records"
         return sorted(records, key=lambda x: \
                 (x['error_type'], x['line_number'], x['error_number']))
 
     def buildByDependency(self):
         "Build the project by checking source file dependencies"
-        for source in self.getBuildSteps():
+        built = 0
+        errors = 0
+        warnings = 0
+        for source in self._getBuildSteps():
             records, _ = self.builder.build(source,
                     flags=self._build_flags['batch'])
-            has_error = False
             for record in self._sortBuildMessages(records):
-                if record['error_type'] in ('E', 'W'):
+                if record['error_type'] == 'E':
+                    _logger.warning(str(record))
+                    errors += 1
+                elif record['error_type'] == 'W':
                     _logger.debug(str(record))
-                    if record['error_type'] == 'E':
-                        has_error = True
+                    warnings += 1
                 else:
                     _logger.fatal(str(record))
                     assert 0
-            if not has_error:
-                design_units = set(["%s.%s" % (source.library, x['name']) \
-                        for x in source.getDesignUnits()])
-                self._logger.debug("Source '%s' had no errors, adding design "
-                        "units '%s' to database", str(source),
-                        ", ".join([str(x) for x in design_units]))
-                self._units_built += list(design_units)
+            built += 1
+        self._logger.info("Done. Built %d sources, %d errors and %d warnings",
+                built, errors, warnings)
 
-    def _getDependenciesRecursively(self, path):
-        source = self.sources[os.path.abspath(path)]
-        dependencies = set(["%s.%s" % (x['library'], x['unit']) \
-                for x in self._filterSourceDependencies(source)])
+    def buildByPath(self, path, batch_mode=False):
+        """Builds a given source file handling rebuild of units reported by the
+        compiler"""
 
-        dependency_sources = []
-
-        for _source_path, _source in self.sources.items():
-            design_units = set(["%s.%s" % (_source.library, x['name']) \
-                    for x in _source.getDesignUnits()])
-            match = False
-            for dependency in dependencies:
-                if dependency in design_units:
-                    match = True
-                    break
-            if match:
-                dependency_sources += [_source]
-                for dep_source in self._getDependenciesRecursively(_source_path):
-                    while dep_source in dependency_sources:
-                        dependency_sources.remove(dep_source)
-                    dependency_sources.insert(0, dep_source)
-
-        return dependency_sources
-
-    def buildByPathWithRecursion(self, path):
-        build_records = []
-        for source in self._getDependenciesRecursively(path):
-            print str(source.abspath())
-            self.builder._build_info_cache[source.abspath()] = {
-                    'compile_time': 0,
-                    'size' : 0,
-                    'rebuilds' : [],
-                    'records': ()
-                    }
-
-        self.buildByDependency()
-        return self.buildByPath(path)
-
-
-    def buildByPath(self, path):
-        """Finds the library of a given path and builds it. Use the reverse
-        dependency map to reset the compile time of the sources that depend on
-        'path' to build later"""
         if os.path.abspath(path) not in self.sources.keys():
             return [{
                 'checker'        : 'msim',
@@ -305,9 +271,23 @@ class ProjectBuilder(object):
                 'error_message'  : "Source '%s' not found on the configuration file" % path,
             }]
 
-        records, _ = self.builder.build(
+        flags = self._build_flags['batch'] if batch_mode else \
+                self._build_flags['single']
+
+        records, rebuilds = self.builder.build(
                 self.sources[os.path.abspath(path)], forced=True,
-                flags=self._build_flags['single'])
+                flags=flags)
+
+        if rebuilds:
+            source = self.sources[os.path.abspath(path)]
+            rebuild_units = ["%s.%s" % (x[0], x[1]) for x in rebuilds]
+
+            self._logger.info("Building '%s' triggers rebuild of units: %s",
+                    source, ", ".join(rebuild_units))
+            for rebuild_unit in rebuild_units:
+                for rebuild_source in self._findSourceByDesignUnit(rebuild_unit):
+                    self.buildByPath(rebuild_source.abspath(), batch_mode=True)
+            return self.buildByPath(path)
 
         return self._sortBuildMessages(records)
 

@@ -45,7 +45,7 @@ class VimhdlClient(vimhdl.project_builder.ProjectBuilder):
         if self._lock.locked():
             _postVimWarning("Thread is running, won't do anything")
             return
-        _postVimWarning("Running vim-hdl setup")
+        _postVimInfo("Running vim-hdl setup")
         threading.Thread(target=self._startupAsync).start()
 
     def _startupAsync(self):
@@ -63,36 +63,42 @@ class VimhdlClient(vimhdl.project_builder.ProjectBuilder):
         with self._lock:
             return super(VimhdlClient, self).saveCache()
 
-    def buildByPath(self, path):
+    def buildSource(self, path, *args, **kwargs):
+        "Wrapper around buildByPath to handle UI threading properly"
+
         try:
             source = self.sources[os.path.abspath(path)]
         except KeyError:
-            return [{
+            msg = {
                 'checker'        : 'msim',
-                'line_number'    : '1',
+                'line_number'    : '',
                 'column'         : '',
                 'filename'       : '',
                 'error_number'   : '',
                 'error_type'     : 'W',
-                'error_message'  : 'File not found in project file'}]
+                'error_message'  : 'File not found in project file'}
+            if self._lock.locked():
+                msg['error_message'] += ' (setup it still active, try again ' \
+                        'after it finishes)'
+            return [msg]
 
         dependencies = set(["%s.%s" % (x['library'], x['unit']) \
-                for x in self._filterSourceDependencies(source)])
+                for x in self._translateSourceDependencies(source)])
 
         self._logger.debug("Source '%s' depends on %s", str(source), \
                 ", ".join(["'%s'" % str(x) for x in dependencies]))
 
-        if dependencies.issubset(set(self._units_built)):
-            self._logger.debug("Dependencies for source '%s' are met", \
-                    str(source))
-            return super(VimhdlClient, self).buildByPath(path)
+        #  if dependencies.issubset(set(self._units_built)):
+        #      self._logger.debug("Dependencies for source '%s' are met", \
+        #              str(source))
+            #  return super(VimhdlClient, self).buildByPath(path)
 
         if self._lock.locked():
             _postVimWarning("Project setup is still running...")
             return []
 
         with self._lock:
-            return super(VimhdlClient, self).buildByPath(path)
+            return super(VimhdlClient, self).buildByPath(path, *args, **kwargs)
 
 def _getConfigFile():
     """Searches for a valid vimhdl configuration file in buffer vars
@@ -237,7 +243,7 @@ def buildBuffer(vbuffer):
     if __vimhdl_client__ is None:
         return vim.List([])
     result = []
-    for message in __vimhdl_client__.buildByPath(vbuffer.name):
+    for message in __vimhdl_client__.buildSource(vbuffer.name):
         try:
             vim_fmt_dict = {
                 'lnum'     : message['line_number'] or '-1',
@@ -267,10 +273,10 @@ def runStaticCheck(vbuffer):
                 'filename' : message['filename'] or vbuffer.name,
                 'valid'    : '1',
                 'text'     : message['error_message'] or '<none>',
-                'nr'       : message['error_number'] or '0',
+                'nr'       : message['error_number'] or '-1',
                 'type'     : message['error_type'] or 'E',
                 'subtype'  : message['error_subtype'] or '',
-                'col'      : message['column'] or '0'
+                'col'      : message['column'] or '-1'
             }
             __logger__.debug("Vim qf dict: %s", repr(vim_fmt_dict))
             result.append(vim.Dictionary(vim_fmt_dict))

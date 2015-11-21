@@ -77,8 +77,10 @@ class BaseCompiler(object):
         start = time.time()
         if source.abspath() not in self._build_info_cache.keys():
             self._build_info_cache[source.abspath()] = {
-                'compile_time': 0, 'size' : 0, 'records': ()
-            }
+                'compile_time' : 0,
+                'records' : [],
+                'rebuilds' : [],
+                }
 
         cached_info = self._build_info_cache[source.abspath()]
 
@@ -86,7 +88,7 @@ class BaseCompiler(object):
         if forced:
             build = True
             self._logger.info("Forcing build of %s", str(source))
-        if source.getmtime() > cached_info['compile_time']:
+        elif source.getmtime() > cached_info['compile_time']:
             build = True
             self._logger.info("Building %s because it has changed", str(source))
 
@@ -96,16 +98,22 @@ class BaseCompiler(object):
             build_flags.update(source.flags)
             build_flags.update(flags)
             with self._lock:
-                records, rebuilds = self._doBuild(source, flags=tuple(build_flags))
+                records, _rebuilds = self._doBuild(source, flags=tuple(build_flags))
+            rebuilds = []
+            for _rebuild in _rebuilds:
+                if _rebuild[0] == 'work':
+                    rebuilds += [[source.library, _rebuild[1]]]
+                else:
+                    rebuilds += [_rebuild]
 
             cached_info['compile_time'] = source.getmtime()
             cached_info['records'] = records
             cached_info['rebuilds'] = rebuilds
-            cached_info['size'] = os.stat(source.abspath()).st_size
 
             end = time.time()
             self._logger.debug("Compiling took %.2fs", (end - start))
         else:
+            self._logger.debug("Nothing to do for %s", source)
             records = cached_info['records']
             rebuilds = cached_info['rebuilds']
 

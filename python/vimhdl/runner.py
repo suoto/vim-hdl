@@ -135,6 +135,7 @@ def parseArguments():
 def main(args):
     "Main runner command processing"
 
+    _logger.info("#"*(197 - 32))
     _logger.info("Creating project object")
 
     if args.clean:
@@ -160,9 +161,14 @@ def main(args):
 
     if args.print_design_units:
         for source in args.sources:
-            _, _source = project.getLibraryAndSourceByPath(source)
-            for unit in _source.getDesignUnits():
-                print unit
+            deps = project._getDependenciesRecursively(source)
+            if deps:
+                print ""
+                print deps
+            #  for unit in _source.getDesignUnits():
+            #  _, _source = project.getLibraryAndSourceByPath(source)
+            #  for unit in _source.getDesignUnits():
+            #      print unit
 
     if args.debug_print_build_steps:
         step_cnt = 0
@@ -184,7 +190,8 @@ def main(args):
                 try:
                     _logger.info("Building source '%s'", source)
                     for record in project.buildByPath(source):
-                        print str(record)
+                        print "[{error_type}-{error_number}] @ ({line_number},{column}): {error_message}"\
+                                .format(**record)
                 except RuntimeError as e:
                     _logger.error("Unable to build '%s': '%s'", source, str(e))
                     continue
