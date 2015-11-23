@@ -280,8 +280,13 @@ def onVimLeave():
         __vimhdl_client__.saveCache()
 
 def _sortBuildMessages(records):
-    return sorted(records, key=lambda x: \
-            (x['type'], x['lnum'], x['nr']))
+    for record in records:
+        for key in ('lnum', 'nr', ):
+            try:
+                record[key] = int(record[key])
+            except ValueError:
+                pass
+    return sorted(records, key=lambda x: (x['lnum'], x['type'], x['nr']))
 
 def getMessages(vbuffer):
     start = time.time()

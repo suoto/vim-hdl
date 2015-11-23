@@ -130,6 +130,39 @@ def _getUnusedObjects(vbuffer, objects):
         if single:
             yield _object
 
+__COMMENT_TAG_SCANNER__ = re.compile('|'.join([
+    r"\s*--\s*(?P<tag>TODO|FIXME|XXX)\s*:\s*(?P<text>.*)",
+    ]))
+
+def _getCommentTags(vbuffer):
+    result = []
+    lnum = 0
+    for line in vbuffer:
+        lnum += 1
+        line_lc = line.lower()
+        skip_line = True
+        for tag in ('todo', 'fixme', 'xxx'):
+            if tag in line_lc:
+                skip_line = False
+                break
+        if skip_line:
+            continue
+
+        for match in __COMMENT_TAG_SCANNER__.finditer(line):
+            _dict = match.groupdict()
+            message = {
+                'checker'        : 'vim-hdl/static',
+                'line_number'    : lnum,
+                'column'         : match.start(match.lastindex - 1) + 1,
+                'filename'       : None,
+                'error_number'   : '0',
+                'error_type'     : 'W',
+                'error_subtype'  : '',
+                'error_message'  : "%s: %s" % (_dict['tag'].upper(), _dict['text'])
+                }
+            result += [message]
+    return result
+
 def vhdStaticCheck(vbuffer=None):
     "VHDL static checking"
     objects = _getObjectsFromText(vbuffer)
@@ -151,8 +184,7 @@ def vhdStaticCheck(vbuffer=None):
             }
 
         result.append(message)
-
-    return result
+    return result + _getCommentTags(vbuffer)
 
 def standalone():
     import sys
