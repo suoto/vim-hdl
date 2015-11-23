@@ -20,6 +20,8 @@ import abc
 import time
 from threading import Lock
 
+from vimhdl.config import Config
+
 _logger = logging.getLogger(__name__)
 
 class BaseCompiler(object):
@@ -90,7 +92,7 @@ class BaseCompiler(object):
             self._logger.info("Forcing build of %s", str(source))
         elif source.getmtime() > cached_info['compile_time']:
             build = True
-            self._logger.info("Building %s because it has changed", str(source))
+            self._logger.info("Building %s because it's out of date", str(source))
 
         if build:
             # Build a set of unique flags and pass it as tuple
@@ -98,17 +100,21 @@ class BaseCompiler(object):
             build_flags.update(source.flags)
             build_flags.update(flags)
             with self._lock:
-                records, _rebuilds = self._doBuild(source, flags=tuple(build_flags))
-            rebuilds = []
-            for _rebuild in _rebuilds:
-                if _rebuild[0] == 'work':
-                    rebuilds += [[source.library, _rebuild[1]]]
-                else:
-                    rebuilds += [_rebuild]
+                records, rebuilds = self._doBuild(source, flags=tuple(build_flags))
 
-            cached_info['compile_time'] = source.getmtime()
+            for rebuild in rebuilds:
+                if rebuild[0] == 'work':
+                    rebuild[0] = source.library
+
             cached_info['records'] = records
             cached_info['rebuilds'] = rebuilds
+            cached_info['compile_time'] = source.getmtime()
+
+            if not Config.cache_error_messages:
+                for record in records:
+                    if record['error_type'] == 'E':
+                        cached_info['compile_time'] = 0
+                        break
 
             end = time.time()
             self._logger.debug("Compiling took %.2fs", (end - start))
