@@ -26,6 +26,8 @@ import vim
 
 import vimhdl.project_builder
 from vimhdl.static_check import vhdStaticCheck
+from vimhdl.config import Config
+from vimhdl import exceptions
 
 __logger__ = logging.getLogger(__name__)
 __vimhdl_client__ = None
@@ -45,14 +47,19 @@ class VimhdlClient(vimhdl.project_builder.ProjectBuilder):
         if self._lock.locked():
             _postVimWarning("Thread is running, won't do anything")
             return
+        try:
+            __logger__.debug("Reading config file")
+            self.readConfigFile()
+        except exceptions.SanityCheckError:
+            _postVimError("vim-hdl disabled due to exception from builder "
+                    "sanity check. Reading configuration file finished")
+            return
         _postVimInfo("Running vim-hdl setup")
         threading.Thread(target=self._startupAsync).start()
 
     def _startupAsync(self):
         "Read configuration file and build project in background"
         with self._lock:
-            __logger__.debug("Reading config file")
-            self.readConfigFile()
             __logger__.debug("Building by dependency")
             self.buildByDependency()
 
@@ -61,7 +68,14 @@ class VimhdlClient(vimhdl.project_builder.ProjectBuilder):
             _postVimWarning("Build thread is running, waiting until it "
                             "finishes before saving project cache...")
         with self._lock:
-            return super(VimhdlClient, self).saveCache()
+            super(VimhdlClient, self).saveCache()
+
+    def saveCacheNonBlocking(self):
+        "Don't sabe cache if a thread is running."
+        if self._lock.locked():
+            self._logger.debug("Setup thread is running, won't save cache")
+            return
+        super(VimhdlClient, self).saveCache()
 
     def buildSource(self, path, *args, **kwargs):
         "Wrapper around buildByPath to handle UI threading properly"
@@ -88,10 +102,10 @@ class VimhdlClient(vimhdl.project_builder.ProjectBuilder):
         self._logger.debug("Source '%s' depends on %s", str(source), \
                 ", ".join(["'%s'" % str(x) for x in dependencies]))
 
-        #  if dependencies.issubset(set(self._units_built)):
-        #      self._logger.debug("Dependencies for source '%s' are met", \
-        #              str(source))
-            #  return super(VimhdlClient, self).buildByPath(path)
+        if dependencies.issubset(set(self._units_built)):
+            self._logger.debug("Dependencies for source '%s' are met", \
+                    str(source))
+            return super(VimhdlClient, self).buildByPath(path)
 
         if self._lock.locked():
             _postVimWarning("Project setup is still running...")
@@ -99,6 +113,14 @@ class VimhdlClient(vimhdl.project_builder.ProjectBuilder):
 
         with self._lock:
             return super(VimhdlClient, self).buildByPath(path, *args, **kwargs)
+
+    def updateVimOptions(self):
+        for opt in ('cache_error_messages', 'log_file', 'log_level'):
+            try:
+                opt_value = vim.current.buffer.vars(opt)
+            except KeyError:
+                opt_value = vim.vars(opt)
+            setattr(Config, opt, opt_value)
 
 def _getConfigFile():
     """Searches for a valid vimhdl configuration file in buffer vars
@@ -183,6 +205,8 @@ def onFocusGained():
 def onFocusLost():
     __logger__.debug("[%d] Running actions for event 'onFocusLost'", \
         vim.current.buffer.number)
+    if __vimhdl_client__ is not None:
+        __vimhdl_client__.saveCacheNonBlocking()
 
 def onCursorHold():
     __logger__.debug("[%d] Running actions for event 'onCursorHold'", \
@@ -293,6 +317,10 @@ def _escapeForVim(text):
 
 def _postVimWarning(message):
     vim.command("redraw | echohl WarningMsg | echom '{0}' | echohl None" \
+        .format(_escapeForVim(str(message))))
+
+def _postVimError(message):
+    vim.command("echohl ErrorMsg | echom '{0}' | echohl None" \
         .format(_escapeForVim(str(message))))
 
 def _postVimInfo(message):

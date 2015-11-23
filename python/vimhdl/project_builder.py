@@ -41,6 +41,7 @@ class ProjectBuilder(object):
         self._project_file = project_file
 
         self._build_flags = {'batch' : [], 'single' : [], 'global' : []}
+        self._units_built = []
 
     def __getstate__(self):
         "Pickle dump implementation"
@@ -188,14 +189,13 @@ class ProjectBuilder(object):
 
     def _getBuildSteps(self):
         "Yields source objects that can be built given the units already built"
-        units_built = []
         sources_built = []
         for step in range(self.MAX_BUILD_STEPS):
             empty_step = True
             for source in self.sources.values():
                 design_units = set(["%s.%s" % (source.library, x['name']) \
                         for x in source.getDesignUnits()])
-                if design_units.issubset(units_built):
+                if design_units.issubset(self._units_built):
                     continue
 
                 dependencies = set(["%s.%s" % (x['library'], x['unit']) \
@@ -204,9 +204,9 @@ class ProjectBuilder(object):
                 self._logger.debug("Source '%s' depends on %s", str(source),
                         ", ".join(["'%s'" % str(x) for x in dependencies]))
 
-                if dependencies.issubset(set(units_built)):
+                if dependencies.issubset(set(self._units_built)):
                     if source.abspath() not in sources_built:
-                        units_built += list(design_units)
+                        self._units_built += list(design_units)
                         sources_built += [source.abspath()]
                         empty_step = False
                         yield source
@@ -220,12 +220,12 @@ class ProjectBuilder(object):
                         self._logger.warning("Couldn't build source '%s'. "
                             "Missing dependencies: %s",
                             str(source), ", ".join(
-                                [str(x) for x in dependencies - set(units_built)]))
+                                [str(x) for x in dependencies - set(self._units_built)]))
                 if sources_not_built:
                     self._logger.warning("Some sources were not built")
 
                 self._logger.info("Braking at step %d. Units built: %s",
-                        step, ", ".join(sorted(units_built)))
+                        step, ", ".join(sorted(self._units_built)))
 
                 raise StopIteration()
 
@@ -239,9 +239,13 @@ class ProjectBuilder(object):
         built = 0
         errors = 0
         warnings = 0
+        self._units_built = []
         for source in self._getBuildSteps():
             records, _ = self.builder.build(source,
                     flags=self._build_flags['batch'])
+            design_units = set(["%s.%s" % (source.library, x['name']) \
+                    for x in source.getDesignUnits()])
+            self._units_built += list(design_units)
             for record in self._sortBuildMessages(records):
                 if record['error_type'] == 'E':
                     _logger.warning(str(record))
