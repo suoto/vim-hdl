@@ -118,6 +118,10 @@ class ProjectBuilder(object):
             for source in sources:
                 if os.path.abspath(source) in self.sources.keys():
                     continue
+                if not os.path.exists(source):
+                    self._logger.warning("File '%s' doesn't exists, can't add",
+                            source)
+                    continue
                 _source = VhdlSourceFile(source, library)
                 if flags:
                     _source.flags = set(flags + self._build_flags['global'])
@@ -217,10 +221,14 @@ class ProjectBuilder(object):
                         sources_not_built = True
                         dependencies = set(["%s.%s" % (x['library'], x['unit']) \
                                 for x in self._translateSourceDependencies(source)])
-                        self._logger.warning("Couldn't build source '%s'. "
-                            "Missing dependencies: %s",
-                            str(source), ", ".join(
-                                [str(x) for x in dependencies - set(self._units_built)]))
+                        missing_dependencies = dependencies - set(self._units_built)
+                        if missing_dependencies:
+                            self._logger.warning("Couldn't build source '%s'. "
+                                "Missing dependencies: %s",
+                                str(source), ", ".join(
+                                    [str(x) for x in dependencies - set(self._units_built)]))
+                        else:
+                            yield source
                 if sources_not_built:
                     self._logger.warning("Some sources were not built")
 
