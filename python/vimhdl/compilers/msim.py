@@ -21,18 +21,6 @@ from vimhdl.compilers.base_compiler import BaseCompiler
 from vimhdl.utils import shell
 from vimhdl import exceptions
 
-_RE_REBUILDS = re.compile(r"Recompile\s*([^\s]+)\s+because\s+[^\s]+\s+has changed")
-def _getRebuildUnits(line):
-    "Finds units that the compilers is telling us to rebuild"
-    rebuilds = []
-    if '(vcom-13)' in line:
-        for match in _RE_REBUILDS.finditer(line):
-            if not match:
-                continue
-            rebuilds.append(match.group(match.lastindex).split('.'))
-
-    return rebuilds
-
 from prettytable import PrettyTable
 # TODO: Move this to a tests folder or something
 def isRecordValid(record):
@@ -130,6 +118,9 @@ class MSim(BaseCompiler):
         r".*VHDL Compiler exiting\s*$",
     ]))
 
+    _BuilderRebuildUnitsScanner = re.compile(
+            r"Recompile\s*([^\s]+)\s+because\s+[^\s]+\s+has changed")
+
     def __init__(self, target_folder):
         self._version = ''
         super(MSim, self).__init__(target_folder)
@@ -190,7 +181,6 @@ class MSim(BaseCompiler):
             'error_message'  : error_message,
         }
 
-
     def _checkEnvironment(self):
         try:
             version = subprocess.check_output(['vcom', '-version'], \
@@ -204,6 +194,17 @@ class MSim(BaseCompiler):
         except Exception as exc:
             self._logger.fatal("Sanity check failed")
             raise exceptions.SanityCheckError(str(exc))
+
+    def _getUnitsToRebuild(self, line):
+        "Finds units that the compilers is telling us to rebuild"
+        rebuilds = []
+        if '(vcom-13)' in line:
+            for match in self._BuilderRebuildUnitsScanner.finditer(line):
+                if not match:
+                    continue
+                rebuilds.append(match.group(match.lastindex).split('.'))
+
+        return rebuilds
 
     def _doBuild(self, source, flags=None):
         self.createOrMapLibrary(source.library)
@@ -232,7 +233,7 @@ class MSim(BaseCompiler):
             #  if not isRecordValid(records[-1]):
             #      self._logger.error("Error parsing %s", repr(line))
 
-            rebuilds += _getRebuildUnits(line)
+            rebuilds += self._getUnitsToRebuild(line)
 
         return records, rebuilds
 
@@ -244,8 +245,6 @@ class MSim(BaseCompiler):
         else:
             self.createLibrary(library)
 
-    #  def _postBuild(self, library, source, stdout):
-    #      pass
     def createLibrary(self, library):
         self._logger.info("Library %s not found, creating", library)
         shell('cd {target_folder} && vlib {vlib_args} {library}'.format(
