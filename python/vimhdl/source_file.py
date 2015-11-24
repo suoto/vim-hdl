@@ -18,16 +18,17 @@ import os
 import logging
 import threading
 
-from vimhdl.utils import memoid
-
 _logger = logging.getLogger(__name__)
 
 _MAX_OPEN_FILES = 100
 
 # Regexes
+
+# Test the names found for a sanity check
 _RE_VALID_NAME_CHECK = re.compile(r"^[a-z]\w*$", flags=re.I)
 
-__SCANNER__ = re.compile('|'.join([
+# Design unit scanner
+_DESIGN_UNIT_SCANNER = re.compile('|'.join([
     r"^\s*package\s+(?P<package_name>\w+)\s+is\b",
     r"^\s*package\s+body\s+(?P<package_body_name>\w+)\s+is\b",
     r"^\s*entity\s+(?P<entity_name>\w+)\s+is\b",
@@ -35,6 +36,8 @@ __SCANNER__ = re.compile('|'.join([
 ]), flags=re.I)
 
 class VhdlSourceFile(object):
+    """Parses and stores information about a source file such as
+    design units it depends on and design units it provides"""
 
     # Use a semaphore to avoid opening too many files (Python raises
     # an exception for this)
@@ -44,14 +47,16 @@ class VhdlSourceFile(object):
         self.filename = os.path.normpath(filename)
         self.library = library
         self.flags = []
-        self._design_units = None
-        self._deps = None
-        self._has_package = None
+        self._design_units = []
+        self._deps = []
         self._mtime = 0
 
+        self.abspath = os.path.abspath(filename)
         self._lock = threading.Lock()
+        # XXX: If the file is busy (i.e., the user has recently saved
+        # the file, parsing will fail because it won't be able to open
+        # or stat the file
         self._parse()
-        #  threading.Thread(target=self._parse).start()
 
     def __getstate__(self):
         state = self.__dict__.copy()
@@ -72,12 +77,20 @@ class VhdlSourceFile(object):
         "Wraps self._doParse with lock acquire/release"
         with self._lock:
             # We have the lock, so if the source changed, parse it!
-            if self.changed():
-                _logger.debug("Parsing %s", str(self))
-                self._mtime = self.getmtime()
-                self._doParse()
+            try:
+                if self.changed():
+                    _logger.debug("Parsing %s", str(self))
+                    self._mtime = self.getmtime()
+                    self._doParse()
+            except OSError:
+                _logger.warning("Couldn't parse '%s' at this moment", self)
 
+    # XXX: If the file is busy (i.e., the user has recently saved
+    # the file, parsing will fail because it won't be able to open
+    # or stat the file
     def changed(self):
+        """Checks if the file changed based on the modification time provided
+        by os.path.getmtime"""
         return self.getmtime() > self._mtime
 
     def _doParse(self):
@@ -94,7 +107,7 @@ class VhdlSourceFile(object):
         libraries = ['work']
 
         for line in lines:
-            scan = __SCANNER__.scanner(line)
+            scan = _DESIGN_UNIT_SCANNER.scanner(line)
             while True:
                 match = scan.match()
                 if not match:
@@ -134,8 +147,8 @@ class VhdlSourceFile(object):
                     dependencies.append(dependency)
 
         self._deps = dependencies
-        _logger.info("Source '%s' depends on: %s", str(self),
-                ", ".join(["{library}.{unit}".format(**x) for x in self._deps]))
+        _logger.info("Source '%s' depends on: %s", str(self), \
+                ", ".join(["%s.%s" % (x['library'], x['unit']) for x in self._deps]))
 
         self._sanityCheckNames()
 
@@ -157,25 +170,24 @@ class VhdlSourceFile(object):
                 raise RuntimeError("Dependency unit %s is invalid" % dependency['unit'])
 
     def getDesignUnits(self):
+        """Returns a list of dictionaries with the design units defined.
+        The dict defines the name (as defined in the source file) and
+        the type (package, entity, etc)"""
         self._parse()
         return self._design_units
 
     def getDependencies(self):
+        """Returns a list of dictionaries with the design units this
+        source file depends on. Dict defines library and unit"""
         self._parse()
         return self._deps
 
-    def hasPackage(self):
-        self._parse()
-        return self._has_package
-
     def getmtime(self):
+        """Gets file modification time as defined in os.path.getmtime"""
         return os.path.getmtime(self.filename)
 
-    @memoid
-    def abspath(self):
-        return os.path.abspath(self.filename)
-
-def test():
+def standalone():
+    """Standalone run"""
     import sys
     for arg in sys.argv[1:]:
         source = VhdlSourceFile(arg)
@@ -192,5 +204,5 @@ def test():
                 print " -- %s.%s" % (dependency['library'], dependency['unit'])
 
 if __name__ == '__main__':
-    test()
+    standalone()
 

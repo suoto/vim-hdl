@@ -20,6 +20,7 @@ import os
 import logging
 import time
 import argparse
+from prettytable import PrettyTable
 try:
     import argcomplete
     _HAS_ARGCOMPLETE = True
@@ -82,19 +83,7 @@ def parseArguments():
             help="""Source(s) file(s) to build individually""").completer \
                     = _fileExtentensionCompleter('vhd')
 
-    # Debugging options
-    parser.add_argument('--print-dependency-map', action='store_true',
-            help = """Prints the dependency map of source file given by [source].
-            If [source] was not supplied, prints the dependency map of all
-            sources.""")
-
-    parser.add_argument('--print-reverse-dependency-map', action='store_true',
-            help = """Prints the reverse dependency map of source file given by
-            [source]. If [source] was not supplied, prints the reverse dependency
-            map of all sources.""")
-
-    parser.add_argument('--print-design-units', action='store_true')
-    parser.add_argument('--debug-print-build-steps', action='store_true')
+    parser.add_argument('--debug-print-sources', action='store_true')
     parser.add_argument('--debug-profiling', action='store', nargs='?',
             metavar='OUTPUT_FILENAME', const='vimhdl.pstats')
 
@@ -145,42 +134,13 @@ def main(args):
     project = ProjectBuilder(project_file=args.project_file)
     project.readConfigFile()
 
-    if args.print_dependency_map:
-        if args.sources:
-            for source in args.sources:
-                project.printDependencyMap(source)
-        else:
-            project.printDependencyMap()
-
-    if args.print_reverse_dependency_map:
-        if args.sources:
-            for source in args.sources:
-                project.printReverseDependencyMap(source)
-        else:
-            project.printReverseDependencyMap()
-
-    if args.print_design_units:
-        for source in args.sources:
-            deps = project._getDependenciesRecursively(source)
-            if deps:
-                print ""
-                print deps
-            #  for unit in _source.getDesignUnits():
-            #  _, _source = project.getLibraryAndSourceByPath(source)
-            #  for unit in _source.getDesignUnits():
-            #      print unit
-
-    if args.debug_print_build_steps:
-        step_cnt = 0
-        for step in project.getBuildSteps():
-            step_cnt += 1
-            if not step:
-                break
-            print "="*10 + (" Step %d " % step_cnt) + "="*10
-            for lib_name, sources in step.iteritems():
-                print "  - Library %s" % lib_name
-                for source in sources:
-                    print "    - %s" % source
+    if args.debug_print_sources:
+        sources = PrettyTable(['Filename', 'Library', 'Flags'])
+        sources.align['Filename'] = 'l'
+        sources.sortby = 'Library'
+        for source in project.sources.values():
+            sources.add_row([source.filename, source.library, " ".join(source.flags)])
+        print sources
 
     if args.build:
         if not args.sources:

@@ -286,7 +286,24 @@ def _sortBuildMessages(records):
                 record[key] = int(record[key])
             except ValueError:
                 pass
-    return sorted(records, key=lambda x: (x['lnum'], x['type'], x['nr']))
+    records.sort(key=lambda x: (x['lnum'], x['type'], x['nr']))
+    error_numbers = {}
+    filtered_records = []
+    for record in records:
+        if record['nr']:
+            if record['nr'] not in error_numbers.keys():
+                error_numbers[record['nr']] = []
+                filtered_records.append(record)
+            else:
+                error_numbers[record['nr']].append(record['lnum'])
+        else:
+            filtered_records.append(record)
+
+    for record in filtered_records:
+        if record['nr'] in error_numbers.keys():
+            record['text'] += ' (message repeats at lines %s)' % \
+                    ', '.join([str(x) for x in error_numbers[record['nr']]])
+    return filtered_records
 
 def getMessages(vbuffer):
     start = time.time()

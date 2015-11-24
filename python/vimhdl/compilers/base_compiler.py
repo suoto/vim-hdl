@@ -77,14 +77,14 @@ class BaseCompiler(object):
         building chain"""
 
         start = time.time()
-        if source.abspath() not in self._build_info_cache.keys():
-            self._build_info_cache[source.abspath()] = {
+        if source.abspath not in self._build_info_cache.keys():
+            self._build_info_cache[source.abspath] = {
                 'compile_time' : 0,
                 'records' : [],
                 'rebuilds' : [],
                 }
 
-        cached_info = self._build_info_cache[source.abspath()]
+        cached_info = self._build_info_cache[source.abspath]
 
         build = False
         if forced:

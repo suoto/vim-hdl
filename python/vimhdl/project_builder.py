@@ -118,16 +118,12 @@ class ProjectBuilder(object):
             for source in sources:
                 if os.path.abspath(source) in self.sources.keys():
                     continue
-                if not os.path.exists(source):
-                    self._logger.warning("File '%s' doesn't exists, can't add",
-                            source)
-                    continue
                 _source = VhdlSourceFile(source, library)
                 if flags:
                     _source.flags = set(flags + self._build_flags['global'])
                 else:
                     _source.flags = set(self._build_flags['global'])
-                self.sources[_source.abspath()] = _source
+                self.sources[_source.abspath] = _source
 
     def saveCache(self):
         "Dumps project object to a file to recover its state later"
@@ -209,15 +205,15 @@ class ProjectBuilder(object):
                         ", ".join(["'%s'" % str(x) for x in dependencies]))
 
                 if dependencies.issubset(set(self._units_built)):
-                    if source.abspath() not in sources_built:
+                    if source.abspath not in sources_built:
                         self._units_built += list(design_units)
-                        sources_built += [source.abspath()]
+                        sources_built += [source.abspath]
                         empty_step = False
                         yield source
             if empty_step:
                 sources_not_built = False
                 for source in self.sources.values():
-                    if source.abspath() not in sources_built:
+                    if source.abspath not in sources_built:
                         sources_not_built = True
                         dependencies = set(["%s.%s" % (x['library'], x['unit']) \
                                 for x in self._translateSourceDependencies(source)])
@@ -280,7 +276,8 @@ class ProjectBuilder(object):
                 'filename'       : path,
                 'error_number'   : None,
                 'error_type'     : 'W',
-                'error_message'  : "Source '%s' not found on the configuration file" % path,
+                'error_message'  : "Source '%s' not found on the configuration"
+                                   " file" % path,
             }]
 
         flags = self._build_flags['batch'] if batch_mode else \
@@ -298,7 +295,7 @@ class ProjectBuilder(object):
                     source, ", ".join(rebuild_units))
             for rebuild_unit in rebuild_units:
                 for rebuild_source in self._findSourceByDesignUnit(rebuild_unit):
-                    self.buildByPath(rebuild_source.abspath(), batch_mode=True)
+                    self.buildByPath(rebuild_source.abspath, batch_mode=True)
             return self.buildByPath(path)
 
         return self._sortBuildMessages(records)
