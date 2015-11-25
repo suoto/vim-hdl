@@ -281,12 +281,12 @@ def onVimLeave():
 
 def _sortBuildMessages(records):
     for record in records:
-        for key in ('lnum', 'nr', ):
+        for key in ('lnum', 'nr', 'col'):
             try:
                 record[key] = int(record[key])
             except ValueError:
                 pass
-    records.sort(key=lambda x: (x['lnum'], x['type'], x['nr']))
+    records.sort(key=lambda x: (x['type'], x['lnum'], x['col'], x['nr']))
     error_numbers = {}
     filtered_records = []
     for record in records:
