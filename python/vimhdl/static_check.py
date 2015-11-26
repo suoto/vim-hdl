@@ -27,20 +27,20 @@ __AREA_SCANNER__ = re.compile('|'.join([
     ]), flags=re.I)
 
 __NO_AREA_SCANNER__ = re.compile('|'.join([
-    r"^\s*library\s+(?P<library>\w+)",
-    r"^\s*attribute\s+(?P<attribute>\w+)\s*:",
+    r"^\s*library\s+(?P<library>[\w\s,]+)",
+    r"^\s*attribute\s+(?P<attribute>[\w\s,]+)\s*:",
     ]), flags=re.I)
 
 __ENTITY_SCANNER__ = re.compile('|'.join([
-    r"^\s*(?P<port>\w+)\s*:\s*(in|out|inout|buffer|linkage)\s+\w+",
-    r"^\s*(?P<generic>\w+)\s*:\s*\w+[^:]*:=",
+    r"^\s*(?P<port>[\w\s,]+)\s*:\s*(in|out|inout|buffer|linkage)\s+\w+",
+    r"^\s*(?P<generic>[\w\s,]+)\s*:\s*\w+",
     ]), flags=re.I)
 
 __ARCH_SCANNER__ = re.compile('|'.join([
-    r"^\s*constant\s+(?P<constant>\w+)\s*:",
-    r"^\s*signal\s+(?P<signal>\w+)\s*:",
+    r"^\s*constant\s+(?P<constant>[\w\s,]+)\s*:",
+    r"^\s*signal\s+(?P<signal>[\w,\s]+)\s*:",
     r"^\s*type\s+(?P<type>\w+)\s*:",
-    r"^\s*shared\s+variable\s+(?P<shared_variable>\w+)\s*:",
+    r"^\s*shared\s+variable\s+(?P<shared_variable>[\w\s,]+)\s*:",
     ]), flags=re.I)
 
 __END_OF_SCAN__ = re.compile('|'.join([
@@ -85,19 +85,24 @@ def _getObjectsFromText(vbuffer):
                 if value is None: continue
                 _group_d = match.groupdict()
                 index = match.lastindex
-                # Need to decrement the last index because we have a group that
-                # catches the port type (in, out, inout, etc)
                 if 'port' in _group_d.keys() and _group_d['port'] is not None:
                     index -= 1
                 start = match.start(index)
                 end = match.end(index)
-                text = match.group(index)
-                if text not in objects.keys():
-                    objects[text] = {}
-                objects[text]['lnum'] = lnum
-                objects[text]['start'] = start
-                objects[text]['end'] = end
-                objects[text]['type'] = key
+
+                # More than 1 declaration can be done in a single line.
+                # Must strip white spaces and commas properly
+                for submatch in re.finditer(r"(\w+)", value):
+                    # Need to decrement the last index because we have a group that
+                    # catches the port type (in, out, inout, etc)
+                    subindex = submatch.lastindex
+                    text = submatch.group(submatch.lastindex)
+                    if text not in objects.keys():
+                        objects[text] = {}
+                    objects[text]['lnum'] = lnum
+                    objects[text]['start'] = start + submatch.start(subindex)
+                    objects[text]['end'] = end + submatch.start(subindex)
+                    objects[text]['type'] = key
         lnum += 1
         if __END_OF_SCAN__.findall(line):
             break
