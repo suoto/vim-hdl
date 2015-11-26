@@ -184,7 +184,11 @@ class VhdlSourceFile(object):
 
     def getmtime(self):
         """Gets file modification time as defined in os.path.getmtime"""
-        return os.path.getmtime(self.filename)
+        try:
+            mtime = os.path.getmtime(self.filename)
+        except OSError:
+            mtime = None
+        return mtime
 
 def standalone():
     """Standalone run"""
