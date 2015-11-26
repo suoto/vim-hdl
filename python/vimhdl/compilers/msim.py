@@ -163,7 +163,8 @@ class MSim(BaseCompiler):
                 line_number = match.group(match.lastindex)
             if match.lastindex in (3, 6):
                 try:
-                    error_number = re.findall(r"\d+", match.group(match.lastindex))[0]
+                    error_number = \
+                            re.findall(r"\d+", match.group(match.lastindex))[0]
                 except IndexError:
                     error_number = 0
             if match.lastindex == 4:
@@ -207,8 +208,6 @@ class MSim(BaseCompiler):
         return rebuilds
 
     def _doBuild(self, source, flags=None):
-        self.createOrMapLibrary(source.library)
-
         cmd = ['vcom', '-modelsimini', self._modelsim_ini, '-work', \
                 os.path.join(self._target_folder, source.library)]
         cmd += flags
@@ -237,15 +236,15 @@ class MSim(BaseCompiler):
 
         return records, rebuilds
 
-    def createOrMapLibrary(self, library):
+    def _createLibrary(self, library):
         if os.path.exists(os.path.join(self._target_folder, library)):
             return
         if os.path.exists(self._modelsim_ini):
-            self.mapLibrary(library)
+            self._mapLibrary(library)
         else:
-            self.createLibrary(library)
+            self._addLibraryToIni(library)
 
-    def createLibrary(self, library):
+    def _addLibraryToIni(self, library):
         self._logger.info("Library %s not found, creating", library)
         shell('cd {target_folder} && vlib {vlib_args} {library}'.format(
             target_folder=self._target_folder,
@@ -265,7 +264,7 @@ class MSim(BaseCompiler):
             modelsimini=self._modelsim_ini, library=library
             ))
 
-    def mapLibrary(self, library):
+    def _mapLibrary(self, library):
         self._logger.info("modelsim.ini found, adding %s", library)
 
         shell('vlib {vlib_args} {library}'.format(

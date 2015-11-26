@@ -13,3 +13,9 @@
 # You should have received a copy of the GNU General Public License
 # along with vim-hdl.  If not, see <http://www.gnu.org/licenses/>.
 
+from vimhdl.compilers.msim import MSim
+from vimhdl.compilers.xvhdl import XVHDL
+
+__all__ = ['MSim', 'XVHDL']
+
+

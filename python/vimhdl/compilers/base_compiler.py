@@ -62,6 +62,10 @@ class BaseCompiler(object):
     def _doBuild(self, source, flags=None):
         """Callback called to actually build the source"""
 
+    @abc.abstractmethod
+    def _createLibrary(self, library):
+        """Callback called to create a library"""
+
     def __getstate__(self):
         state = self.__dict__.copy()
         state['_logger'] = self._logger.name
@@ -100,7 +104,9 @@ class BaseCompiler(object):
             build_flags.update(source.flags)
             build_flags.update(flags)
             with self._lock:
-                records, rebuilds = self._doBuild(source, flags=tuple(build_flags))
+                self._createLibrary(source)
+                records, rebuilds = \
+                        self._doBuild(source, flags=tuple(build_flags))
 
             for rebuild in rebuilds:
                 if rebuild[0] == 'work':
@@ -110,11 +116,9 @@ class BaseCompiler(object):
             cached_info['rebuilds'] = rebuilds
             cached_info['compile_time'] = source.getmtime()
 
-            if not Config.cache_error_messages:
-                for record in records:
-                    if record['error_type'] == 'E':
-                        cached_info['compile_time'] = 0
-                        break
+            if not Config.cache_error_messages and \
+                    'E' in [x['error_type'] for x in records]:
+                cached_info['compile_time'] = 0
 
             end = time.time()
             self._logger.debug("Compiling took %.2fs", (end - start))

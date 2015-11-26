@@ -21,7 +21,7 @@ try:
 except ImportError:
     import pickle
 
-from vimhdl.compilers.msim import MSim
+from vimhdl.compilers import *
 from vimhdl.config_parser import ExtendedConfigParser
 from vimhdl.source_file import VhdlSourceFile
 
@@ -103,6 +103,8 @@ class ProjectBuilder(object):
         # builder attribute
         if builder == 'msim':
             self.builder = MSim(target_dir)
+        elif builder == 'xvhdl':
+            self.builder = XVHDL(target_dir)
         else:
             raise RuntimeError("Unknown builder '%s'" % builder)
 
