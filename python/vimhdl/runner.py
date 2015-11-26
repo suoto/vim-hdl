@@ -84,6 +84,7 @@ def parseArguments():
                     = _fileExtentensionCompleter('vhd')
 
     parser.add_argument('--debug-print-sources', action='store_true')
+    parser.add_argument('--debug-print-compile-order', action='store_true')
     parser.add_argument('--debug-profiling', action='store', nargs='?',
             metavar='OUTPUT_FILENAME', const='vimhdl.pstats')
 
@@ -141,6 +142,10 @@ def main(args):
         for source in project.sources.values():
             sources.add_row([source.filename, source.library, " ".join(source.flags)])
         print sources
+
+    if args.debug_print_compile_order:
+        for source in project._getBuildSteps():
+            print source.library, source.filename
 
     if args.build:
         if not args.sources:
