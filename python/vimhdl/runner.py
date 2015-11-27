@@ -85,6 +85,7 @@ def parseArguments():
 
     parser.add_argument('--debug-print-sources', action='store_true')
     parser.add_argument('--debug-print-compile-order', action='store_true')
+    parser.add_argument('--debug-parse-source-file', action='store_true')
     parser.add_argument('--debug-profiling', action='store', nargs='?',
             metavar='OUTPUT_FILENAME', const='vimhdl.pstats')
 
@@ -121,6 +122,22 @@ def parseArguments():
     Config.setupBuild()
 
     return args
+
+def runSourceFileStandalone(fname):
+    """Standalone source_file.VhdlSourceFile run"""
+    from vimhdl.source_file import VhdlSourceFile
+    source = VhdlSourceFile(fname)
+    print "Source: %s" % source
+    design_units = source.getDesignUnits()
+    if design_units:
+        print " - Design_units:"
+        for unit in design_units:
+            print " -- %s" % str(unit)
+    dependencies = source.getDependencies()
+    if dependencies:
+        print " - Dependencies:"
+        for dependency in dependencies:
+            print " -- %s.%s" % (dependency['library'], dependency['unit'])
 
 def main(args):
     "Main runner command processing"
@@ -160,6 +177,10 @@ def main(args):
                 except RuntimeError as e:
                     _logger.error("Unable to build '%s': '%s'", source, str(e))
                     continue
+
+    if args.debug_parse_source_file:
+        for source in args.sources:
+            runSourceFileStandalone(source)
 
     project.saveCache()
 
