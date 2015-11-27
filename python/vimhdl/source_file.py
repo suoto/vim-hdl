@@ -33,7 +33,7 @@ _DESIGN_UNIT_SCANNER = re.compile('|'.join([
     r"^\s*package\s+body\s+(?P<package_body_name>\w+)\s+is\b",
     r"^\s*entity\s+(?P<entity_name>\w+)\s+is\b",
     r"^\s*library\s+(?P<library_name>\w+)\b",
-]), flags=re.I)
+    ]), flags=re.I)
 
 class VhdlSourceFile(object):
     """Parses and stores information about a source file such as
@@ -56,7 +56,7 @@ class VhdlSourceFile(object):
         # XXX: If the file is busy (i.e., the user has recently saved
         # the file, parsing will fail because it won't be able to open
         # or stat the file
-        self._parse()
+        #  self._parse()
 
     def __getstate__(self):
         state = self.__dict__.copy()
@@ -68,7 +68,7 @@ class VhdlSourceFile(object):
         self._lock = threading.Lock()
 
     def __repr__(self):
-        return "VhdlSourceFile('%s')" % self.abspath()
+        return "VhdlSourceFile('%s')" % self.abspath
 
     def __str__(self):
         return "[%s] %s" % (self.library, self.filename)
@@ -103,7 +103,7 @@ class VhdlSourceFile(object):
                 open(self.filename, 'r').read().split("\n")])
         VhdlSourceFile._semaphore.release()
 
-        self._design_units = []
+        design_units = []
         libraries = ['work']
 
         for line in lines:
@@ -129,7 +129,7 @@ class VhdlSourceFile(object):
                     libraries += [match_dict['library_name']]
 
                 if unit:
-                    self._design_units.append(unit)
+                    design_units.append(unit)
 
         lib_deps_regex = re.compile(r'|'.join([ \
                 r"%s\.\w+" % x for x in libraries]), flags=re.I)
@@ -145,6 +145,13 @@ class VhdlSourceFile(object):
                     dependency['library'] = self.library
                 if dependency not in dependencies:
                     dependencies.append(dependency)
+
+        self._design_units = []
+        for design_unit in design_units:
+            if design_unit['type'] == 'package body':
+                dependencies += [{'library' : self.library, 'unit': design_unit['name']}]
+            else:
+                self._design_units += [design_unit]
 
         self._deps = dependencies
         _logger.info("Source '%s' depends on: %s", str(self), \

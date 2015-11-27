@@ -184,7 +184,8 @@ class ProjectBuilder(object):
             if dependency['unit'] == 'all':
                 continue
             if dependency['library'] == source.library and \
-                    dependency['unit'] in [x['name'] for x in source.getDesignUnits()]:
+                    dependency['unit'] in \
+                        [x['name'] for x in source.getDesignUnits()]:
                 continue
             filtered_dependencies += [dependency]
         return filtered_dependencies
@@ -197,36 +198,49 @@ class ProjectBuilder(object):
             for source in self.sources.values():
                 design_units = set(["%s.%s" % (source.library, x['name']) \
                         for x in source.getDesignUnits()])
-                if design_units.issubset(self._units_built):
-                    continue
-
                 dependencies = set(["%s.%s" % (x['library'], x['unit']) \
                         for x in self._translateSourceDependencies(source)])
 
-                self._logger.debug("Source '%s' depends on %s", str(source),
+                missing_dependencies = dependencies - set(self._units_built)
+
+                # If there are missing dependencies skip this file for now
+                if missing_dependencies:
+                    self._logger.debug("Skipping %s for now because it has "
+                                       "missing dependencies: %s", source,
+                                       list(missing_dependencies))
+                    continue
+
+                # If we have already built this source, skip it also
+                if source.abspath in sources_built:
+                    continue
+
+                self._logger.debug("All dependencies for %s are met: %s",
+                        str(source),
                         ", ".join(["'%s'" % str(x) for x in dependencies]))
 
-                if dependencies.issubset(set(self._units_built)):
-                    if source.abspath not in sources_built:
-                        self._units_built += list(design_units)
-                        sources_built += [source.abspath]
-                        empty_step = False
-                        yield source
+                self._units_built += list(design_units)
+                sources_built += [source.abspath]
+                empty_step = False
+                yield source
+
             if empty_step:
                 sources_not_built = False
-                for source in self.sources.values():
-                    if source.abspath not in sources_built:
+
+                for missing_path in \
+                        list(set(self.sources.keys()) - set(sources_built)):
+                    source = self.sources[missing_path]
+                    dependencies = set(["%s.%s" % (x['library'], x['unit']) \
+                            for x in self._translateSourceDependencies(source)])
+                    missing_dependencies = dependencies - set(self._units_built)
+                    if missing_dependencies:
                         sources_not_built = True
-                        dependencies = set(["%s.%s" % (x['library'], x['unit']) \
-                                for x in self._translateSourceDependencies(source)])
-                        missing_dependencies = dependencies - set(self._units_built)
-                        if missing_dependencies:
-                            self._logger.warning("Couldn't build source '%s'. "
-                                "Missing dependencies: %s",
-                                str(source), ", ".join(
-                                    [str(x) for x in dependencies - set(self._units_built)]))
-                        else:
-                            yield source
+                        self._logger.warning("Couldn't build source '%s'. "
+                            "Missing dependencies: %s", str(source),
+                            ", ".join([str(x) for x in missing_dependencies]))
+                    else:
+                        self._logger.warning("Source %s wasn't built but has "
+                                          "no missing dependencies", str(source))
+                        yield source
                 if sources_not_built:
                     self._logger.warning("Some sources were not built")
 
