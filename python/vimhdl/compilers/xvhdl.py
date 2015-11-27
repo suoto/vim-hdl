@@ -124,7 +124,8 @@ class XVHDL(BaseCompiler):
                 continue
             record = self._makeMessageRecord(line)
             assert None not in record.values(), \
-                    "Error at %s\n%s" % (repr(line), repr(record))
+                    "File: %s ==> Error at %s\n%s" % \
+                    (source.filename, repr(line), repr(record))
             records.append(record)
             self._logger.info(line)
             self._logger.info(record)

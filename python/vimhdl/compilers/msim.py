@@ -236,13 +236,13 @@ class MSim(BaseCompiler):
 
         return records, rebuilds
 
-    def _createLibrary(self, library):
-        if os.path.exists(os.path.join(self._target_folder, library)):
+    def _createLibrary(self, source):
+        if os.path.exists(os.path.join(self._target_folder, source.library)):
             return
         if os.path.exists(self._modelsim_ini):
-            self._mapLibrary(library)
+            self._mapLibrary(source.library)
         else:
-            self._addLibraryToIni(library)
+            self._addLibraryToIni(source.library)
 
     def _addLibraryToIni(self, library):
         self._logger.info("Library %s not found, creating", library)
