@@ -24,7 +24,7 @@ except ImportError:
 from vimhdl.compilers import *               # pylint: disable=wildcard-import
 from vimhdl.config_parser import ExtendedConfigParser, readConfigFile
 from vimhdl.source_file import VhdlSourceFile
-from vimhdl.exceptions import VimHdlBaseException
+import vimhdl.exceptions
 
 # pylint: disable=bad-continuation
 
@@ -34,12 +34,17 @@ class ProjectBuilder(object):
     "vim-hdl project builder class"
     MAX_BUILD_STEPS = 20
 
+    #  def _setCurrentState(self, state):
+    #      self._state
+
     def __init__(self, project_file):
         self.builder = None
         self.sources = {}
         self._logger = logging.getLogger(__name__)
-        self._conf_file_timestamp = 0
-        self._project_file = project_file
+        self._project_file = {'filename': project_file,
+                              'timestamp' : 0,
+                              'valid' : False}
+        self.halt = False
 
         self._build_flags = {'batch' : set(),
                              'single' : set(),
@@ -67,9 +72,9 @@ class ProjectBuilder(object):
         self.builder._checkEnvironment()
 
     def readConfigFile(self):
-        "Reads the configuration given by self._project_file"
-        cache_fname = os.path.join(os.path.dirname(self._project_file), \
-            '.' + os.path.basename(self._project_file))
+        "Reads the configuration given by self._project_file['filename']"
+        cache_fname = os.path.join(os.path.dirname(self._project_file['filename']), \
+            '.' + os.path.basename(self._project_file['filename']))
 
         if os.path.exists(cache_fname):
             try:
@@ -79,21 +84,22 @@ class ProjectBuilder(object):
                 # we must recheck
                 try:
                     self._postUnpicklingSanityCheck()
-                except VimHdlBaseException:
+                except vimhdl.exceptions.VimHdlBaseException:
                     self._logger.exception("Sanity check error")
+                    self._project_file['valid'] = False
             except (EOFError, IOError):
                 self._logger.warning("Unable to unpickle cached filename")
 
         #  If the library file hasn't changed, we're up to date an return
-        if os.path.getmtime(self._project_file) <= self._conf_file_timestamp:
+        if os.path.getmtime(self._project_file['filename']) <= self._project_file['timestamp']:
             return
 
         self._logger.info("Updating config file")
 
-        self._conf_file_timestamp = os.path.getmtime(self._project_file)
+        self._project_file['timestamp'] = os.path.getmtime(self._project_file['filename'])
 
         target_dir, builder_name, builder_flags, source_list = \
-                readConfigFile(self._project_file)
+                readConfigFile(self._project_file['filename'])
 
         self._logger.info("Builder info:")
         self._logger.info(" - Target dir:    %s", target_dir)
@@ -129,22 +135,28 @@ class ProjectBuilder(object):
                 _source.flags.update(flags)
             self.sources[_source.abspath] = _source
 
+        self._project_file['valid'] = True
+
     def saveCache(self):
         "Dumps project object to a file to recover its state later"
-        cache_fname = os.path.join(os.path.dirname(self._project_file), \
-            '.' + os.path.basename(self._project_file))
-        pickle.dump(self, open(cache_fname, 'w'))
+        cache_fname = os.path.join(os.path.dirname(self._project_file['filename']), \
+            '.' + os.path.basename(self._project_file['filename']))
+        try:
+            pickle.dump(self, open(cache_fname, 'w'))
+        except pickle.PickleError:
+            self._logger.exception("Error saving file!")
+            os.remove(cache_fname)
 
     def cleanCache(self):
         "Remove the cached project data and clean all libraries as well"
-        cache_fname = os.path.join(os.path.dirname(self._project_file), \
-            '.' + os.path.basename(self._project_file))
+        cache_fname = os.path.join(os.path.dirname(self._project_file['filename']), \
+            '.' + os.path.basename(self._project_file['filename']))
 
         try:
             os.remove(cache_fname)
         except OSError:
             self._logger.debug("Cache filename '%s' not found", cache_fname)
-        self._conf_file_timestamp = 0
+        self._project_file['timestamp'] = 0
 
     @staticmethod
     def clean(project_file):
@@ -196,13 +208,10 @@ class ProjectBuilder(object):
         "Yields source objects that can be built given the units already built"
         sources_built = []
         for step in range(self.MAX_BUILD_STEPS):
+            if self.halt:
+                raise StopIteration()
             empty_step = True
             for source in self.sources.values():
-                #  print "="*30
-                #  print source
-                #  print source.filename
-                #  print source.flags
-                #  print source.library
                 design_units = set(["%s.%s" % (source.library, x['name']) \
                         for x in source.getDesignUnits()])
                 dependencies = set(["%s.%s" % (x['library'], x['unit']) \
@@ -267,6 +276,8 @@ class ProjectBuilder(object):
 
     def buildByDependency(self):
         "Build the project by checking source file dependencies"
+        if not self._project_file['valid']:
+            self._logger.warning("Project file is invalid, not building")
         built = 0
         errors = 0
         warnings = 0
@@ -294,6 +305,9 @@ class ProjectBuilder(object):
     def buildByPath(self, path, batch_mode=False):
         """Builds a given source file handling rebuild of units reported by the
         compiler"""
+        if not self._project_file['valid']:
+            self._logger.warning("Project file is invalid, not building")
+            return []
 
         if os.path.abspath(path) not in self.sources.keys():
             return [{

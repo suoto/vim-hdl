@@ -46,7 +46,7 @@ class VhdlSourceFile(object):
     def __init__(self, filename, library='work'):
         self.filename = os.path.normpath(filename)
         self.library = library
-        self.flags = []
+        self.flags = set()
         self._design_units = []
         self._deps = []
         self._mtime = 0
@@ -56,7 +56,7 @@ class VhdlSourceFile(object):
         # XXX: If the file is busy (i.e., the user has recently saved
         # the file, parsing will fail because it won't be able to open
         # or stat the file
-        #  self._parse()
+        threading.Thread(target=self._parse).start()
 
     def __getstate__(self):
         state = self.__dict__.copy()
@@ -68,7 +68,8 @@ class VhdlSourceFile(object):
         self._lock = threading.Lock()
 
     def __repr__(self):
-        return "VhdlSourceFile('%s')" % self.abspath
+        return "VhdlSourceFile('%s', library='%s')" % \
+                (self.abspath, self.library)
 
     def __str__(self):
         return "[%s] %s" % (self.library, self.filename)

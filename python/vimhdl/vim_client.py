@@ -277,6 +277,7 @@ def onVimLeave():
     __logger__.debug("[%d] Running actions for event 'onVimLeave'", \
         vim.current.buffer.number)
     if __vimhdl_client__ is not None:
+        __vimhdl_client__.halt = True
         __vimhdl_client__.saveCache()
 
 def _sortBuildMessages(records):
@@ -378,6 +379,10 @@ def runStaticCheck(vbuffer):
 def _escapeForVim(text):
     return text.replace("'", "''")
 
+def _postVimInfo(message):
+    vim.command("redraw | echom '{0}' | echohl None" \
+        .format(_escapeForVim(str(message))))
+
 def _postVimWarning(message):
     vim.command("redraw | echohl WarningMsg | echom '{0}' | echohl None" \
         .format(_escapeForVim(str(message))))
@@ -385,9 +390,4 @@ def _postVimWarning(message):
 def _postVimError(message):
     vim.command("echohl ErrorMsg | echom '{0}' | echohl None" \
         .format(_escapeForVim(str(message))))
-
-def _postVimInfo(message):
-    vim.command("redraw | echom '{0}' | echohl None" \
-        .format(_escapeForVim(str(message))))
-
 
