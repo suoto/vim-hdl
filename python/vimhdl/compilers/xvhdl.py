@@ -22,6 +22,11 @@ from vimhdl import exceptions
 
 class XVHDL(BaseCompiler):
     """Implementation of the xvhdl compiler"""
+
+    # Implementation of abstract class properties
+    __builder_name__ = 'xvhdl'
+
+    # XVHDL specific class properties
     _BuilderStdoutMessageScanner = re.compile(
         r"^(?P<error_type>[EW])\w+:\s*"
         r"\[(?P<error_number>[^\]]+)\]\s*"
@@ -29,9 +34,7 @@ class XVHDL(BaseCompiler):
         r"(?P<filename>[^:]+):"
         r"(?P<line_number>\d+)", flags=re.I)
 
-    _BuilderStdoutIgnoreLines = re.compile('|'.join([
-        r"^(?!(ERROR|WARNING):).*",
-    ]))
+    _BuilderStdoutIgnoreLines = re.compile(r"^(?!(ERROR|WARNING):).*")
 
     def __init__(self, target_folder):
         self._version = ''

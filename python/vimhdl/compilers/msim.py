@@ -21,96 +21,21 @@ from vimhdl.compilers.base_compiler import BaseCompiler
 from vimhdl.utils import shell
 from vimhdl import exceptions
 
-from prettytable import PrettyTable
-# TODO: Move this to a tests folder or something
-def isRecordValid(record):
-    is_valid = True
-
-    t = PrettyTable(["field", "value", "status"])
-    t.align['status'] = 'l'
-    record_info = dict(zip(record.keys(), ' '*len(record)))
-
-    # Error type check
-    if record['error_type'] in ('E', 'W'):
-        record_info['error_type'] = ''
-    else:
-        record_info['error_type'] = 'Invalid value'
-
-    # Line number check
-    try:
-        int(record['line_number'])
-        record_info['line_number'] = ''
-    except Exception as e:
-        if record['error_number'] not in ('vcom-11', 'vcom-13', 'vcom-19', 'vcom-7'):
-            record_info['line_number'] = 'NOK: %s: %s' % (e.__class__.__name__, str(e))
-            is_valid = False
-
-    # Error number check
-    if record['error_number'] is None:
-        record_info['error_number'] = 'No error number found'
-    else:
-        _errors = []
-        if record['error_number'] == ' ':
-            _errors += ['ops...']
-        for _d in record['error_number']:
-            if _d in ('[', ']', '(', ')'):
-                _errors += ['invalid char: ' + _d]
-                break
-        if _errors:
-            record_info['error_number'] = "NOK: " + ", ".join(_errors)
-            is_valid = False
-
-    # Error message check
-    _errors = []
-    if record['error_message'] == '':
-        _errors += ['empty']
-    if type(record['error_message']) is not str:
-        _errors += ['not string']
-
-    if _errors:
-        record_info['error_message'] = "NOK: " + ", ".join(_errors)
-        is_valid = False
-
-    # Filename check
-    if record['error_number'] not in ('vcom-11', 'vcom-13', 'vcom-19', 'vcom-7'):
-        _errors = []
-        if record['filename'] == '':
-            _errors += ['empty']
-        if type(record['filename']) is not str:
-            _errors += ['not string']
-        else:
-            if 'souto' in record['filename']:
-                if not os.path.isfile(record['filename']):
-                    _errors += ['file %s should exist!' % repr(record['filename'])]
-
-        if _errors:
-            record_info['filename'] = "NOK: " + ", ".join(_errors)
-            is_valid = False
-
-
-    for k, v in record.items():
-        if len(str(v)) > 80:
-            v = str(v)[:80] + '...'
-        info = record_info[k]
-        if len(str(info)) > 80:
-            info = str(info)[:80] + '...'
-        t.add_row([k, v, info])
-
-    if not is_valid:
-        print t
-
-    return is_valid
-
 class MSim(BaseCompiler):
     """Implementation of the ModelSim compiler"""
+
+    # Implementation of abstract class properties
+    __builder_name__ = 'msim'
+
+    # MSim specific class properties
     _BuilderStdoutMessageScanner = re.compile('|'.join([
-                r"^\*\*\s*([WE])\w+:\s*",
-                r"\((\d+)\):",
-                r"[\[\(]([\w-]+)[\]\)]\s*",
-                r"(.*\.(vhd|sv|svh)\b)",
-                r"\s*\(([\w-]+)\)",
-                r"\s*(.+)",
-                ]), re.I)
+        r"^\*\*\s*([WE])\w+:\s*",
+        r"\((\d+)\):",
+        r"[\[\(]([\w-]+)[\]\)]\s*",
+        r"(.*\.(vhd|sv|svh)\b)",
+        r"\s*\(([\w-]+)\)",
+        r"\s*(.+)",
+        ]), re.I)
 
     _BuilderStdoutIgnoreLines = re.compile('|'.join([
         r"^\s*$",
@@ -119,7 +44,7 @@ class MSim(BaseCompiler):
     ]))
 
     _BuilderRebuildUnitsScanner = re.compile(
-            r"Recompile\s*([^\s]+)\s+because\s+[^\s]+\s+has changed")
+        r"Recompile\s*([^\s]+)\s+because\s+[^\s]+\s+has changed")
 
     def __init__(self, target_folder):
         self._version = ''
@@ -128,7 +53,7 @@ class MSim(BaseCompiler):
 
         # FIXME: Built-in libraries should not be statically defined
         # like this. Review this at some point
-        self.builtin_libraries = ['ieee', 'std', 'unisim', 'xilinxcorelib',
+        self.builtin_libraries = ['ieee', 'std', 'unisim', 'xilinxcorelib', \
                 'synplify', 'synopsis', 'maxii', 'family_support']
 
         # FIXME: Check ModelSim changelog to find out which version
@@ -228,9 +153,6 @@ class MSim(BaseCompiler):
             if self._BuilderStdoutIgnoreLines.match(line):
                 continue
             records.append(self._makeMessageRecord(line))
-
-            #  if not isRecordValid(records[-1]):
-            #      self._logger.error("Error parsing %s", repr(line))
 
             rebuilds += self._getUnitsToRebuild(line)
 
