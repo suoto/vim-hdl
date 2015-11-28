@@ -53,7 +53,7 @@ setup.
 * [Mentor Graphics® ModelSim®][Mentor_msim]
 * [ModelSim-Altera® Edition][Altera_msim]
 
-Other tools that might be supported (under development)
+Tools with experimental support:
 
 * Xilinx XVHDL (bundled with [Vivado][Xilinx_Vivado], including the WebPACK edition)
 
@@ -99,6 +99,8 @@ Mentor Graphics®, ModelSim® and their respective logos are trademarks or regis
 trademarks of Mentor Graphics, Inc.
 
 Altera® and its logo is a trademark or registered trademark of Altera Corporation.
+
+Xilinx® and its logo is a trademark or registered trademark of Xilinx, Inc.
 
 vim-hdl's author has no connection or affiliation to any of the trademarks mentioned
 or used by this software.
