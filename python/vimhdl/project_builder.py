@@ -21,9 +21,10 @@ try:
 except ImportError:
     import pickle
 
-from vimhdl.compilers import *
-from vimhdl.config_parser import ExtendedConfigParser
+from vimhdl.compilers import *               # pylint: disable=wildcard-import
+from vimhdl.config_parser import ExtendedConfigParser, readConfigFile
 from vimhdl.source_file import VhdlSourceFile
+from vimhdl.exceptions import VimHdlBaseException
 
 # pylint: disable=bad-continuation
 
@@ -40,7 +41,9 @@ class ProjectBuilder(object):
         self._conf_file_timestamp = 0
         self._project_file = project_file
 
-        self._build_flags = {'batch' : [], 'single' : [], 'global' : []}
+        self._build_flags = {'batch' : set(),
+                             'single' : set(),
+                             'global' : set()}
         self._units_built = []
 
     def __getstate__(self):
@@ -60,6 +63,9 @@ class ProjectBuilder(object):
         del state['_logger']
         self.__dict__.update(state)
 
+    def _postUnpicklingSanityCheck(self):
+        self.builder._checkEnvironment()
+
     def readConfigFile(self):
         "Reads the configuration given by self._project_file"
         cache_fname = os.path.join(os.path.dirname(self._project_file), \
@@ -69,6 +75,12 @@ class ProjectBuilder(object):
             try:
                 obj = pickle.load(open(cache_fname, 'r'))
                 self.__dict__.update(obj.__dict__)
+                # Environment may have change since we last saved the file,
+                # we must recheck
+                try:
+                    self._postUnpicklingSanityCheck()
+                except VimHdlBaseException:
+                    self._logger.exception("Sanity check error")
             except (EOFError, IOError):
                 self._logger.warning("Unable to unpickle cached filename")
 
@@ -80,52 +92,42 @@ class ProjectBuilder(object):
 
         self._conf_file_timestamp = os.path.getmtime(self._project_file)
 
-        defaults = {'build_flags' : '',
-                    'global_build_flags' : '',
-                    'batch_build_flags' : '',
-                    'single_build_flags' : ''}
+        target_dir, builder_name, builder_flags, source_list = \
+                readConfigFile(self._project_file)
 
-        parser = ExtendedConfigParser(defaults=defaults)
-        parser.read(self._project_file)
+        self._logger.info("Builder info:")
+        self._logger.info(" - Target dir:    %s", target_dir)
+        self._logger.info(" - Builder name:  %s", builder_name)
+        self._logger.info(" - Builder flags (global): %s", \
+                builder_flags['global'])
+        self._logger.info(" - Builder flags (batch): %s", \
+                builder_flags['batch'])
+        self._logger.info(" - Builder flags (single): %s", \
+                builder_flags['single'])
+        #  self._logger.info(" - Sources: %s",
+        #          "\n".join([str(x) for x in source_list]))
 
-        # Get the global build definitions
-        self._build_flags = {
-                'batch' : parser.getlist('global', 'batch_build_flags'),
-                'single' : parser.getlist('global', 'single_build_flags'),
-                'global' : parser.getlist('global', 'global_build_flags'),
-                }
-
-        builder = parser.get('global', 'builder')
-        target_dir = parser.get('global', 'target_dir')
-        self._logger.info("Builder selected: %s at %s", builder, target_dir)
+        self._build_flags = builder_flags.copy()
 
         # Check if the builder selected is implemented and create the
         # builder attribute
-        if builder == 'msim':
+        if builder_name == 'msim':
             self.builder = MSim(target_dir)
-        elif builder == 'xvhdl':
+        elif builder_name == 'xvhdl':
             self.builder = XVHDL(target_dir)
         else:
-            raise RuntimeError("Unknown builder '%s'" % builder)
+            raise RuntimeError("Unknown builder '%s'" % builder_name)
 
         # Iterate over the sections to get sources and build flags.
         # Take care to don't recreate a library
-        for library in parser.sections():
-            if library == 'global':
+        for source, library, flags in source_list:
+            if os.path.abspath(source) in self.sources.keys():
                 continue
-
-            sources = parser.getlist(library, 'sources')
-            flags = parser.getlist(library, 'build_flags')
-
-            for source in sources:
-                if os.path.abspath(source) in self.sources.keys():
-                    continue
-                _source = VhdlSourceFile(source, library)
-                if flags:
-                    _source.flags = set(flags + self._build_flags['global'])
-                else:
-                    _source.flags = set(self._build_flags['global'])
-                self.sources[_source.abspath] = _source
+            _source = VhdlSourceFile(source, library)
+            _source.flags = self._build_flags['global'].copy()
+            if flags:
+                _source.flags.update(flags)
+            self.sources[_source.abspath] = _source
 
     def saveCache(self):
         "Dumps project object to a file to recover its state later"
@@ -156,12 +158,12 @@ class ProjectBuilder(object):
         except OSError:
             _logger.debug("Cache filename '%s' not found", cache_fname)
 
-        parser = ExtendedConfigParser()
-        parser.read(project_file)
+        #  parser = ExtendedConfigParser()
+        #  parser.read(project_file)
 
-        target_dir = parser.get('global', 'target_dir')
+        #  target_dir = parser.get('global', 'target_dir')
 
-        assert not os.system("rm -rf " + target_dir)
+        #  assert not os.system("rm -rf " + target_dir)
 
     def _findSourceByDesignUnit(self, design_unit):
         "Finds the source files that have 'design_unit' defined"
@@ -196,6 +198,11 @@ class ProjectBuilder(object):
         for step in range(self.MAX_BUILD_STEPS):
             empty_step = True
             for source in self.sources.values():
+                #  print "="*30
+                #  print source
+                #  print source.filename
+                #  print source.flags
+                #  print source.library
                 design_units = set(["%s.%s" % (source.library, x['name']) \
                         for x in source.getDesignUnits()])
                 dependencies = set(["%s.%s" % (x['library'], x['unit']) \
@@ -248,6 +255,10 @@ class ProjectBuilder(object):
                         step, ", ".join(sorted(self._units_built)))
 
                 raise StopIteration()
+
+    def getCompilationOrder(self):
+        self._units_built = []
+        return self._getBuildSteps()
 
     def _sortBuildMessages(self, records):
         "Sorts a given set of build records"
