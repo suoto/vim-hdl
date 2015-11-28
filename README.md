@@ -50,10 +50,12 @@ setup.
 
 ## Supported third-party compilers
 
-* [Mentor Graphics® ModelSim®][MG_msim]
+* [Mentor Graphics® ModelSim®][Mentor_msim]
 * [ModelSim-Altera® Edition][Altera_msim]
 
-Other simulators/compilers can be supported in the future.
+Other tools that might be supported (under development)
+
+* Xilinx XVHDL (bundled with [Vivado][Xilinx_Vivado], including the WebPACK edition)
 
 ## Style checking
 
@@ -102,8 +104,9 @@ vim-hdl's author has no connection or affiliation to any of the trademarks menti
 or used by this software.
 
 [Syntastic]: https://github.com/scrooloose/syntastic
-[MG_msim]: http://www.mentor.com/products/fv/modelsim/
+[Mentor_msim]: http://www.mentor.com/products/fv/modelsim/
 [Altera_msim]: https://www.altera.com/downloads/download-center.html
+[Xilinx_Vivado]: http://www.xilinx.com/products/design-tools/vivado/vivado-webpack.html
 [pathogen]: https://github.com/tpope/vim-pathogen
 [vundle]: https://github.com/VundleVim/Vundle.vim
 [ConfigParser]: https://docs.python.org/2/library/configparser.html
