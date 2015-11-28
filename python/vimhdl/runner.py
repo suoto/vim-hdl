@@ -86,6 +86,7 @@ def parseArguments():
     parser.add_argument('--debug-print-sources', action='store_true')
     parser.add_argument('--debug-print-compile-order', action='store_true')
     parser.add_argument('--debug-parse-source-file', action='store_true')
+    parser.add_argument('--debug-run-static-check', action='store_true')
     parser.add_argument('--debug-profiling', action='store', nargs='?',
             metavar='OUTPUT_FILENAME', const='vimhdl.pstats')
 
@@ -123,7 +124,7 @@ def parseArguments():
 
     return args
 
-def runSourceFileStandalone(fname):
+def runStandaloneSourceFileParse(fname):
     """Standalone source_file.VhdlSourceFile run"""
     from vimhdl.source_file import VhdlSourceFile
     source = VhdlSourceFile(fname)
@@ -139,9 +140,17 @@ def runSourceFileStandalone(fname):
         for dependency in dependencies:
             print " -- %s.%s" % (dependency['library'], dependency['unit'])
 
+def runStandaloneStaticCheck(fname):
+    """Standalone source_file.VhdlSourceFile run"""
+    from vimhdl.static_check import vhdStaticCheck
+
+    for record in vhdStaticCheck(open(fname, 'r').read().split('\n')):
+        print record
+
 def main(args):
     "Main runner command processing"
 
+    # FIXME: Find a better way to insert a header to the log file
     _logger.info("#"*(197 - 32))
     _logger.info("Creating project object")
 
@@ -149,8 +158,9 @@ def main(args):
         _logger.info("Cleaning up")
         ProjectBuilder.clean(args.project_file)
 
-    project = ProjectBuilder(project_file=args.project_file)
-    project.readConfigFile()
+    if args.debug_print_sources or args.debug_print_compile_order or args.build:
+        project = ProjectBuilder(project_file=args.project_file)
+        project.readConfigFile()
 
     if args.debug_print_sources:
         sources = PrettyTable(['Filename', 'Library', 'Flags'])
@@ -161,8 +171,11 @@ def main(args):
         print sources
 
     if args.debug_print_compile_order:
-        for source in project._getBuildSteps():
-            print source.library, source.filename
+        for source in project.getCompilationOrder():
+            print "{lang} {library} {path} {flags}".format(
+                    lang='vhdl', library=source.library, path=source.filename,
+                    flags=' '.join(source.flags))
+            assert not set(['-93', '-2008']).issubset(source.flags)
 
     if args.build:
         if not args.sources:
@@ -180,9 +193,14 @@ def main(args):
 
     if args.debug_parse_source_file:
         for source in args.sources:
-            runSourceFileStandalone(source)
+            runStandaloneSourceFileParse(source)
 
-    project.saveCache()
+    if args.debug_run_static_check:
+        for source in args.sources:
+            runStandaloneStaticCheck(source)
+
+    if args.debug_print_sources or args.debug_print_compile_order or args.build:
+        project.saveCache()
 
 
 if __name__ == '__main__':

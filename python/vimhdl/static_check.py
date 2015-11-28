@@ -127,7 +127,7 @@ def _getUnusedObjects(vbuffer, objects):
     for _object in objects:
         r_len = 0
         single = True
-        for _ in re.finditer(r"\b%s\b" % _object, text):
+        for _ in re.finditer(r"\b%s\b" % _object, text, flags=re.I):
             r_len += 1
             if r_len > 1:
                 single = False
