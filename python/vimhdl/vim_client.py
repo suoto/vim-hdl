@@ -324,7 +324,8 @@ def getMessages(vbuffer):
     end = time.time()
 
     _postVimInfo("Building took %.2fs" % (end - start))
-    vim.vars['vimhdl_latest_build_messages'] = vim.List(_sortBuildMessages(result))
+
+    return vim.List(_sortBuildMessages(result))
 
 # More info on :help getqflist()
 def buildBuffer(vbuffer):
