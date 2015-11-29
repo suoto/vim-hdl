@@ -16,50 +16,32 @@
 
 import re
 import logging
-try:
-    import vim
-except ImportError:
-    pass
-    #  class Empty: pass
-
-    #  vim = Empty()
-    #  vim.current = Empty()
-    #  vim.current.buffer = Empty()
-    #  vim.current.buffer.name = "main"
-    #  vim.current.buffer.number = 0
-
-    #  import sys
-    #  logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 
 __logger__ = logging.getLogger(__name__)
 
-__SCANNER__ = re.compile('|'.join([
-    r"^\s*(\w+)\s*:\s*entity\s+\w+",
-    r"^\s*(\w+)\s*:\s*\w+\s*$",
-    r"^\s*constant\s+(\w+)\s*:",
-    r"^\s*signal\s+(\w+)\s*:",
-    r"^\s*shared\s+variable\s+(\w+)\s*:",
-    #  r"^\s*type\s+(\w+)\s+is",
-    r"^\s*(\w+)\s*:\s*in\s+\w+",
-    r"^\s*(\w+)\s*:\s*out\s+\w+",
-    r"^\s*(\w+)\s*:\s*inout\s+\w+",
-    r"^\s*(\w+)\s*:\s*\w+[^:]*:=",
-    r"^\s*library\s+(\w+)",
-    r"^\s*attribute\s+(\w+)\s*:",
-]), flags=re.I)
+__AREA_SCANNER__ = re.compile('|'.join([
+    r"^\s*entity\s+(?P<entity_name>\w+)\s+is\b",
+    r"^\s*architecture\s+(?P<architecture_name>\w+)\s+of\s+(?P<arch_entity>\w+)",
+    r"^\s*package\s+(?P<package_name>\w+)\s+is\b",
+    r"^\s*package\s+body\s+(?P<package_body_name>\w+)\s+is\b",
+    ]), flags=re.I)
 
-__SCANNER_INDEX_TO_TYPE_MAP__ = {
-    3  : 'Constant',
-    4  : 'Signal',
-    5  : 'Shared variable',
-    #  6  : 'Type',
-    6  : 'Input port',
-    7  : 'Output port',
-    8  : 'IO port',
-    9  : 'Generic',
-    10 : 'Library',
-    11 : 'Attribute',
-}
+__NO_AREA_SCANNER__ = re.compile('|'.join([
+    r"^\s*library\s+(?P<library>[\w\s,]+)",
+    r"^\s*attribute\s+(?P<attribute>[\w\s,]+)\s*:",
+    ]), flags=re.I)
+
+__ENTITY_SCANNER__ = re.compile('|'.join([
+    r"^\s*(?P<port>[\w\s,]+)\s*:\s*(in|out|inout|buffer|linkage)\s+\w+",
+    r"^\s*(?P<generic>[\w\s,]+)\s*:\s*\w+",
+    ]), flags=re.I)
+
+__ARCH_SCANNER__ = re.compile('|'.join([
+    r"^\s*constant\s+(?P<constant>[\w\s,]+)\s*:",
+    r"^\s*signal\s+(?P<signal>[\w,\s]+)\s*:",
+    r"^\s*type\s+(?P<type>\w+)\s*:",
+    r"^\s*shared\s+variable\s+(?P<shared_variable>[\w\s,]+)\s*:",
+    ]), flags=re.I)
 
 __END_OF_SCAN__ = re.compile('|'.join([
     r"\bport\s+map",
@@ -68,145 +50,157 @@ __END_OF_SCAN__ = re.compile('|'.join([
     r"\bprocess\b",
     ]))
 
-def _getObjectsFromText(text_buffer):
+def _getObjectsFromText(vbuffer):
     """Returns a dict containing the objects found at the given text
     buffer"""
     objects = {}
     lnum = 0
-    for _line in text_buffer:
+    area = None
+    for _line in vbuffer:
         line = re.sub(r"\s*--.*", "", _line)
-        scan = __SCANNER__.scanner(line)
-        while True:
-            match = scan.match()
-            if not match:
-                break
-            start = match.start(match.lastindex)
-            end = match.end(match.lastindex)
-            text = match.group(match.lastindex)
+        for match in __AREA_SCANNER__.finditer(line):
+            _dict = match.groupdict()
+            if _dict['entity_name'] is not None:
+                area = 'entity'
+            elif _dict['architecture_name'] is not None:
+                area = 'architecture'
+            elif _dict['package_name'] is not None:
+                area = 'package'
+            elif _dict['package_body_name'] is not None:
+                area = 'package_body'
 
-            if match.lastindex >= 3:
-                if text not in objects.keys():
-                    objects[text] = {}
-                objects[text]['lnum'] = lnum
-                objects[text]['start'] = start
-                objects[text]['end'] = end
+        matches = []
+        if area is None:
+            for match in __NO_AREA_SCANNER__.finditer(line):
+                matches += [match]
+        elif area == 'entity':
+            for match in __ENTITY_SCANNER__.finditer(line):
+                matches += [match]
+        elif area == 'architecture':
+            for match in __ARCH_SCANNER__.finditer(line):
+                matches += [match]
 
-            if match.lastindex in __SCANNER_INDEX_TO_TYPE_MAP__.keys():
-                objects[text]['type'] = \
-                        __SCANNER_INDEX_TO_TYPE_MAP__[match.lastindex]
+        for match in matches:
+            for key, value in match.groupdict().items():
+                if value is None: continue
+                _group_d = match.groupdict()
+                index = match.lastindex
+                if 'port' in _group_d.keys() and _group_d['port'] is not None:
+                    index -= 1
+                start = match.start(index)
+                end = match.end(index)
 
+                # More than 1 declaration can be done in a single line.
+                # Must strip white spaces and commas properly
+                for submatch in re.finditer(r"(\w+)", value):
+                    # Need to decrement the last index because we have a group that
+                    # catches the port type (in, out, inout, etc)
+                    subindex = submatch.lastindex
+                    text = submatch.group(submatch.lastindex)
+                    if text not in objects.keys():
+                        objects[text] = {}
+                    objects[text]['lnum'] = lnum
+                    objects[text]['start'] = start + submatch.start(subindex)
+                    objects[text]['end'] = end + submatch.start(subindex)
+                    objects[text]['type'] = key
         lnum += 1
-
         if __END_OF_SCAN__.findall(line):
             break
 
+    if objects:
+        __logger__.debug("Objects found:")
+        for _name, _object in objects.items():
+            __logger__.debug("%s => %s", _name, str(_object))
+    else:
+        __logger__.debug("No objects found")
     return objects
 
-def _getUnusedObjects(text_buffer, objects):
+def _getUnusedObjects(vbuffer, objects):
     """Generator that yields objects that are only found once at the
     given buffer and thus are considered unused (i.e., we only found
     its declaration"""
 
     text = ''
-    for line in text_buffer:
+    for line in vbuffer:
         text += re.sub(r"\s*--.*", "", line) + ' '
 
     for _object in objects:
-        if text.count(_object) == 1:
+        r_len = 0
+        single = True
+        for _ in re.finditer(r"\b%s\b" % _object, text, flags=re.I):
+            r_len += 1
+            if r_len > 1:
+                single = False
+                break
+        if single:
             yield _object
 
-        #  r_len = 0
-        #  single = True
-        #  if text.count(_object) == 1:
-        #      print "Count of %s is %d" % (_object, text.count(_object))
-        #      yield _object
-        #  else:
-        #      for _ in re.finditer(r"\b%s\b" % _object, text, flags=re.I):
-        #          r_len += 1
-        #          if r_len > 1:
-        #              single = False
-        #              break
-        #      if single:
-        #          yield _object
+__COMMENT_TAG_SCANNER__ = re.compile('|'.join([
+    r"\s*--\s*(?P<tag>TODO|FIXME|XXX)\s*:\s*(?P<text>.*)",
+    ]))
 
-from multiprocessing import Queue
+def _getCommentTags(vbuffer):
+    result = []
+    lnum = 0
+    for line in vbuffer:
+        lnum += 1
+        line_lc = line.lower()
+        skip_line = True
+        for tag in ('todo', 'fixme', 'xxx'):
+            if tag in line_lc:
+                skip_line = False
+                break
+        if skip_line:
+            continue
 
-def vhdStaticCheck(text_buffer=None, q=None):
+        for match in __COMMENT_TAG_SCANNER__.finditer(line):
+            _dict = match.groupdict()
+            message = {
+                'checker'        : 'vim-hdl/static',
+                'line_number'    : lnum,
+                'column'         : match.start(match.lastindex - 1) + 1,
+                'filename'       : None,
+                'error_number'   : '0',
+                'error_type'     : 'W',
+                'error_subtype'  : '',
+                'error_message'  : "%s: %s" % (_dict['tag'].upper(), _dict['text'])
+                }
+            result += [message]
+    return result
+
+def vhdStaticCheck(vbuffer=None):
     "VHDL static checking"
-    text_buffer = text_buffer or vim.current.buffer
-
-    __logger__.info("Parsing %s", vim.current.buffer.name)
-
-    objects = _getObjectsFromText(text_buffer)
+    objects = _getObjectsFromText(vbuffer)
 
     result = []
 
-    for _object, obj_dict in objects.items():
-        if obj_dict['type'] in ('Constant', 'Generic', 'Attribute'):
-            if not _object.isupper():
-                info = {
-                    'lnum'     : obj_dict['lnum'] + 1,
-                    'bufnr'    : vim.current.buffer.number,
-                    'filename' : vim.current.buffer.name,
-                    'valid'    : '1',
-                    'text'     : "Invalid {obj_type} name '{obj_name}'".format(
-                        obj_type=obj_dict['type'], obj_name=_object),
-                    'nr'       : '0',
-                    'type'     : 'W',
-                    'subtype'  : 'Style',
-                    'col'      : obj_dict['start'] + 1
-                }
-                result.append(info)
-        elif obj_dict['type'] in ('Signal', 'Shared Variable', 'Input port', \
-                'Output port', 'IO ports'):
-            if not _object.islower():
-                info = {
-                    'lnum'     : obj_dict['lnum'] + 1,
-                    'bufnr'    : vim.current.buffer.number,
-                    'filename' : vim.current.buffer.name,
-                    'valid'    : '1',
-                    'text'     : "Invalid {obj_type} name '{obj_name}'".format(
-                        obj_type=obj_dict['type'], obj_name=_object),
-                    'nr'       : '0',
-                    'type'     : 'W',
-                    'subtype'  : 'Style',
-                    'col'      : obj_dict['start'] + 1
-                }
-                result.append(info)
-
-
-    for _object in _getUnusedObjects(text_buffer, objects.keys()):
+    for _object in _getUnusedObjects(vbuffer, objects.keys()):
         obj_dict = objects[_object]
-        info = {
-            'lnum'     : obj_dict['lnum'] + 1,
-            'bufnr'    : vim.current.buffer.number,
-            'filename' : vim.current.buffer.name,
-            'valid'    : '1',
-            'text'     : "{obj_type} '{obj_name}' is never used".format(
+        message = {
+            'checker'        : 'vim-hdl/static',
+            'line_number'    : obj_dict['lnum'] + 1,
+            'column'         : obj_dict['start'] + 1,
+            'filename'       : None,
+            'error_number'   : '0',
+            'error_type'     : 'W',
+            'error_subtype'  : 'Style',
+            'error_message'  : "{obj_type} '{obj_name}' is never used".format(
                 obj_type=obj_dict['type'], obj_name=_object),
-            'nr'       : '0',
-            'type'     : 'W',
-            'subtype'  : 'Style',
-            'col'      : obj_dict['start'] + 1
-        }
+            }
 
-        result.append(info)
+        result.append(message)
+    return result + _getCommentTags(vbuffer)
 
-    q.put(result)
-
-    #  vim.vars['vimhdl_static_check_result'] = vim.List(result)
-
-def standaloneCheck(fname):
-    q = Queue()
-    text_buffer = open(arg, 'r').read().split("\n")
-    vhdStaticCheck(text_buffer, q)
-    for r in q.get():
-        __logger__.info(str(r))
+def standalone():
+    import sys
+    logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
+    for arg in sys.argv[1:]:
+        print arg
+        for message in vhdStaticCheck(open(arg, 'r').read().split('\n')):
+            print message
+        print "="*10
 
 if __name__ == '__main__':
-    import sys
-    for arg in sys.argv[1:]:
-        standaloneCheck(arg)
-
+    standalone()
 
 

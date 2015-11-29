@@ -18,46 +18,44 @@ import os
 import logging
 import threading
 
-from vimhdl.utils import memoid
-
 _logger = logging.getLogger(__name__)
 
 _MAX_OPEN_FILES = 100
 
 # Regexes
+
+# Test the names found for a sanity check
 _RE_VALID_NAME_CHECK = re.compile(r"^[a-z]\w*$", flags=re.I)
 
-_RE_PACKAGES = re.compile('|'.join([
-    r"(?<=package)\s+\w+\s+(?=is\b)",
-    r"(?<=package)\s+(?<=body)\s+\w+\s+(?=is\b)",
+# Design unit scanner
+_DESIGN_UNIT_SCANNER = re.compile('|'.join([
+    r"^\s*package\s+(?P<package_name>\w+)\s+is\b",
+    r"^\s*package\s+body\s+(?P<package_body_name>\w+)\s+is\b",
+    r"^\s*entity\s+(?P<entity_name>\w+)\s+is\b",
+    r"^\s*library\s+(?P<library_name>\w+)\b",
     ]), flags=re.I)
 
-_RE_ENTITIES = re.compile(r"(?<=entity)\s+\w+\s+(?=is\b)", flags=re.I)
-
-_RE_DESIGN_UNITS = re.compile('|'.join([
-    _RE_PACKAGES.pattern, _RE_ENTITIES.pattern]), flags=re.I)
-
-_RE_LIBRARIES = re.compile(r"(?<=library)\s+\w+\b", flags=re.I)
-_RE_USE_CLAUSES = re.compile(r"(?<=use)\s+\w+\.\w+\b", flags=re.I)
-
-_RE_WHITESPACES = re.compile(r"^\s*|\s*$")
-
-_RE_PRE_PROC = re.compile(r"\s*--[^\n]*\n|\s+")
-
 class VhdlSourceFile(object):
+    """Parses and stores information about a source file such as
+    design units it depends on and design units it provides"""
 
     # Use a semaphore to avoid opening too many files (Python raises
     # an exception for this)
     _semaphore = threading.BoundedSemaphore(_MAX_OPEN_FILES)
 
-    def __init__(self, filename):
+    def __init__(self, filename, library='work'):
         self.filename = os.path.normpath(filename)
-        self._design_units = None
-        self._deps = None
-        self._has_package = None
+        self.library = library
+        self.flags = set()
+        self._design_units = []
+        self._deps = []
         self._mtime = 0
 
+        self.abspath = os.path.abspath(filename)
         self._lock = threading.Lock()
+        # XXX: If the file is busy (i.e., the user has recently saved
+        # the file, parsing will fail because it won't be able to open
+        # or stat the file
         threading.Thread(target=self._parse).start()
 
     def __getstate__(self):
@@ -70,25 +68,30 @@ class VhdlSourceFile(object):
         self._lock = threading.Lock()
 
     def __repr__(self):
-        return "VhdlSourceFile('%s')" % self.abspath()
+        return "VhdlSourceFile('%s', library='%s')" % \
+                (self.abspath, self.library)
 
     def __str__(self):
-        return str(self.filename)
+        return "[%s] %s" % (self.library, self.filename)
 
     def _parse(self):
         "Wraps self._doParse with lock acquire/release"
-        try:
-            # If we need to parse, acquire the lock
-            self._lock.acquire()
+        with self._lock:
             # We have the lock, so if the source changed, parse it!
-            if self.changed():
-                _logger.debug("Parsing %s", str(self))
-                self._mtime = self.getmtime()
-                self._doParse()
-        finally:
-            self._lock.release()
+            try:
+                if self.changed():
+                    _logger.debug("Parsing %s", str(self))
+                    self._mtime = self.getmtime()
+                    self._doParse()
+            except OSError:
+                _logger.warning("Couldn't parse '%s' at this moment", self)
 
+    # XXX: If the file is busy (i.e., the user has recently saved
+    # the file, parsing will fail because it won't be able to open
+    # or stat the file
     def changed(self):
+        """Checks if the file changed based on the modification time provided
+        by os.path.getmtime"""
         return self.getmtime() > self._mtime
 
     def _doParse(self):
@@ -97,46 +100,63 @@ class VhdlSourceFile(object):
         # Replace everything from comment ('--') until a line break and
         # converts to lowercase
         VhdlSourceFile._semaphore.acquire()
-        text = _RE_PRE_PROC.sub(" ", open(self.filename, 'r').read()).lower()
+        lines = list([re.sub(r"\s*--.*", "", x).lower() for x in \
+                open(self.filename, 'r').read().split("\n")])
         VhdlSourceFile._semaphore.release()
 
-        # Search for design units. We should get things like entities
-        # and packages
-        self._design_units = []
-        for unit in _RE_DESIGN_UNITS.findall(text):
-            self._design_units.append(_RE_WHITESPACES.sub("", unit))
+        design_units = []
+        libraries = ['work']
 
-        if _RE_PACKAGES.findall(text):
-            _logger.debug("Source %s has packages", self.filename)
-            self._has_package = True
-        else:
-            _logger.debug("Source %s has no packages", self.filename)
-            self._has_package = False
+        for line in lines:
+            scan = _DESIGN_UNIT_SCANNER.scanner(line)
+            while True:
+                match = scan.match()
+                if not match:
+                    break
 
-        # Get libraries referred and add library 'work', which is
-        # referred implicitly
-        libs = list(set(['work'] +
-            [_RE_WHITESPACES.sub("", x) for x in _RE_LIBRARIES.findall(text)]))
+                match_dict = match.groupdict()
 
-        # If there are no libraries, we won't search for units
-        # instantiated using the format 'lib.unit'
+                unit = None
+                if match_dict['package_name'] is not None:
+                    unit = {'name' : match_dict['package_name'],
+                            'type' : 'package'}
+                elif match_dict['package_body_name'] is not None:
+                    unit = {'name' : match_dict['package_body_name'],
+                            'type' : 'package body'}
+                elif match_dict['entity_name'] is not None:
+                    unit = {'name' : match_dict['entity_name'],
+                            'type' : 'entity'}
+                elif match_dict['library_name'] is not None:
+                    libraries += [match_dict['library_name']]
+
+                if unit:
+                    design_units.append(unit)
+
+        lib_deps_regex = re.compile(r'|'.join([ \
+                r"%s\.\w+" % x for x in libraries]), flags=re.I)
+
         dependencies = []
-        if libs:
-            _re_deps = re.compile(r'|'.join([r"%s\.\w+" % x for x in libs]), flags=re.I)
+        for line in lines:
+            for match in lib_deps_regex.finditer(line):
+                dependency = {}
+                dependency['library'], dependency['unit'] = match.group().split('.')[:2]
+                # Library 'work' means 'this' library, so we replace it
+                # by the library name itself
+                if dependency['library'] == 'work':
+                    dependency['library'] = self.library
+                if dependency not in dependencies:
+                    dependencies.append(dependency)
 
-            for dep in [_RE_WHITESPACES.sub("", x) for x in _re_deps.findall(text)]:
-                dep = dep.split('.')
-                if dep not in dependencies:
-                    dependencies.append(dep)
-
-        # Search for occurrences of use lib.unit
-        for use_clause in [_RE_WHITESPACES.sub("", x) \
-                for x in _RE_USE_CLAUSES.findall(text)]:
-            dep = use_clause.split('.')
-            if dep not in dependencies:
-                dependencies.append(dep)
+        self._design_units = []
+        for design_unit in design_units:
+            if design_unit['type'] == 'package body':
+                dependencies += [{'library' : self.library, 'unit': design_unit['name']}]
+            else:
+                self._design_units += [design_unit]
 
         self._deps = dependencies
+        _logger.info("Source '%s' depends on: %s", str(self), \
+                ", ".join(["%s.%s" % (x['library'], x['unit']) for x in self._deps]))
 
         self._sanityCheckNames()
 
@@ -144,35 +164,57 @@ class VhdlSourceFile(object):
         """Sanity check on the names we found to catch errors we
         haven't covered"""
         for unit in self._design_units:
-            if not _RE_VALID_NAME_CHECK.match(unit):
-                raise RuntimeError("Unit name %s is invalid" % unit)
+            if not _RE_VALID_NAME_CHECK.match(unit['name']):
+                raise RuntimeError("Unit name %s is invalid" % unit['name'])
 
-        for dep_lib, dep_unit in self._deps:
-            if not _RE_VALID_NAME_CHECK.match(dep_lib):
-                raise RuntimeError("Dependency library %s is invalid" % dep_lib)
-            if not len(dep_lib):
-                raise RuntimeError("Dependency library %s is invalid" % dep_lib)
-            if not _RE_VALID_NAME_CHECK.match(dep_unit):
-                raise RuntimeError("Dependency unit %s is invalid" % dep_unit)
-            if not len(dep_unit):
-                raise RuntimeError("Dependency unit %s is invalid" % dep_unit)
+        for dependency in self._deps:
+            if not _RE_VALID_NAME_CHECK.match(dependency['library']):
+                raise RuntimeError("Dependency library %s is invalid" % dependency['library'])
+            if not len(dependency['library']):
+                raise RuntimeError("Dependency library %s is invalid" % dependency['library'])
+            if not _RE_VALID_NAME_CHECK.match(dependency['unit']):
+                raise RuntimeError("Dependency unit %s is invalid" % dependency['unit'])
+            if not len(dependency['unit']):
+                raise RuntimeError("Dependency unit %s is invalid" % dependency['unit'])
 
     def getDesignUnits(self):
+        """Returns a list of dictionaries with the design units defined.
+        The dict defines the name (as defined in the source file) and
+        the type (package, entity, etc)"""
         self._parse()
         return self._design_units
 
     def getDependencies(self):
+        """Returns a list of dictionaries with the design units this
+        source file depends on. Dict defines library and unit"""
         self._parse()
         return self._deps
 
-    def hasPackage(self):
-        self._parse()
-        return self._has_package
-
     def getmtime(self):
-        return os.path.getmtime(self.filename)
+        """Gets file modification time as defined in os.path.getmtime"""
+        try:
+            mtime = os.path.getmtime(self.filename)
+        except OSError:
+            mtime = None
+        return mtime
 
-    @memoid
-    def abspath(self):
-        return os.path.abspath(self.filename)
+def standalone():
+    """Standalone run"""
+    import sys
+    for arg in sys.argv[1:]:
+        source = VhdlSourceFile(arg)
+        print "Source: %s" % source
+        design_units = source.getDesignUnits()
+        if design_units:
+            print " - Design_units:"
+            for unit in design_units:
+                print " -- %s" % str(unit)
+        dependencies = source.getDependencies()
+        if dependencies:
+            print " - Dependencies:"
+            for dependency in dependencies:
+                print " -- %s.%s" % (dependency['library'], dependency['unit'])
+
+if __name__ == '__main__':
+    standalone()
 

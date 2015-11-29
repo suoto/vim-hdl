@@ -20,6 +20,7 @@ import os
 import logging
 import time
 import argparse
+from prettytable import PrettyTable
 try:
     import argcomplete
     _HAS_ARGCOMPLETE = True
@@ -82,19 +83,10 @@ def parseArguments():
             help="""Source(s) file(s) to build individually""").completer \
                     = _fileExtentensionCompleter('vhd')
 
-    # Debugging options
-    parser.add_argument('--print-dependency-map', action='store_true',
-            help = """Prints the dependency map of source file given by [source].
-            If [source] was not supplied, prints the dependency map of all
-            sources.""")
-
-    parser.add_argument('--print-reverse-dependency-map', action='store_true',
-            help = """Prints the reverse dependency map of source file given by
-            [source]. If [source] was not supplied, prints the reverse dependency
-            map of all sources.""")
-
-    parser.add_argument('--print-design-units', action='store_true')
-    parser.add_argument('--debug-print-build-steps', action='store_true')
+    parser.add_argument('--debug-print-sources', action='store_true')
+    parser.add_argument('--debug-print-compile-order', action='store_true')
+    parser.add_argument('--debug-parse-source-file', action='store_true')
+    parser.add_argument('--debug-run-static-check', action='store_true')
     parser.add_argument('--debug-profiling', action='store', nargs='?',
             metavar='OUTPUT_FILENAME', const='vimhdl.pstats')
 
@@ -132,48 +124,58 @@ def parseArguments():
 
     return args
 
+def runStandaloneSourceFileParse(fname):
+    """Standalone source_file.VhdlSourceFile run"""
+    from vimhdl.source_file import VhdlSourceFile
+    source = VhdlSourceFile(fname)
+    print "Source: %s" % source
+    design_units = source.getDesignUnits()
+    if design_units:
+        print " - Design_units:"
+        for unit in design_units:
+            print " -- %s" % str(unit)
+    dependencies = source.getDependencies()
+    if dependencies:
+        print " - Dependencies:"
+        for dependency in dependencies:
+            print " -- %s.%s" % (dependency['library'], dependency['unit'])
+
+def runStandaloneStaticCheck(fname):
+    """Standalone source_file.VhdlSourceFile run"""
+    from vimhdl.static_check import vhdStaticCheck
+
+    for record in vhdStaticCheck(open(fname, 'r').read().split('\n')):
+        print record
+
 def main(args):
     "Main runner command processing"
 
+    # FIXME: Find a better way to insert a header to the log file
+    _logger.info("#"*(197 - 32))
     _logger.info("Creating project object")
 
     if args.clean:
         _logger.info("Cleaning up")
         ProjectBuilder.clean(args.project_file)
 
-    project = ProjectBuilder(project_file=args.project_file)
+    if args.debug_print_sources or args.debug_print_compile_order or args.build:
+        project = ProjectBuilder(project_file=args.project_file)
+        project.readConfigFile()
 
-    if args.print_dependency_map:
-        if args.sources:
-            for source in args.sources:
-                project.printDependencyMap(source)
-        else:
-            project.printDependencyMap()
+    if args.debug_print_sources:
+        sources = PrettyTable(['Filename', 'Library', 'Flags'])
+        sources.align['Filename'] = 'l'
+        sources.sortby = 'Library'
+        for source in project.sources.values():
+            sources.add_row([source.filename, source.library, " ".join(source.flags)])
+        print sources
 
-    if args.print_reverse_dependency_map:
-        if args.sources:
-            for source in args.sources:
-                project.printReverseDependencyMap(source)
-        else:
-            project.printReverseDependencyMap()
-
-    if args.print_design_units:
-        for source in args.sources:
-            _, _source = project.getLibraryAndSourceByPath(source)
-            for unit in _source.getDesignUnits():
-                print unit
-
-    if args.debug_print_build_steps:
-        step_cnt = 0
-        for step in project.getBuildSteps():
-            step_cnt += 1
-            if not step:
-                break
-            print "="*10 + (" Step %d " % step_cnt) + "="*10
-            for lib_name, sources in step.iteritems():
-                print "  - Library %s" % lib_name
-                for source in sources:
-                    print "    - %s" % source
+    if args.debug_print_compile_order:
+        for source in project.getCompilationOrder():
+            print "{lang} {library} {path} {flags}".format(
+                    lang='vhdl', library=source.library, path=source.filename,
+                    flags=' '.join(source.flags))
+            assert not set(['-93', '-2008']).issubset(source.flags)
 
     if args.build:
         if not args.sources:
@@ -182,10 +184,24 @@ def main(args):
             for source in args.sources:
                 try:
                     _logger.info("Building source '%s'", source)
-                    project.buildByPath(source)
+                    for record in project.buildByPath(source):
+                        print "[{error_type}-{error_number}] @ ({line_number},{column}): {error_message}"\
+                                .format(**record)
                 except RuntimeError as e:
                     _logger.error("Unable to build '%s': '%s'", source, str(e))
                     continue
+
+    if args.debug_parse_source_file:
+        for source in args.sources:
+            runStandaloneSourceFileParse(source)
+
+    if args.debug_run_static_check:
+        for source in args.sources:
+            runStandaloneStaticCheck(source)
+
+    if args.debug_print_sources or args.debug_print_compile_order or args.build:
+        project.saveCache()
+
 
 if __name__ == '__main__':
     start = time.time()

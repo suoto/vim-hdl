@@ -12,6 +12,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with vim-hdl.  If not, see <http://www.gnu.org/licenses/>.
+"ModelSim builder implementation"
 
 import os
 import re
@@ -20,44 +21,30 @@ from vimhdl.compilers.base_compiler import BaseCompiler
 from vimhdl.utils import shell
 from vimhdl import exceptions
 
-_RE_LIB_DOT_UNIT = re.compile(r"\b\w+\.\w+\b")
+class MSim(BaseCompiler):
+    """Implementation of the ModelSim compiler"""
 
-_RE_ERROR = re.compile(r"^\*\*\sError:", flags=re.I)
-_RE_WARNING = re.compile(r"^\*\*\sWarning:", flags=re.I)
-_RE_IGNORED = re.compile('|'.join([
+    # Implementation of abstract class properties
+    __builder_name__ = 'msim'
+
+    # MSim specific class properties
+    _BuilderStdoutMessageScanner = re.compile('|'.join([
+        r"^\*\*\s*([WE])\w+:\s*",
+        r"\((\d+)\):",
+        r"[\[\(]([\w-]+)[\]\)]\s*",
+        r"(.*\.(vhd|sv|svh)\b)",
+        r"\s*\(([\w-]+)\)",
+        r"\s*(.+)",
+        ]), re.I)
+
+    _BuilderStdoutIgnoreLines = re.compile('|'.join([
     r"^\s*$",
-    r".*Unknown expanded name.\s*$",
+        r"^(?!\*\*\s(Error|Warning):).*",
     r".*VHDL Compiler exiting\s*$",
 ]))
 
-def _lineHasError(line):
-    "Parses <line> and return True or False if it contains an error"
-    if '(vcom-11)' in line:
-        return False
-    if _RE_ERROR.match(line):
-        return True
-    return False
-
-def _lineHasWarning(line):
-    "Parses <line> and return True or False if it contains a warning"
-    if _RE_WARNING.match(line):
-        return True
-    return False
-
-_RE_REBUILDS = re.compile(r"Recompile\s*([^\s]+)\s+because\s+[^\s]+\s+has changed")
-def _getRebuildUnits(line):
-    "Finds units that the compilers is telling us to rebuild"
-    rebuilds = []
-    if '(vcom-13)' in line:
-        for match in _RE_REBUILDS.finditer(line):
-            if not match:
-                continue
-            rebuilds.append(match.group(match.lastindex).split('.'))
-
-    return rebuilds
-
-class MSim(BaseCompiler):
-    """Implementation of the ModelSim compiler"""
+    _BuilderRebuildUnitsScanner = re.compile(
+        r"Recompile\s*([^\s]+)\s+because\s+[^\s]+\s+has changed")
 
     def __init__(self, target_folder):
         self._version = ''
@@ -68,7 +55,6 @@ class MSim(BaseCompiler):
         # like this. Review this at some point
         self.builtin_libraries = ['ieee', 'std', 'unisim', 'xilinxcorelib', \
                 'synplify', 'synopsis', 'maxii', 'family_support']
-
         # FIXME: Check ModelSim changelog to find out which version
         # started to support 'vlib -type directory' flags. We know
         # 10.3a accepts and 10.1a doesn't. ModelSim 10.3a reference
@@ -78,6 +64,47 @@ class MSim(BaseCompiler):
         else:
             self._vlib_args = []
         self._logger.debug("vlib arguments: '%s'", str(self._vlib_args))
+
+
+    def _makeMessageRecord(self, line):
+        line_number = None
+        column = None
+        filename = None
+        error_number = None
+        error_type = None
+        error_message = None
+
+        scan = self._BuilderStdoutMessageScanner.scanner(line)
+
+        while True:
+            match = scan.match()
+            if not match:
+                break
+
+            if match.lastindex == 1:
+                error_type = match.group(match.lastindex)
+            if match.lastindex == 2:
+                line_number = match.group(match.lastindex)
+            if match.lastindex in (3, 6):
+                try:
+                    error_number = \
+                            re.findall(r"\d+", match.group(match.lastindex))[0]
+                except IndexError:
+                    error_number = 0
+            if match.lastindex == 4:
+                filename = match.group(match.lastindex)
+            if match.lastindex == 7:
+                error_message = match.group(match.lastindex)
+
+        return {
+            'checker'        : 'msim',
+            'line_number'    : line_number,
+            'column'         : column,
+            'filename'       : filename,
+            'error_number'   : error_number,
+            'error_type'     : error_type,
+            'error_message'  : error_message,
+        }
 
     def _checkEnvironment(self):
         try:
@@ -93,58 +120,52 @@ class MSim(BaseCompiler):
             self._logger.fatal("Sanity check failed")
             raise exceptions.SanityCheckError(str(exc))
 
-    def _doBuild(self, library, source, flags=None):
-        if flags:
-            flags += self._getBuildFlags(library, source)
-        else:
-            flags = self._getBuildFlags(library, source)
+    def _getUnitsToRebuild(self, line):
+        "Finds units that the compilers is telling us to rebuild"
+        rebuilds = []
+        if '(vcom-13)' in line:
+            for match in self._BuilderRebuildUnitsScanner.finditer(line):
+                if not match:
+                    continue
+                rebuilds.append(match.group(match.lastindex).split('.'))
 
-        cmd = ['vcom', '-modelsimini', self._modelsim_ini, \
-                '-work', os.path.join(self._target_folder, library)]
+        return rebuilds
+
+    def _doBuild(self, source, flags=None):
+        cmd = ['vcom', '-modelsimini', self._modelsim_ini, '-work', \
+                os.path.join(self._target_folder, source.library)]
         cmd += flags
         cmd += [source.filename]
 
         self._logger.debug(" ".join(cmd))
 
         try:
-            result = list(subprocess.check_output(cmd,
+            stdout = list(subprocess.check_output(cmd, \
                 stderr=subprocess.STDOUT).split("\n"))
         except subprocess.CalledProcessError as exc:
-            result = list(exc.output.split("\n"))
-        return result
+            stdout = list(exc.output.split("\n"))
 
-    def createOrMapLibrary(self, library):
-        if os.path.exists(os.path.join(self._target_folder, library)):
+        rebuilds = []
+        records = []
+
+        for line in stdout:
+            if self._BuilderStdoutIgnoreLines.match(line):
+                continue
+            records.append(self._makeMessageRecord(line))
+
+            rebuilds += self._getUnitsToRebuild(line)
+
+        return records, rebuilds
+
+    def _createLibrary(self, source):
+        if os.path.exists(os.path.join(self._target_folder, source.library)):
             return
         if os.path.exists(self._modelsim_ini):
-            self.mapLibrary(library)
+            self._mapLibrary(source.library)
         else:
-            self.createLibrary(library)
+            self._addLibraryToIni(source.library)
 
-    def _preBuild(self, library, source):
-        return self.createOrMapLibrary(library)
-
-    def _postBuild(self, library, source, stdout):
-        errors = []
-        warnings = []
-        rebuilds = []
-        for line in stdout:
-            if _RE_IGNORED.match(line):
-                continue
-            if _lineHasError(line):
-                errors.append(line)
-            if _lineHasWarning(line):
-                warnings.append(line)
-
-            rebuilds += _getRebuildUnits(line)
-
-        if errors:
-            self._logger.debug("Messages for (%s) %s:", library, source)
-            for msg in errors + warnings:
-                self._logger.debug(msg)
-        return errors, warnings, rebuilds
-
-    def createLibrary(self, library):
+    def _addLibraryToIni(self, library):
         self._logger.info("Library %s not found, creating", library)
         shell('cd {target_folder} && vlib {vlib_args} {library}'.format(
             target_folder=self._target_folder,
@@ -164,7 +185,7 @@ class MSim(BaseCompiler):
             modelsimini=self._modelsim_ini, library=library
             ))
 
-    def mapLibrary(self, library):
+    def _mapLibrary(self, library):
         self._logger.info("modelsim.ini found, adding %s", library)
 
         shell('vlib {vlib_args} {library}'.format(

@@ -22,3 +22,10 @@ class SanityCheckError(VimHdlBaseException):
 
     def __str__(self):
         return "Sanity check failed with message '%s'" % self._s
+
+class UnknownConfigFileExtension(VimHdlBaseException):
+    def __init__(self, s):
+        self._s = s
+
+    def __str__(self):
+        return "Unknown config file extension: %s" % self.s

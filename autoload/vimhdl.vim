@@ -28,6 +28,9 @@ if vimhdl_path not in sys.path:
 import vimhdl
 from vimhdl.project_builder import ProjectBuilder
 from vimhdl.static_check import vhdStaticCheck
+from vimhdl.config import Config
+Config._setupToolchain()
+import vimhdl
 EOF
 endfunction
 " }
@@ -55,13 +58,8 @@ endfunction
 function! vimhdl#rebuildProject()
     let conf_file = vimhdl#getConfFile()
     echom "Rebuilding project " . conf_file
-    call vimhdl#setup()
 
     python << EOF
-import sys, os, vim
-vimhdl_path = os.path.join(vim.eval('s:vimhdl_path'), 'python')
-sys.path.insert(0, vimhdl_path)
-from project_builder import ProjectBuilder
 ProjectBuilder.clean(vim.eval('conf_file'))
 EOF
 
@@ -72,10 +70,8 @@ endfunction
 " ============================================================================
 " List libraries found
 function! vimhdl#listLibraries()
-    let conf_file = vimhdl#getConfFile()
 
 python << EOF
-project = ProjectBuilder(library_file=vim.eval('conf_file'))
 print "%d libraries:" % len(project.libraries)
 print "\n".join(project.libraries.keys())
 EOF
@@ -87,10 +83,8 @@ endfunction
 " ============================================================================
 " List libraries and their respective sources
 function! vimhdl#listLibrariesAndSources()
-    let conf_file = vimhdl#getConfFile()
 
 python << EOF
-project = ProjectBuilder(library_file=vim.eval('conf_file'))
 for lib in project.libraries.values():
     print "Library: %s (%d sources)" % (lib.name, len(lib.sources))
     for source in lib.sources:
@@ -113,10 +107,8 @@ endfunction
 " { vimhdl#cleanCache()
 " Clean internal vim-hdl cache
 function! vimhdl#cleanProjectCache()
-    let conf_file = vimhdl#getConfFile()
 
 python << EOF
-project = ProjectBuilder(library_file=vim.eval('conf_file'))
 project.cleanCache()
 EOF
 
@@ -134,13 +126,11 @@ function! vimhdl#addSourceToLibrary(...)
         let source = a:2
     endif
 
-    let conf_file = vimhdl#getConfFile()
 
 python << EOF
 _source = vim.eval('source')
 _library = vim.eval('library')
 try:
-    project = ProjectBuilder(library_file=vim.eval('conf_file'))
     project.libraries[_library].addSources(_source)
     project.saveCache()
 
@@ -187,8 +177,6 @@ except Exception as e:
 finally:
     del _source, _library
 EOF
-
-
 
 endfunction
 " }

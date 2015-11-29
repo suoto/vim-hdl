@@ -17,12 +17,8 @@ vim-hdl is a VHDL syntax check provider that relies on third-party tools.
 See https://github.com/suoto/vim-hdl for more information
 """
 
-from vimhdl.config import Config
 try:
-    import vim
-    Config.setupBuild()
+    from vimhdl import vim_client
 except ImportError:
     pass
-#  from vimhdl.project_builder import ProjectBuilder
-#  from vimhdl.static_check import vhdStaticCheck
 
