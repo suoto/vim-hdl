@@ -25,6 +25,7 @@ import threading
 vimhdl_path = os.path.join(vim.eval('s:vimhdl_path'), 'python')
 if vimhdl_path not in sys.path:
     sys.path.insert(0, vimhdl_path)
+import vimhdl
 from vimhdl.project_builder import ProjectBuilder
 from vimhdl.static_check import vhdStaticCheck
 EOF

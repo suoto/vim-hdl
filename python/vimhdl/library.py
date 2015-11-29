@@ -25,7 +25,7 @@ from vimhdl.utils import memoid
 from vimhdl.source_file import VhdlSourceFile
 
 CTAGS_ARGS = ('--tag-relative=no', '--totals=no', '--sort=foldcase',
-        '--extra=+f', '--fields=+i-l+m+s+S', '--links=yes', '--append')
+        '--extra=+f', '--fields=+i+l+m+s+S', '--links=yes', '--append')
 
 RE_CTAGS_IGNORE_LINE = re.compile(
     r"^\s*$|ctags-exuberant: Warning: Language \"vhdl\" already defined")
@@ -34,7 +34,7 @@ class Library(object):
     """Organizes a collection of VhdlSourceFile objects and calls the
     builder with the appropriate parameters"""
 
-    def __init__(self, builder, sources=None, name='work', target_dir=None):
+    def __init__(self, builder=None, sources=None, name='work', target_dir=None):
         self.builder = builder
         self.name = name
         self.sources = {}
@@ -121,8 +121,14 @@ class Library(object):
                 if flag not in build_flags:
                     build_flags.append(flag)
 
-            errors, warnings, rebuilds = self.builder.build(
-                self.name, source, build_flags)
+            if self.builder is not None:
+                errors, warnings, rebuilds = self.builder.build(
+                    self.name, source, build_flags)
+            else:
+                self._logger.info("No builder for %s, only updating tags", str(source))
+                errors = []
+                warnings = []
+                rebuilds = []
 
             for i in range(len(rebuilds)):
                 lib, unit = rebuilds[i]
@@ -140,7 +146,9 @@ class Library(object):
             warnings = cached_info['warnings']
             rebuilds = cached_info['rebuilds']
 
-        if not Config.cache_error_messages and errors or rebuilds:
+        if (not Config.cache_error_messages) and (errors or rebuilds):
+            self._logger.debug("Build errors from '%s' won't be cached", \
+                    str(source))
             cached_info['compile_time'] = 0
 
         if tags_t is not None:
@@ -191,10 +199,12 @@ class Library(object):
                 self._extra_flags.append(flag)
 
     def createOrMapLibrary(self):
-        return self.builder.createOrMapLibrary(self.name)
+        if self.builder is not None:
+            return self.builder.createOrMapLibrary(self.name)
 
     def deleteLibrary(self):
-        return self.builder.deleteLibrary(self.name)
+        if self.builder is not None:
+            return self.builder.deleteLibrary(self.name)
 
     def buildAll(self, forced=False):
         msg = []
@@ -205,6 +215,8 @@ class Library(object):
 
     def getDependencies(self):
         """Gets the dependency tree for this library"""
+        if self.builder is None:
+            return []
 
         # Add an entry to our cached with the dependency check info
         if 'dependency_check' not in self._build_info_cache.keys():
@@ -333,5 +345,6 @@ class Library(object):
                 'compile_time': 0, 'size' : 0, 'errors': (), 'warnings': ()
             }
             self._logger.info("Adding '%s'", path)
+        self._logger.debug("Clearing cache for '%s'", path)
         self._build_info_cache[path]['compile_time'] = 0
 

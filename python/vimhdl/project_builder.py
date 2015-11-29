@@ -286,11 +286,18 @@ class ProjectBuilder(object):
 
     def addLibrary(self, library_name, sources, target_dir):
         "Adds a library with the given sources"
-        self.libraries[library_name] = \
-                Library(builder=self.builder,
-                        sources=sources,
-                        name=library_name,
-                        target_dir=target_dir)
+        if library_name != 'tag_sources':
+            self.libraries[library_name] = \
+                    Library(builder=self.builder,
+                            sources=sources,
+                            name=library_name,
+                            target_dir=target_dir)
+        else:
+            self.libraries[library_name] = \
+                    Library(builder=None,
+                            sources=sources,
+                            name=library_name,
+                            target_dir=target_dir)
 
     def hasLibrary(self, library_name):
         "Returns True is library_name has been added"

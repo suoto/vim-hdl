@@ -39,7 +39,9 @@ call vimhdl#setup()
 function! SyntaxCheckers_vhdl_vimhdl_GetLocList() dict
 
 python << EOF
-vimhdl_sta_t = threading.Thread(target=vhdStaticCheck, args=(vim.current.buffer,))
+from multiprocessing import Queue
+vimhdl_sta_q = Queue()
+vimhdl_sta_t = threading.Thread(target=vhdStaticCheck, args=(vim.current.buffer, vimhdl_sta_q))
 vimhdl_sta_t.start()
 EOF
 
@@ -77,10 +79,15 @@ EOF
     endif
 
 python << EOF
+result = []
 vimhdl_sta_t.join()
+for info in vimhdl_sta_q.get():
+    result.append(vim.Dictionary(info))
+vim.vars['vimhdl_static_check_result'] = vim.List(result)
 EOF
 
     return result + g:vimhdl_static_check_result
+    return result
 
 endfunction
 " }
