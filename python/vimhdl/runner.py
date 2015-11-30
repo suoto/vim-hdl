@@ -70,30 +70,30 @@ def parseArguments():
 
     # Options
     parser.add_argument('--verbose', '-v', action='append_const', const=1,
-            help="""Increases verbose level. Use multiple times to
-            increase more""")
+                        help="""Increases verbose level. Use multiple times to
+                                increase more""")
 
     parser.add_argument('--clean', '-c', action='store_true',
-            help="Cleans the project before building")
+                        help="Cleans the project before building")
 
     parser.add_argument('--build', '-b', action='store_true',
-            help="Builds the project given by <project_file>")
+                        help="Builds the project given by <project_file>")
 
     parser.add_argument('--sources', '-s', action='append', nargs='*',
-            help="""Source(s) file(s) to build individually""").completer \
-                    = _fileExtentensionCompleter('vhd')
+                        help="""Source(s) file(s) to build individually""") \
+                            .completer = _fileExtentensionCompleter('vhd')
 
     parser.add_argument('--debug-print-sources', action='store_true')
     parser.add_argument('--debug-print-compile-order', action='store_true')
     parser.add_argument('--debug-parse-source-file', action='store_true')
     parser.add_argument('--debug-run-static-check', action='store_true')
     parser.add_argument('--debug-profiling', action='store', nargs='?',
-            metavar='OUTPUT_FILENAME', const='vimhdl.pstats')
+                        metavar='OUTPUT_FILENAME', const='vimhdl.pstats')
 
     # Mandatory arguments
     parser.add_argument('project_file', action='store', nargs=1,
-            help="""Configuration file that defines what should be built (lists
-            sources, libraries, build flags and so on""")
+                        help="""Configuration file that defines what should be
+                        built (lists sources, libraries, build flags and so on""")
 
     # pylint: enable=bad-whitespace
 
@@ -173,8 +173,8 @@ def main(args):
     if args.debug_print_compile_order:
         for source in project.getCompilationOrder():
             print "{lang} {library} {path} {flags}".format(
-                    lang='vhdl', library=source.library, path=source.filename,
-                    flags=' '.join(source.flags))
+                lang='vhdl', library=source.library, path=source.filename,
+                flags=' '.join(source.flags))
             assert not set(['-93', '-2008']).issubset(source.flags)
 
     if args.build:
@@ -185,10 +185,12 @@ def main(args):
                 try:
                     _logger.info("Building source '%s'", source)
                     for record in project.buildByPath(source):
-                        print "[{error_type}-{error_number}] @ ({line_number},{column}): {error_message}"\
+                        print "[{error_type}-{error_number}] @ " \
+                              "({line_number},{column}): {error_message}"\
                                 .format(**record)
-                except RuntimeError as e:
-                    _logger.error("Unable to build '%s': '%s'", source, str(e))
+                except RuntimeError as exception:
+                    _logger.error("Unable to build '%s': '%s'", source,
+                                  str(exception))
                     continue
 
     if args.debug_parse_source_file:
@@ -205,11 +207,11 @@ def main(args):
 
 if __name__ == '__main__':
     start = time.time()
-    args = parseArguments()
-    if args.debug_profiling:
-        profile.run('main(args)', args.debug_profiling)
+    runner_args = parseArguments()
+    if runner_args.debug_profiling:
+        profile.run('main(runner_args)', runner_args.debug_profiling)
     else:
-        main(args)
+        main(runner_args)
     end = time.time()
     _logger.info("Process took %.2fs", (end - start))
 

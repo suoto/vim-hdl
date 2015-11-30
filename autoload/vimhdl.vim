@@ -19,6 +19,13 @@ let s:vimhdl_path = escape(expand('<sfile>:p:h'), '\') . "/../"
 " ============================================================================
 " Setup Vim's Python environment to call vim-hdl within Vim
 function! vimhdl#setup()
+
+    if exists('b:vimhdl_loaded') && b:vimhdl_loaded 
+        return
+    endif
+
+    let b:vimhdl_loaded = 1
+
 python << EOF
 import sys, os, vim
 import threading

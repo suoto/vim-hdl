@@ -52,7 +52,7 @@ class BaseCompiler(object):
         else:
             self._logger.info("%s already exists", self._target_folder)
 
-        self._checkEnvironment()
+        self.checkEnvironment()
 
     @abc.abstractmethod
     def _makeMessageRecord(self, message):
@@ -60,7 +60,7 @@ class BaseCompiler(object):
         elements identifying its fields"""
 
     @abc.abstractmethod
-    def _checkEnvironment(self):
+    def checkEnvironment(self):
         """Sanity environment check that should be implemented by child
         classes. Nothing is done with the return, the child class should
         raise an exception by itself"""
@@ -136,84 +136,4 @@ class BaseCompiler(object):
             rebuilds = cached_info['rebuilds']
 
         return records, rebuilds
-
-from prettytable import PrettyTable
-# TODO: Move this to a tests folder or something
-def isRecordValid(record):
-    is_valid = True
-
-    t = PrettyTable(["field", "value", "status"])
-    t.align['status'] = 'l'
-    record_info = dict(zip(record.keys(), ' '*len(record)))
-
-    # Error type check
-    if record['error_type'] in ('E', 'W'):
-        record_info['error_type'] = ''
-    else:
-        record_info['error_type'] = 'Invalid value'
-
-    # Line number check
-    try:
-        int(record['line_number'])
-        record_info['line_number'] = ''
-    except Exception as e:
-        if record['error_number'] not in ('vcom-11', 'vcom-13', 'vcom-19', 'vcom-7'):
-            record_info['line_number'] = 'NOK: %s: %s' % (e.__class__.__name__, str(e))
-            is_valid = False
-
-    # Error number check
-    if record['error_number'] is None:
-        record_info['error_number'] = 'No error number found'
-    else:
-        _errors = []
-        if record['error_number'] == ' ':
-            _errors += ['ops...']
-        for _d in record['error_number']:
-            if _d in ('[', ']', '(', ')'):
-                _errors += ['invalid char: ' + _d]
-                break
-        if _errors:
-            record_info['error_number'] = "NOK: " + ", ".join(_errors)
-            is_valid = False
-
-    # Error message check
-    _errors = []
-    if record['error_message'] == '':
-        _errors += ['empty']
-    if type(record['error_message']) is not str:
-        _errors += ['not string']
-
-    if _errors:
-        record_info['error_message'] = "NOK: " + ", ".join(_errors)
-        is_valid = False
-
-    # Filename check
-    if record['error_number'] not in ('vcom-11', 'vcom-13', 'vcom-19', 'vcom-7'):
-        _errors = []
-        if record['filename'] == '':
-            _errors += ['empty']
-        if type(record['filename']) is not str:
-            _errors += ['not string']
-        else:
-            if 'souto' in record['filename']:
-                if not os.path.isfile(record['filename']):
-                    _errors += ['file %s should exist!' % repr(record['filename'])]
-
-        if _errors:
-            record_info['filename'] = "NOK: " + ", ".join(_errors)
-            is_valid = False
-
-
-    for k, v in record.items():
-        if len(str(v)) > 80:
-            v = str(v)[:80] + '...'
-        info = record_info[k]
-        if len(str(info)) > 80:
-            info = str(info)[:80] + '...'
-        t.add_row([k, v, info])
-
-    if not is_valid:
-        print t
-
-    return is_valid
 

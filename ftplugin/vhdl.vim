@@ -29,6 +29,7 @@
 " command! -nargs=? VimhdlRemoveSourceFromLibrary call vimhdl#removeSourceFromLibrary(<f-args>)
 " " }
 "
+call vimhdl#setup()
 " { Autocommands
 autocmd! BufRead      *.vhd :py vimhdl.vim_client.onBufRead()
 autocmd! BufWrite     *.vhd :py vimhdl.vim_client.onBufWrite()

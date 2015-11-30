@@ -22,11 +22,9 @@ except ImportError:
     import pickle
 
 from vimhdl.compilers import *               # pylint: disable=wildcard-import
-from vimhdl.config_parser import ExtendedConfigParser, readConfigFile
+from vimhdl.config_parser import readConfigFile
 from vimhdl.source_file import VhdlSourceFile
 import vimhdl.exceptions
-
-# pylint: disable=bad-continuation
 
 _logger = logging.getLogger('build messages')
 
@@ -34,21 +32,20 @@ class ProjectBuilder(object):
     "vim-hdl project builder class"
     MAX_BUILD_STEPS = 20
 
-    #  def _setCurrentState(self, state):
-    #      self._state
-
     def __init__(self, project_file):
         self.builder = None
         self.sources = {}
         self._logger = logging.getLogger(__name__)
-        self._project_file = {'filename': project_file,
+
+        self._project_file = {'filename'  : project_file,
                               'timestamp' : 0,
-                              'valid' : False}
+                              'valid'     : False}
         self.halt = False
 
-        self._build_flags = {'batch' : set(),
+        self._build_flags = {'batch'  : set(),
                              'single' : set(),
                              'global' : set()}
+
         self._units_built = []
 
     def __getstate__(self):
@@ -69,7 +66,8 @@ class ProjectBuilder(object):
         self.__dict__.update(state)
 
     def _postUnpicklingSanityCheck(self):
-        self.builder._checkEnvironment()
+        "Sanity checks to ensure the state after unpickling is still valid"
+        self.builder.checkEnvironment()
 
     def readConfigFile(self):
         "Reads the configuration given by self._project_file['filename']"
@@ -230,9 +228,9 @@ class ProjectBuilder(object):
                 if source.abspath in sources_built:
                     continue
 
-                self._logger.debug("All dependencies for %s are met: %s",
-                        str(source),
-                        ", ".join(["'%s'" % str(x) for x in dependencies]))
+                self._logger.debug(
+                    "All dependencies for %s are met: %s", str(source),
+                    ", ".join(["'%s'" % str(x) for x in dependencies]))
 
                 self._units_built += list(design_units)
                 sources_built += [source.abspath]
@@ -250,22 +248,25 @@ class ProjectBuilder(object):
                     missing_dependencies = dependencies - set(self._units_built)
                     if missing_dependencies:
                         sources_not_built = True
-                        self._logger.warning("Couldn't build source '%s'. "
-                            "Missing dependencies: %s", str(source),
+                        self._logger.warning(
+                            "Couldn't build source '%s'. Missing dependencies: %s",
+                            str(source),
                             ", ".join([str(x) for x in missing_dependencies]))
                     else:
-                        self._logger.warning("Source %s wasn't built but has "
-                                          "no missing dependencies", str(source))
+                        self._logger.warning(
+                            "Source %s wasn't built but has no missing "
+                            "dependencies", str(source))
                         yield source
                 if sources_not_built:
                     self._logger.warning("Some sources were not built")
 
-                self._logger.info("Braking at step %d. Units built: %s",
-                        step, ", ".join(sorted(self._units_built)))
+                self._logger.info("Breaking at step %d. Units built: %s",
+                                  step, ", ".join(sorted(self._units_built)))
 
                 raise StopIteration()
 
     def getCompilationOrder(self):
+        "Returns the build order osed by the buildByDependency method"
         self._units_built = []
         return self._getBuildSteps()
 
@@ -283,7 +284,7 @@ class ProjectBuilder(object):
         warnings = 0
         self._units_built = []
         for source in self._getBuildSteps():
-            records, _ = self.builder.build(source,
+            records, _ = self.builder.build(source, \
                     flags=self._build_flags['batch'])
             design_units = set(["%s.%s" % (source.library, x['name']) \
                     for x in source.getDesignUnits()])
@@ -299,7 +300,7 @@ class ProjectBuilder(object):
                     _logger.fatal(str(record))
                     assert 0
             built += 1
-        self._logger.info("Done. Built %d sources, %d errors and %d warnings",
+        self._logger.info("Done. Built %d sources, %d errors and %d warnings", \
                 built, errors, warnings)
 
     def buildByPath(self, path, batch_mode=False):
@@ -325,15 +326,15 @@ class ProjectBuilder(object):
                 self._build_flags['single']
 
         records, rebuilds = self.builder.build(
-                self.sources[os.path.abspath(path)], forced=True,
-                flags=flags)
+            self.sources[os.path.abspath(path)], forced=True,
+            flags=flags)
 
         if rebuilds:
             source = self.sources[os.path.abspath(path)]
             rebuild_units = ["%s.%s" % (x[0], x[1]) for x in rebuilds]
 
             self._logger.info("Building '%s' triggers rebuild of units: %s",
-                    source, ", ".join(rebuild_units))
+                              source, ", ".join(rebuild_units))
             for rebuild_unit in rebuild_units:
                 for rebuild_source in self._findSourceByDesignUnit(rebuild_unit):
                     self.buildByPath(rebuild_source.abspath, batch_mode=True)

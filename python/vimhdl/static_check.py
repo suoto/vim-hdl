@@ -71,14 +71,11 @@ def _getObjectsFromText(vbuffer):
 
         matches = []
         if area is None:
-            for match in __NO_AREA_SCANNER__.finditer(line):
-                matches += [match]
+            matches += __NO_AREA_SCANNER__.finditer(line)
         elif area == 'entity':
-            for match in __ENTITY_SCANNER__.finditer(line):
-                matches += [match]
+            matches += __ENTITY_SCANNER__.finditer(line)
         elif area == 'architecture':
-            for match in __ARCH_SCANNER__.finditer(line):
-                matches += [match]
+            matches += __ARCH_SCANNER__.finditer(line)
 
         for match in matches:
             for key, value in match.groupdict().items():
@@ -95,16 +92,15 @@ def _getObjectsFromText(vbuffer):
                 for submatch in re.finditer(r"(\w+)", value):
                     # Need to decrement the last index because we have a group that
                     # catches the port type (in, out, inout, etc)
-                    subindex = submatch.lastindex
                     text = submatch.group(submatch.lastindex)
                     if text not in objects.keys():
                         objects[text] = {}
                     objects[text]['lnum'] = lnum
-                    objects[text]['start'] = start + submatch.start(subindex)
-                    objects[text]['end'] = end + submatch.start(subindex)
+                    objects[text]['start'] = start + submatch.start(submatch.lastindex)
+                    objects[text]['end'] = end + submatch.start(submatch.lastindex)
                     objects[text]['type'] = key
         lnum += 1
-        if __END_OF_SCAN__.findall(line):
+        if __END_OF_SCAN__.search(line):
             break
 
     if objects:
