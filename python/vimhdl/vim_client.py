@@ -80,6 +80,7 @@ class VimhdlClient(vimhdl.project_builder.ProjectBuilder):
         with self._lock:
             __logger__.debug("Building by dependency")
             self.buildByDependency()
+        self.saveCache()
 
     def saveCache(self):
         if self._lock.locked():
@@ -132,14 +133,18 @@ class VimhdlClient(vimhdl.project_builder.ProjectBuilder):
         if dependencies.issubset(set(self._units_built)):
             self._logger.debug("Dependencies for source '%s' are met", \
                     str(source))
-            return super(VimhdlClient, self).buildByPath(path)
+            records = super(VimhdlClient, self).buildByPath(path, *args, **kwargs)
+            self.saveCache()
+            return records
 
         if self._lock.locked():
             _postVimWarning("Project setup is still running...")
             return []
 
         with self._lock:
-            return super(VimhdlClient, self).buildByPath(path, *args, **kwargs)
+            records = super(VimhdlClient, self).buildByPath(path, *args, **kwargs)
+        self.saveCache()
+        return records
 
     def updateVimOptions(self):
         "Gets options from Vim dict and writes to vimhdl.config.Config class"
@@ -240,7 +245,6 @@ def onFocusLost():
     __logger__.debug("[%d] Running actions for event 'onFocusLost'", \
         vim.current.buffer.number)
     if __vimhdl_client__ is None: return
-    __vimhdl_client__.saveCacheNonBlocking()
     __vimhdl_client__.postMessages()
 
 def onCursorHold():
