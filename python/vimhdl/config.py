@@ -23,8 +23,11 @@ except ImportError:
 class Config(object):
     is_toolchain = None
     thread_limit = 20
-    log_file = os.path.sep.join(['', 'tmp', 'build.log'])
+
+    # Only for running in standlone mode
     log_level = logging.DEBUG
+    log_format = "%(levelname)-8s || %(name)s || %(message)s"
+
     show_only_current_file = False
 
     # When building a specific source, we can build its first level
@@ -41,7 +44,6 @@ class Config(object):
     # source will be the cached ontes until we force rebuilding it
     cache_error_messages = True
 
-    log_format = "%(levelname)-8s || %(name)s || %(message)s"
 
     _logger = logging.getLogger(__name__)
 
@@ -68,28 +70,15 @@ class Config(object):
         stream_handler.formatter = logging.Formatter(Config.log_format)
         logging.root.addHandler(stream_handler)
         logging.root.setLevel(Config.log_level)
-        #  Config._logger.addHandler(stream_handler)
-        #  _logger_vcom.addHandler(stream_handler)
-
-    @staticmethod
-    def _setupFileHandler(f):
-        file_handler = logging.FileHandler(f)
-        file_handler.formatter = logging.Formatter(Config.log_format)
-        logging.root.addHandler(file_handler)
-        logging.root.setLevel(Config.log_level)
-        #  Config._logger.addHandler(file_handler)
-        #  _logger_vcom.addHandler(file_handler)
 
     @staticmethod
     def _setupToolchain():
         Config.log_level = logging.DEBUG
-        Config._setupFileHandler(Config.log_file)
         Config._logger.info("Setup for toolchain")
         Config.is_toolchain = True
 
     @staticmethod
     def _setupStandalone():
-        Config._setupStreamHandler(sys.stdout)
         Config._logger.info("Setup for standalone")
         Config.is_toolchain = False
 

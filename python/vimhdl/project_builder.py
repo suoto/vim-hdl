@@ -126,11 +126,13 @@ class ProjectBuilder(object):
         # Take care to don't recreate a library
         for source, library, flags in source_list:
             if os.path.abspath(source) in self.sources.keys():
-                continue
-            _source = VhdlSourceFile(source, library)
+                _source = self.sources[os.path.abspath(source)]
+            else:
+                _source = VhdlSourceFile(source, library)
             _source.flags = self._build_flags['global'].copy()
             if flags:
                 _source.flags.update(flags)
+
             self.sources[_source.abspath] = _source
 
         self._project_file['valid'] = True

@@ -118,7 +118,7 @@ class VimhdlClient(vimhdl.project_builder.ProjectBuilder):
                 'filename'       : '',
                 'error_number'   : '',
                 'error_type'     : 'W',
-                'error_message'  : 'File not found in project file'}
+                'error_message'  : 'Path "%s" not found in project file' % os.path.abspath(path)}
             if self._lock.locked():
                 msg['error_message'] += ' (setup it still active, try again ' \
                         'after it finishes)'
