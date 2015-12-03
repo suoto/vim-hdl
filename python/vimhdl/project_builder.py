@@ -122,6 +122,15 @@ class ProjectBuilder(object):
         else:
             raise RuntimeError("Unknown builder '%s'" % builder_name)
 
+        # Remove from our sources the files that are no longes listed
+        # in the configuration file.
+        # FIXME: Check feasibility to tell the builder to remove compiled
+        # files so the removed file is actually removed from the library
+        for source in set(self.sources.keys()) - \
+                set([os.path.abspath(x[0]) for x in source_list]):
+            self._logger.debug("Removing %s from library", source)
+            self.sources.pop(source)
+
         # Iterate over the sections to get sources and build flags.
         # Take care to don't recreate a library
         for source, library, flags in source_list:
