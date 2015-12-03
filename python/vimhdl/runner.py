@@ -45,8 +45,6 @@ if __name__ == '__main__':
 from vimhdl.config import Config
 from vimhdl.project_builder import ProjectBuilder
 
-_logger = logging.getLogger(__name__)
-
 def _fileExtentensionCompleter(extension):
     def _completer(**kwargs):
         prefix = kwargs['prefix']
@@ -208,6 +206,7 @@ def main(args):
 if __name__ == '__main__':
     start = time.time()
     runner_args = parseArguments()
+    _logger = logging.getLogger(__name__)
     if runner_args.debug_profiling:
         profile.run('main(runner_args)', runner_args.debug_profiling)
     else:

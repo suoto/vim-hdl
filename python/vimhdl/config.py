@@ -81,6 +81,7 @@ class Config(object):
     def _setupStandalone():
         Config._logger.info("Setup for standalone")
         Config.is_toolchain = False
+        Config._setupStreamHandler(sys.stdout)
 
     @staticmethod
     def setupBuild():
