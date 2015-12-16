@@ -106,7 +106,7 @@ class MSim(BaseCompiler):
             'error_message'  : error_message,
         }
 
-    def _checkEnvironment(self):
+    def checkEnvironment(self):
         try:
             version = subprocess.check_output(['vcom', '-version'], \
                 stderr=subprocess.STDOUT)
@@ -166,6 +166,7 @@ class MSim(BaseCompiler):
             self._addLibraryToIni(source.library)
 
     def _addLibraryToIni(self, library):
+        "Adds a library to a non-existent ModelSim init file"
         self._logger.info("Library %s not found, creating", library)
         shell('cd {target_folder} && vlib {vlib_args} {library}'.format(
             target_folder=self._target_folder,
@@ -178,6 +179,7 @@ class MSim(BaseCompiler):
             library_path=os.path.join(self._target_folder, library)))
 
     def deleteLibrary(self, library):
+        "Deletes a library from ModelSim init file"
         if not os.path.exists(os.path.join(self._target_folder, library)):
             self._logger.warning("Library %s doesn't exists", library)
             return
@@ -186,6 +188,7 @@ class MSim(BaseCompiler):
             ))
 
     def _mapLibrary(self, library):
+        "Adds a library to an existing ModelSim init file"
         self._logger.info("modelsim.ini found, adding %s", library)
 
         shell('vlib {vlib_args} {library}'.format(

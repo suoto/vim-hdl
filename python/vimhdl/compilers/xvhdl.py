@@ -79,7 +79,7 @@ class XVHDL(BaseCompiler):
             'error_message'  : error_message,
         }
 
-    def _checkEnvironment(self):
+    def checkEnvironment(self):
         try:
             version = subprocess.check_output(\
                 ['xvhdl', '--nolog', '--version'], \

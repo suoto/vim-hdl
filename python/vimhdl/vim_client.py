@@ -80,6 +80,7 @@ class VimhdlClient(vimhdl.project_builder.ProjectBuilder):
         with self._lock:
             __logger__.debug("Building by dependency")
             self.buildByDependency()
+        self.saveCache()
 
     def saveCache(self):
         if self._lock.locked():
@@ -117,7 +118,7 @@ class VimhdlClient(vimhdl.project_builder.ProjectBuilder):
                 'filename'       : '',
                 'error_number'   : '',
                 'error_type'     : 'W',
-                'error_message'  : 'File not found in project file'}
+                'error_message'  : 'Path "%s" not found in project file' % os.path.abspath(path)}
             if self._lock.locked():
                 msg['error_message'] += ' (setup it still active, try again ' \
                         'after it finishes)'
@@ -132,14 +133,18 @@ class VimhdlClient(vimhdl.project_builder.ProjectBuilder):
         if dependencies.issubset(set(self._units_built)):
             self._logger.debug("Dependencies for source '%s' are met", \
                     str(source))
-            return super(VimhdlClient, self).buildByPath(path)
+            records = super(VimhdlClient, self).buildByPath(path, *args, **kwargs)
+            self.saveCache()
+            return records
 
         if self._lock.locked():
             _postVimWarning("Project setup is still running...")
             return []
 
         with self._lock:
-            return super(VimhdlClient, self).buildByPath(path, *args, **kwargs)
+            records = super(VimhdlClient, self).buildByPath(path, *args, **kwargs)
+        self.saveCache()
+        return records
 
     def updateVimOptions(self):
         "Gets options from Vim dict and writes to vimhdl.config.Config class"
@@ -240,7 +245,6 @@ def onFocusLost():
     __logger__.debug("[%d] Running actions for event 'onFocusLost'", \
         vim.current.buffer.number)
     if __vimhdl_client__ is None: return
-    __vimhdl_client__.saveCacheNonBlocking()
     __vimhdl_client__.postMessages()
 
 def onCursorHold():
@@ -288,23 +292,7 @@ def _sortBuildMessages(records):
             except ValueError:
                 pass
     records.sort(key=lambda x: (x['type'], x['lnum'], x['col'], x['nr']))
-    error_numbers = {}
-    filtered_records = []
-    for record in records:
-        if record['nr']:
-            if record['nr'] not in error_numbers.keys():
-                error_numbers[record['nr']] = []
-                filtered_records.append(record)
-            else:
-                error_numbers[record['nr']].append(record['lnum'])
-        else:
-            filtered_records.append(record)
-
-    for record in filtered_records:
-        if record['nr'] in error_numbers.keys():
-            record['text'] += ' (message repeats at lines %s)' % \
-                    ', '.join([str(x) for x in error_numbers[record['nr']]])
-    return filtered_records
+    return records
 
 def getMessages(vbuffer):
     start = time.time()
@@ -324,7 +312,8 @@ def getMessages(vbuffer):
     end = time.time()
 
     _postVimInfo("Building took %.2fs" % (end - start))
-    vim.vars['vimhdl_latest_build_messages'] = vim.List(_sortBuildMessages(result))
+
+    return vim.List(_sortBuildMessages(result))
 
 # More info on :help getqflist()
 def buildBuffer(vbuffer):

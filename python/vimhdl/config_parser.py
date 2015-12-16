@@ -15,6 +15,7 @@
 """Extended version of ConfigParser.SafeConfigParser to add a method to return
 a list split at multiple whitespaces"""
 
+import os
 import re
 import logging
 
@@ -66,7 +67,7 @@ def parseConfFile(fname):
         }
 
     builder_name = parser.get('global', 'builder')
-    target_dir = parser.get('global', 'target_dir')
+    target_dir = os.path.expanduser(parser.get('global', 'target_dir'))
 
     _logger.info("Builder selected: %s at %s", builder_name, target_dir)
 

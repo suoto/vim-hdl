@@ -32,7 +32,7 @@ _DESIGN_UNIT_SCANNER = re.compile('|'.join([
     r"^\s*package\s+(?P<package_name>\w+)\s+is\b",
     r"^\s*package\s+body\s+(?P<package_body_name>\w+)\s+is\b",
     r"^\s*entity\s+(?P<entity_name>\w+)\s+is\b",
-    r"^\s*library\s+(?P<library_name>\w+)\b",
+    r"^\s*library\s+(?P<library_name>[\w,\s]+)\b",
     ]), flags=re.I)
 
 class VhdlSourceFile(object):
@@ -127,7 +127,7 @@ class VhdlSourceFile(object):
                     unit = {'name' : match_dict['entity_name'],
                             'type' : 'entity'}
                 elif match_dict['library_name'] is not None:
-                    libraries += [match_dict['library_name']]
+                    libraries += re.split(r"\s*,\s*", match_dict['library_name'])
 
                 if unit:
                     design_units.append(unit)

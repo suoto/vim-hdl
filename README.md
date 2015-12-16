@@ -41,7 +41,8 @@ build flags, etc. Select the configuration file via
 let g:vimhdl_conf_file = '<config/file>'
 ```
 
-The configuration file syntax follows Python [ConfigParser][ConfigParser].
+See the [wiki](https://github.com/suoto/vim-hdl/wiki#project-file-formats) for
+details on how to write it.
 
 Any other [Syntastic][Syntastic] option should work as well.
 

@@ -17,56 +17,20 @@
 " For Syntastic license, check http://sam.zoy.org/wtfpl/COPYING
 "============================================================================
 
-" { Pre setup
-if exists("g:loaded_syntastic_vhdl_vimhdl_checker")
-    finish
-endif
-let g:loaded_syntastic_vhdl_vimhdl_checker = 1
+" FIXME: Commands aren't working for a while!
+" " { Vimhdl commands
+" command! VimhdlRebuildProject                  call vimhdl#rebuildProject()
+" command! VimhdlListLibraries                   call vimhdl#listLibraries()
+" command! VimhdlListLibrariesAndSources         call vimhdl#listLibrariesAndSources()
+" command! VimhdlViewLog                         call vimhdl#viewLog()
+" command! VimhdlCleanProjectCache               call vimhdl#cleanProjectCache()
 
-if exists("g:syntastic_vhdl_checkers")
-    let g:syntastic_vhdl_checkers += ['vimhdl']
-else
-    let g:syntastic_vhdl_checkers = ['vimhdl']
-endif
-let s:save_cpo = &cpo
-set cpo&vim
-" }
-
-let s:vimhdl_path = escape(expand('<sfile>:p:h'), '\') . "/../"
+" command! -nargs=? VimhdlAddSourceToLibrary call vimhdl#addSourceToLibrary(<f-args>)
+" command! -nargs=? VimhdlRemoveSourceFromLibrary call vimhdl#removeSourceFromLibrary(<f-args>)
+" " }
+"
 call vimhdl#setup()
 
-" { vimhdl Syntastic definition
-function! SyntaxCheckers_vhdl_vimhdl_GetLocList() dict
-
-    " py vimhdl.vim_client.buildByPath(vim.current.buffer)
-    py vimhdl.vim_client.getMessages(vim.current.buffer)
-    " return []
-    return g:vimhdl_latest_build_messages
-
-endfunction
-" }
-
-" { Register vimhdl within Syntastic
-call g:SyntasticRegistry.CreateAndRegisterChecker({
-    \ 'exec'     : 'python',
-    \ 'filetype' : 'vhdl',
-    \ 'name'     : 'vimhdl'})
-" }
-
-let &cpo = s:save_cpo
-unlet s:save_cpo
-
-" { Vimhdl commands
-command! VimhdlRebuildProject                  call vimhdl#rebuildProject()
-command! VimhdlListLibraries                   call vimhdl#listLibraries()
-command! VimhdlListLibrariesAndSources         call vimhdl#listLibrariesAndSources()
-command! VimhdlViewLog                         call vimhdl#viewLog()
-command! VimhdlCleanProjectCache               call vimhdl#cleanProjectCache()
-
-command! -nargs=? VimhdlAddSourceToLibrary call vimhdl#addSourceToLibrary(<f-args>)
-command! -nargs=? VimhdlRemoveSourceFromLibrary call vimhdl#removeSourceFromLibrary(<f-args>)
-" }
-"
 " { Autocommands
 autocmd! BufRead      *.vhd :py vimhdl.vim_client.onBufRead()
 autocmd! BufWrite     *.vhd :py vimhdl.vim_client.onBufWrite()
@@ -86,9 +50,6 @@ autocmd! TabLeave     *.vhd :py vimhdl.vim_client.onTabLeave()
 autocmd! VimLeave     *     :py vimhdl.vim_client.onVimLeave()
 
 
-" autocmd! BufWrite *.vhd :call vimhdl#onBufWrite()
-" autocmd! BufEnter *.vhd :call vimhdl#onBufEnter()
-" autocmd! BufWrite *.vhd :call vimhdl#onBufWrite()
 " }
 
 " vim: set foldmarker={,} foldlevel=0 foldmethod=marker :
