@@ -13,8 +13,9 @@ We'll test what happens when we configure a project but the builder it specifies
 is not found, which should trigger using the fallback builder
   :cd .ci/test_projects/hdl_lib
   :let g:vimhdl_conf_file = 'msim.prj'
-  :edit common_lib/edge_detector.vhd (4)
+  :edit common_lib/edge_detector.vhd (2)
   ~ "common_lib/edge_detector.vhd".* (regex)
+  > i<ESC>
   ~ Failed to create builder 'msim'
 
   @do (assert_qf_empty)
