@@ -1,0 +1,19 @@
+---
+engines:
+  duplication:
+    enabled: true
+    config:
+      languages:
+        - python
+  shellcheck:
+    enabled: true
+  fixme:
+    enabled: true
+  radon:
+    enabled: true
+    config:
+      python_version: 2
+      threshold: "C"
+ratings:
+  paths:
+    - "**.py"

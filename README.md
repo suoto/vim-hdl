@@ -1,12 +1,16 @@
 # vim-hdl
 
+[![Build Status](https://travis-ci.org/suoto/vim-hdl.svg?branch=master)](https://travis-ci.org/suoto/vim-hdl)
+[![Coverage Status](https://coveralls.io/repos/github/suoto/vim-hdl/badge.svg?branch=master)](https://coveralls.io/github/suoto/vim-hdl?branch=master)
+[![Code Climate](https://codeclimate.com/github/suoto/vim-hdl/badges/gpa.svg)](https://codeclimate.com/github/suoto/vim-hdl)
+[![Code Health](https://landscape.io/github/suoto/vim-hdl/master/landscape.svg?style=flat)](https://landscape.io/github/suoto/vim-hdl/master)
+
 vim-hdl is a Vim plugin that uses [`hdlcc`][hdlcc] to provide some helpers to VHDL
 development:
 
-* Syntax checking using [Syntastic][Syntastic] along with third-party compilers
- supported by `hdlcc`. (see [`hdlcc`'s README]
- (https://github.com/suoto/hdlcc#supported-third-party-compilers) for an updated
- list)
+* Syntax checking (using
+  [third-party-compilers](#supported-third-party-compilers) +
+  [Syntastic][Syntastic])
 * [Style checking](#style-checking)
 
 ![vim-hdl screenshot](http://i.imgur.com/YksSZq0.png)
@@ -57,6 +61,41 @@ setup.
 
 ---
 
+## Supported third-party compilers
+
+* [Mentor Graphics® ModelSim®][Mentor_msim]
+* [ModelSim-Altera® Edition][Altera_msim]
+* [GHDL][GHDL]
+
+---
+
+## Style checking
+
+Style checks are independent of a third-party compiler. Checking includes:
+
+* Signal names in lower case
+* Constants and generics in upper case
+* Unused signals, constants, generics, shared variables, libraries, types and
+ attributes
+* Comment tags (`FIXME`, `TODO`, `XXX`)
+
+Notice that currently the unused reports has caveats, namely declarations with
+the same name inherited from a component, function, procedure, etc. In the
+following example, the signal `rdy` won't be reported as unused in spite of the
+fact it is not used.
+
+```vhdl
+signal rdy, refclk, rst : std_logic;
+...
+
+idelay_ctrl_u : idelay_ctrl
+    port map (rdy    => open,
+              refclk => refclk,
+              rst    => rst);
+```
+
+---
+
 ## Issues
 
 You can use the [issue tracker][issue_tracker] for bugs, feature request and so on.
@@ -88,3 +127,4 @@ or used by this software.
 [gpl]: http://www.gnu.org/copyleft/gpl.html
 [issue_tracker]: https://github.com/suoto/vim-hdl/issues
 [hdlcc]: https://github.com/suoto/hdlcc
+[GHDL]: https://github.com/tgingold/ghdl
