@@ -12,13 +12,8 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with vim-hdl.  If not, see <http://www.gnu.org/licenses/>.
-"""
-vim-hdl is a VHDL syntax check provider that relies on third-party tools.
-See https://github.com/suoto/vim-hdl for more information
-"""
+'''vim-hdl is a VHDL syntax check provider that relies on third-party
+tools.  See https://github.com/suoto/vim-hdl for more information'''
 
-try:
-    from vimhdl import vim_client
-except ImportError:
-    pass
+import vim_client
 

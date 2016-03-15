@@ -45,8 +45,13 @@ function! SyntaxCheckers_vhdl_vimhdl_GetLocList() dict
     let loclist = []
 
 py <<EOF
-loclist = vim.bindeval('loclist')
-loclist.extend(vimhdl.vim_client.getMessages(vim.current.buffer))
+try:
+    loclist = vim.bindeval('loclist')
+except AttributeError:
+    loclist = vim.eval('loclist')
+messages = vimhdl.vim_client.getMessages(buf=vim.current.buffer)
+if messages:
+    loclist.extend(messages)
 EOF
     return loclist
 

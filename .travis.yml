@@ -1,0 +1,72 @@
+---
+language: python
+python:
+  - "2.7"
+
+env:
+  global:
+    - VROOM_TAG=v0.12.0
+    # - GRLIB_VERSION=v1.5.0-b4164
+    - GRLIB_VERSION=v1.5.0-b4164
+    - CACHE=${HOME}/cache"
+    - GHDL_HOST="http://downloads.sourceforge.net/project/ghdl-updates/Builds"
+    - GHDL_URL ="${GHDL_HOST}/ghdl-0.33/ghdl-0.33-x86_64-linux.tgz"
+  matrix:
+    # - VIM_VERSION=v7.3
+    # - VIM_VERSION=v7.3.429  # Ubuntu precise 12.04 LTS
+    # - VIM_VERSION=v7.3.547  # Debian 7.9 (wheezy)
+    - VIM_VERSION=v7.4        #
+    # - VIM_VERSION=v7.4.052  # Ubuntu trusty 14.04 LTS
+    # - VIM_VERSION=v7.4.488  # Ubuntu vivid
+    # - VIM_VERSION=v7.4.712  # Ubuntu wily
+    # - VIM_VERSION=v7.4.963  # Ubuntu 15.10
+    - VIM_VERSION=master
+
+addons:
+  apt:
+    packages:
+      - autoconf
+      - python-dev
+      - vim-gnome
+
+install: "pip install -r .ci/requirements.txt"  # --user"
+
+before_script:
+  - "mkdir -p ${CACHE}"
+
+  # Setup vroom
+  - "cd ~"
+  - "git clone https://github.com/google/vroom -b ${VROOM_TAG} \
+     --single-branch --depth 1"
+  - "cd vroom && python3 setup.py build && python3 setup.py install --user"
+  # Vroom's vim mode currently requires a running X server.
+  - export DISPLAY=:99.0
+  - sh -e /etc/init.d/xvfb start
+  - "cd ${TRAVIS_BUILD_DIR}"
+
+  # Download grlib from aeroflex
+  - "git clone https://github.com/suoto/grlib -b ${GRLIB_VERSION} \
+       --single-branch --depth 1"
+
+  - "export VIMRUNTIME=${CACHE}/vim-${VIM_VERSION}/runtime"
+  - "export PATH=${CACHE}/vim-${VIM_VERSION}/src/:${PATH}"
+  - "export VIM_BINARY=${CACHE}/vim-${VIM_VERSION}/src/vim"
+
+  - "./dependencies/hdlcc/scripts/setup_ghdl.sh"
+  - "./.ci/setup_ghdl.sh"
+  - "./.ci/setup_vim.sh"
+  - "[ -n \"$VIM_BINARY\" ] || exit -1"
+  - "$VIM_BINARY --version"
+
+script:
+  - ./run_tests.sh -d0.5 -t3
+
+after_success:
+  - "export COVERALLS_PARALLEL=true"
+  - "coveralls"
+  - "codecov"
+after_failure:
+  - "cat vroom.log"
+cache:
+  directories:
+    - ~/cache/

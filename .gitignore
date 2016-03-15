@@ -2,3 +2,6 @@
 *.pyo
 *.swp
 tags
+.coverage
+.foo
+htmlcov/
