@@ -80,9 +80,7 @@ def _getProjectFile():
     conf_file = None
     if 'vimhdl_conf_file' in vim_helpers.getBufferVars():
         conf_file = vim_helpers.getBufferVars('vimhdl_conf_file')
-        if p.exists(conf_file):
-            _logger.debug("Using config file from buffer dict")
-        else:
+        if not p.exists(conf_file):
             _logger.warning("Buffer config file '%s' is set but not " \
                     "readable", conf_file)
             conf_file = None
