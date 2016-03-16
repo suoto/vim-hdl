@@ -112,10 +112,7 @@ The package has changed but neither the edge_detector or sr_delay have been
 rebuilt
   :edit common_lib/edge_detector.vhd
   :write
-  :SyntasticCheck
-  :lopen
-  common_lib/edge_detector.vhd|54 col 37 error| entity "synchronizer" is obsoleted by package "common_pkg"
-  :quit
+  @do (assert_qf_empty)
 
 Let's rebuild 
   :edit common_lib/synchronizer.vhd
@@ -133,3 +130,4 @@ rebuilt
   :edit common_lib/edge_detector.vhd
   :write
   @do (assert_qf_empty)
+
