@@ -32,23 +32,15 @@
 call vimhdl#setup()
 
 " { Autocommands
-autocmd! BufRead      *.vhd :py vimhdl.vim_client.onBufRead()
-autocmd! BufReadPost      *.vhd :py vimhdl.vim_client.onBufReadPost()
-" autocmd! BufWrite     *.vhd :py vimhdl.vim_client.onBufWrite()
-autocmd! BufWritePost *.vhd :py vimhdl.vim_client.onBufWritePost()
-autocmd! BufEnter     *.vhd :py vimhdl.vim_client.onBufEnter()
-" autocmd! BufLeave     *.vhd :py vimhdl.vim_client.onBufLeave()
-autocmd! BufWinEnter  *.vhd :py vimhdl.vim_client.onBufWinEnter()
-" autocmd! BufWinLeave  *.vhd :py vimhdl.vim_client.onBufWinLeave()
-autocmd! FocusGained  *.vhd :py vimhdl.vim_client.onFocusGained()
-autocmd! FocusLost    *.vhd :py vimhdl.vim_client.onFocusLost()
-autocmd! CursorHold   *.vhd :py vimhdl.vim_client.onCursorHold()
-autocmd! CursorHoldI  *.vhd :py vimhdl.vim_client.onCursorHoldI()
-" autocmd! WinEnter     *.vhd :py vimhdl.vim_client.onWinEnter()
-" autocmd! WinLeave     *.vhd :py vimhdl.vim_client.onWinLeave()
-autocmd! TabEnter     *.vhd :py vimhdl.vim_client.onTabEnter()
-" autocmd! TabLeave     *.vhd :py vimhdl.vim_client.onTabLeave()
-" autocmd! VimLeave     *     :py vimhdl.vim_client.onVimLeave()
+autocmd! BufWritePost *.vhd :py vimhdl.vim_client.postQueuedMessages()
+autocmd! BufEnter     *.vhd :py vimhdl.vim_client.postQueuedMessages()
+autocmd! BufLeave     *.vhd :py vimhdl.vim_client.postQueuedMessages()
+autocmd! FocusGained  *.vhd :py vimhdl.vim_client.postQueuedMessages()
+autocmd! CursorMoved  *.vhd :py vimhdl.vim_client.postQueuedMessages()
+autocmd! CursorMovedI *.vhd :py vimhdl.vim_client.postQueuedMessages()
+autocmd! CursorHold   *.vhd :py vimhdl.vim_client.postQueuedMessages()
+autocmd! CursorHoldI  *.vhd :py vimhdl.vim_client.postQueuedMessages()
+autocmd! InsertLeave  *.vhd :py vimhdl.vim_client.postQueuedMessages()
 
 
 " }

@@ -33,7 +33,7 @@ import logging
 _logger = logging.getLogger(__name__)
 for path in (p.join(vim.eval('s:vimhdl_path'), 'python'),
              p.join(vim.eval('s:vimhdl_path'), 'dependencies', 'hdlcc')
-             ):
+         ):
     if path not in sys.path:
         _logger.info("Adding %s", path)
         sys.path.insert(0, path)
