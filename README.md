@@ -13,7 +13,7 @@ development:
   [Syntastic][Syntastic])
 * [Style checking](#style-checking)
 
-![vim-hdl screenshot](http://i.imgur.com/YksSZq0.png)
+![vim-hdl screenshot](http://i.imgur.com/hwWtPwc.gif)
 
 ---
 
