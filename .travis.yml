@@ -16,11 +16,11 @@ env:
     # - VIM_VERSION=v7.3.429  # Ubuntu precise 12.04 LTS
     # - VIM_VERSION=v7.3.547  # Debian 7.9 (wheezy)
     - VIM_VERSION=v7.4        #
-    # - VIM_VERSION=v7.4.052  # Ubuntu trusty 14.04 LTS
-    # - VIM_VERSION=v7.4.488  # Ubuntu vivid
-    # - VIM_VERSION=v7.4.712  # Ubuntu wily
-    # - VIM_VERSION=v7.4.963  # Ubuntu 15.10
-    - VIM_VERSION=master
+    - VIM_VERSION=v7.4.052  # Ubuntu trusty 14.04 LTS
+    - VIM_VERSION=v7.4.488  # Ubuntu vivid
+    - VIM_VERSION=v7.4.712  # Ubuntu wily
+    - VIM_VERSION=v7.4.963  # Ubuntu 15.10
+    # - VIM_VERSION=master
 
 addons:
   apt:
