@@ -1,8 +1,15 @@
 # vim-hdl
 
-[![Build Status](https://travis-ci.org/suoto/vim-hdl.svg?branch=master)](https://travis-ci.org/suoto/vim-hdl)
-[![Coverage Status](https://coveralls.io/repos/github/suoto/vim-hdl/badge.svg?branch=master)](https://coveralls.io/github/suoto/vim-hdl?branch=master)
-[![Code Health](https://landscape.io/github/suoto/vim-hdl/master/landscape.svg?style=flat)](https://landscape.io/github/suoto/vim-hdl/master)
+[![Build Status](https://travis-ci.org/suoto/vim-hdl.svg?branch=vim_regression_tests)](https://travis-ci.org/suoto/vim-hdl)
+[![Coverage Status](https://coveralls.io/repos/github/suoto/vim-hdl/badge.svg?branch=vim_regression_tests)](https://coveralls.io/github/suoto/vim-hdl?branch=vim_regression_tests)
+[![Code Health](https://landscape.io/github/suoto/vim-hdl/vim_regression_tests/landscape.svg?style=flat)](https://landscape.io/github/suoto/vim-hdl/vim_regression_tests)
+
+---
+
+**This branch is intended for unstable regression testing with different Vim
+versions.**
+
+---
 
 vim-hdl is a Vim plugin that uses [`hdlcc`][hdlcc] to provide some helpers to VHDL
 development:

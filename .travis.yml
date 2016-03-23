@@ -21,7 +21,7 @@ env:
     - VIM_VERSION=v7.4.712   # Ubuntu wily
     - VIM_VERSION=v7.4.963   # Ubuntu 15.10
     - VIM_VERSION=v7.4.1593  # Latest Vim version working with Vroom currently
-    # - VIM_VERSION=master
+    - VIM_VERSION=master
 
 addons:
   apt:
@@ -46,8 +46,8 @@ before_script:
   - "cd ${TRAVIS_BUILD_DIR}"
 
   # Download grlib from aeroflex
-  - "git clone https://github.com/suoto/grlib -b ${GRLIB_VERSION} \
-       --single-branch --depth 1"
+  # - "git clone https://github.com/suoto/grlib -b ${GRLIB_VERSION} \
+  #      --single-branch --depth 1"
 
   - "export VIMRUNTIME=${CACHE}/vim-${VIM_VERSION}/runtime"
   - "export PATH=${CACHE}/vim-${VIM_VERSION}/src/:${PATH}"
