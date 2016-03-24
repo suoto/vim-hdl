@@ -47,7 +47,10 @@ vim-hdl requires a configuration file listing libraries, source files,
 build flags, etc. Select the configuration file via
 
 ```viml
+" Configure the project file
 let g:vimhdl_conf_file = '<config/file>'
+" Tell Syntastic to use vim-hdl
+let g:syntastic_vhdl_checkers = ['vimhdl']
 ```
 
 See the [wiki](https://github.com/suoto/vim-hdl/wiki#project-file-formats) for
