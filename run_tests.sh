@@ -14,15 +14,13 @@
 # You should have received a copy of the GNU General Public License
 # along with vim-hdl.  If not, see <http://www.gnu.org/licenses/>.
 
-VROOM_ARGS=
-VROOM_TESTS=
+RUNNER_ARGS=
 
 while [ -n "$1" ]; do
 	case "$1" in
     -C) CLEAN_AND_QUIT="1";;
 		-c) CLEAN="1";;
-		*)	[ -f "$1" ] && VROOM_TESTS+=" $1"
-        [ ! -f "$1" ] && VROOM_ARGS+=" $1"
+		*)	RUNNER_ARGS+=" $1"
 	esac
   shift
 done
@@ -121,13 +119,8 @@ autocmd! VimLeavePre * :py onVimLeave()
 
 RESULT=0
 
-if [ -z "${VROOM_TESTS}" ]; then
-  vroom -u "${DOT_VIMRC}" ${VROOM_ARGS} --crawl .ci/vroom/
-  RESULT=$(($? || ${RESULT}))
-else
-  vroom -u "${DOT_VIMRC}" ${VROOM_ARGS} ${VROOM_TESTS}
-  RESULT=$(($? || ${RESULT}))
-fi
+.ci/tests/run_all.py
+RESULT=$(($? || ${RESULT}))
 
 coverage combine
 coverage html
