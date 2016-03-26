@@ -47,7 +47,16 @@ class HDLCodeCheckerClient(ProjectBuilder):
         '''If the caller is not in our thread, we'll schedule to post
         the message later'''
         if self._isMainThread():
-            vim_helpers.postVimInfo(message)
+            if severity == 'info':
+                vim_helpers.postVimInfo(message)
+            elif severity == 'warning':
+                vim_helpers.postVimWarning(message)
+            elif severity == 'error':
+                vim_helpers.postVimError(message)
+            else:
+                vim_helpers.postVimError(
+                    "Unknown severity '%s' for message '%s'" %
+                    (severity, message))
         else:
             self._ui_msg_queue.put({'type' : severity, 'text' : message})
 
@@ -129,9 +138,7 @@ def vimWrap(func):
             _logger.debug("%s(%s, %s, %s, %s)", func.func_name,
                           client, buf, args, kwargs)
 
-        client.postQueuedMessages()
         result = func(client, buf, *args, **kwargs)
-        client.postQueuedMessages()
         return result
     return _vimWrap
 
@@ -156,6 +163,8 @@ def _sortBuildMessages(records):
 def getMessages(client, vim_buffer):
     '''Returns a list (vim.List) of messages (vim.Dictionary) to
     populate the quickfix list'''
+    client.postQueuedMessages()
+
     messages = []
     for message in client.getMessagesByPath(vim_buffer.name):
         vim_fmt_dict = {
@@ -177,13 +186,12 @@ def getMessages(client, vim_buffer):
 
         messages.append(vim_helpers.dict(vim_fmt_dict))
 
-        client.postQueuedMessages()
-
+    client.postQueuedMessages()
     return vim_helpers.list(_sortBuildMessages(messages))
 
 # pylint: disable=missing-docstring,unused-argument
 @vimWrap
 def postQueuedMessages(client, vim_buffer):
-    pass
+    client.postQueuedMessages()
 
 # pylint: disable=missing-docstring,unused-argument
