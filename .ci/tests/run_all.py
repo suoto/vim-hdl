@@ -17,7 +17,13 @@ def _findFilesInPath(path, f=None):
             yield file_with_path
 
 def _isVroom(path):
-    return str(path).lower().endswith('vroom')
+    return str(path).lower().endswith('.vroom')
+
+def _isShell(path):
+    return str(path).lower().endswith('.sh')
+
+def _isTest(path):
+    return _isVroom(path) or _isShell(path)
 
 def _getVroomArgs():
     args = ['-u']
@@ -34,9 +40,12 @@ def _getBashPair(path):
 
 TESTS_ALLOWED_TO_FAIL = ['test_004_issue_10',]
 
-def main():
+def main(tests=None):
     test_dir = p.dirname(p.abspath(__file__))
-    vroom_tests = _findFilesInPath(test_dir, _isVroom)
+    if tests:
+        vroom_tests = tests
+    else:
+        vroom_tests = _findFilesInPath(test_dir, _isVroom)
 
     passed = []
     failed = []
@@ -47,19 +56,19 @@ def main():
         bash_path = _getBashPair(vroom_test)
 
         if p.exists(bash_path):
-            subp.check_call([bash_path, ])
+            subp.check_call([bash_path, ] + _getVroomArgs())
+        else:
+            try:
+                subp.check_call(['vroom', vroom_test, ] + _getVroomArgs())
+                passed += [test_name]
+            except subp.CalledProcessError:
+                # We'll allow test 004 to fail for now
+                if test_name in TESTS_ALLOWED_TO_FAIL:
+                    allowed_to_fail += [test_name]
+                else:
+                    failed += [test_name]
 
-        try:
-            subp.check_call(['vroom', vroom_test, ] + _getVroomArgs())
-            passed += [test_name]
-        except subp.CalledProcessError:
-            # We'll allow test 004 to fail for now
-            if test_name in TESTS_ALLOWED_TO_FAIL:
-                allowed_to_fail += [test_name]
-            else:
-                failed += [test_name]
-
-    os.system('reset')
+    #  os.system('reset')
     if passed:
         print "Successful tests"
         for test in passed:
@@ -78,5 +87,5 @@ def main():
     return 1 if failed else 0
 
 if __name__ == '__main__':
-    sys.exit(main())
+    sys.exit(main(sys.argv[1:]))
 
