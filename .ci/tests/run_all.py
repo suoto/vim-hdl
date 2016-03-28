@@ -38,7 +38,7 @@ def _getVroomArgs():
 def _getBashPair(path):
     return path.replace('.vroom', '.sh')
 
-TESTS_ALLOWED_TO_FAIL = ['test_004_issue_10',]
+TESTS_ALLOWED_TO_FAIL = [] #'test_004_issue_10',]
 
 def main(tests=None):
     test_dir = p.dirname(p.abspath(__file__))
@@ -55,18 +55,23 @@ def main(tests=None):
         test_name = p.basename(vroom_test).replace('.vroom', '')
         bash_path = _getBashPair(vroom_test)
 
+        test_passed = False
         if p.exists(bash_path):
             subp.check_call([bash_path, ] + _getVroomArgs())
+            test_passed = True
         else:
             try:
                 subp.check_call(['vroom', vroom_test, ] + _getVroomArgs())
-                passed += [test_name]
+                test_passed = True
             except subp.CalledProcessError:
-                # We'll allow test 004 to fail for now
-                if test_name in TESTS_ALLOWED_TO_FAIL:
-                    allowed_to_fail += [test_name]
-                else:
-                    failed += [test_name]
+                pass
+
+        if test_passed:
+            passed += [test_name]
+        elif test_name in TESTS_ALLOWED_TO_FAIL:
+            allowed_to_fail += [test_name]
+        else:
+            failed += [test_name]
 
     #  os.system('reset')
     if passed:
