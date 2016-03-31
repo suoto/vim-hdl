@@ -119,7 +119,9 @@ autocmd! VimLeavePre * :py onVimLeave()
 
 RESULT=0
 
-.ci/tests/run_all.py ${RUNNER_ARGS}
+# .ci/tests/run_all.py ${RUNNER_ARGS}
+set -x
+nose2 -s .ci/ ${RUNNER_ARGS}
 RESULT=$(($? || ${RESULT}))
 
 coverage combine
