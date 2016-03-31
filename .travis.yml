@@ -7,8 +7,8 @@ env:
   global:
     - VROOM_TAG=v0.12.0
     # - GRLIB_VERSION=v1.5.0-b4164
-    - GRLIB_VERSION=v1.5.0-b4164
-    - CACHE=${HOME}/cache"
+    - GRLIB_VERSION=v1.4.1-b4156
+    - CACHE=${HOME}/cache
     - GHDL_HOST="http://downloads.sourceforge.net/project/ghdl-updates/Builds"
     - GHDL_URL ="${GHDL_HOST}/ghdl-0.33/ghdl-0.33-x86_64-linux.tgz"
   matrix:
@@ -16,12 +16,12 @@ env:
     # - VIM_VERSION=v7.3.429  # Ubuntu precise 12.04 LTS
     # - VIM_VERSION=v7.3.547  # Debian 7.9 (wheezy)
     - VIM_VERSION=v7.4        #
-    - VIM_VERSION=v7.4.052   # Ubuntu trusty 14.04 LTS
-    - VIM_VERSION=v7.4.488   # Ubuntu vivid
-    - VIM_VERSION=v7.4.712   # Ubuntu wily
-    - VIM_VERSION=v7.4.963   # Ubuntu 15.10
+    # - VIM_VERSION=v7.4.052   # Ubuntu trusty 14.04 LTS
+    # - VIM_VERSION=v7.4.488   # Ubuntu vivid
+    # - VIM_VERSION=v7.4.712   # Ubuntu wily
+    # - VIM_VERSION=v7.4.963   # Ubuntu 15.10
     - VIM_VERSION=v7.4.1593  # Latest Vim version working with Vroom currently
-    # - VIM_VERSION=master
+    - VIM_VERSION=master
 
 addons:
   apt:
@@ -30,7 +30,10 @@ addons:
       - python-dev
       - vim-gnome
 
-install: "pip install -r .ci/requirements.txt"  # --user"
+install:
+  - pip install -r ./.ci/requirements.txt
+  - pip install -r ./dependencies/hdlcc/requirements.txt
+  - pip install ./dependencies/hdlcc/
 
 before_script:
   - "mkdir -p ${CACHE}"
@@ -47,22 +50,23 @@ before_script:
 
   # Download grlib from aeroflex
   - "git clone https://github.com/suoto/grlib -b ${GRLIB_VERSION} \
-       --single-branch --depth 1"
+       --single-branch --depth 1 ~/grlib/"
 
   - "export VIMRUNTIME=${CACHE}/vim-${VIM_VERSION}/runtime"
   - "export PATH=${CACHE}/vim-${VIM_VERSION}/src/:${PATH}"
   - "export VIM_BINARY=${CACHE}/vim-${VIM_VERSION}/src/vim"
 
-  - "./dependencies/hdlcc/scripts/setup_ghdl.sh"
+  - "./dependencies/hdlcc/.ci/scripts/setup_ghdl.sh"
   - "./.ci/setup_ghdl.sh"
   - "./.ci/setup_vim.sh"
   - "[ -n \"$VIM_BINARY\" ] || exit -1"
   - "$VIM_BINARY --version"
 
 script:
-  - ./run_tests.sh -d0.5 -t3
+  - ./run_tests.sh
 
 after_success:
+  - "rm -f .ci/test_projects/hdl_lib/osvvm_lib/CoveragePkg.vhd"
   - "export COVERALLS_PARALLEL=true"
   - "coveralls"
   - "codecov"

@@ -1,0 +1,50 @@
+Macro that checks if the quickfix is empty
+  @macro (assert_qf_empty)
+  :echom &ft
+  ~ vhdl
+  :SyntasticCheck
+  :lopen
+  :echom getline('.')
+  &
+  :quit
+  @endmacro
+
+Macro that checks if vimhdl is enabled
+  @macro (vimhdl_check)
+  :SyntasticInfo
+  ~ Syntastic version:.* (regex)
+  ~ Info for filetype: vhdl
+  ~ Global mode: active
+  ~ Filetype vhdl is active
+  ~ The current file will be checked automatically
+  ~ Available checker(s:|:)\s*.*\bvimhdl\b.* (regex)
+  ~ Currently enabled checker(s:|:)\s*.*\bvimhdl\b.* (regex)
+  @endmacro
+
+
+
+
+Edit some files on Vim after using hdlcc_sa.py to build outside Vim
+  :cd .ci/test_projects/hdl_lib
+  :let g:vimhdl_conf_file = 'ghdl.prj'
+  :edit common_lib/edge_detector.vhd
+  @do (vimhdl_check)
+
+This file has no errors
+  @do (assert_qf_empty)
+
+Remove an important line so the builder must tell there's an error
+  > /^end\s\+edge_detector<CR>
+  > dd
+  :echom getline('.')
+  ~ end edge_detector;
+  :write
+  ~ ".*".*\swritten (regex)
+  :SyntasticCheck
+  :lopen
+  common_lib/edge_detector.vhd|36 col 1 error| 'end' is expected instead of 'architecture'
+  :lclose
+  > u
+  :write
+  @do (assert_qf_empty)
+
