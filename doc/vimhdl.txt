@@ -1,0 +1,56 @@
+*vim-hdl*	Vim plugin to aid VHDL development
+
+===============================================================================
+Contents ~
+
+1. Intro                                                           |vimhdl-intro|
+ 1. hdlcc                                                          |vimhdl-hdlcc|
+1. Options                                                       |vimhdl-options|
+
+===============================================================================
+                                                                  *vimhdl-intro*
+
+vim-hdl is a plugin that implements an |vimhdl-hdlcc| HTTP client so the output
+of |vimhdl-hdlcc| is shown either using |Syntastic| or Vim's messages.
+
+But what is |vimhdl-hdlcc|??
+
+|vimhdl-hdlcc| is the backend side of |vim-hdl|. Using |vimhdl-hdlcc| is cool because
+it provides a way to interact with popular compilers/simulators and a bunch of
+VHDL files to catch errors and warnings they generate and populate Vim's
+quickfix window.
+
+Summarizing, we get:
+
+- Syntax checking (using third-party-compilers + |Syntastic|)
+- Style checking
+- Dependencies are taken into account when building so you don't need to
+  provide a source list ordered by hand.
+- No need to find and recompile specific sources and design units the compiler
+  says are out of date. |vimhdl-hdlcc| does that for you
+- Easily switch between different compilers
+
+-------------------------------------------------------------------------------
+                                                                  *vimhdl-hdlcc*
+
+hdlcc: HDL code checker backend~
+
+===============================================================================
+                                                              *vimhdl-user-guide*
+
+User Guide~
+
+-------------------------------------------------------------------------------
+                                                             *vimhdl-style-check*
+
+Style check~
+
+===============================================================================
+                                                                 *vimhdl-options*
+
+Options ~
+
+Default options won't actually call any VHDL compiler, only |vim-hdl|'s style
+check.
+
+vim: ft=help
