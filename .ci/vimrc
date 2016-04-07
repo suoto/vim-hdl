@@ -1,0 +1,104 @@
+syntax on
+filetype plugin indent on
+set nocompatible
+
+" set shortmess=filnxtToO
+
+if $CI == "true"
+    set rtp+=~/.vim/syntastic
+    set rtp+=~/.vim/vim-hdl
+else
+    set rtp+=~/dot_vim/syntastic
+    set rtp+=~/dot_vim/vim-hdl
+endif
+
+let g:syntastic_always_populate_loc_list = 1
+let g:syntastic_auto_loc_list = 1
+let g:syntastic_check_on_open = 0
+let g:syntastic_check_on_wq = 1
+
+let g:syntastic_vhdl_vimhdl_sort = 0
+let g:syntastic_vhdl_checkers = ['vimhdl']
+
+python << EOF
+import logging, os
+import os.path as p
+import coverage
+
+
+cov = coverage.Coverage(config_file='.coveragerc')
+cov.start()
+
+def onVimLeave():
+    global cov
+    cov.stop()
+    cov.save()
+
+def _setupLogging(stream, level, color=True):
+    if type(stream) is str:
+        class Stream(file):
+            def isatty(self):
+                return color
+            def write(self, *args, **kwargs):
+                super(Stream, self).write(*args, **kwargs)
+                super(Stream, self).write("\n")
+
+        stream = Stream(stream, 'ab', buffering=1)
+
+    try:
+        path_to_this_file = p.abspath(p.dirname(__name__))
+
+        sys.path.insert(0, p.join(path_to_this_file, '..', '.ci',
+                                  'rainbow_logging_handler'))
+
+        from rainbow_logging_handler import RainbowLoggingHandler
+        rainbow_stream_handler = RainbowLoggingHandler(
+            stream,
+            #  Customizing each column's color
+            # pylint: disable=bad-whitespace
+            color_asctime          = ('dim white',  'black'),
+            color_name             = ('dim white',  'black'),
+            color_funcName         = ('green',      'black'),
+            color_lineno           = ('dim white',  'black'),
+            color_pathname         = ('black',      'red'),
+            color_module           = ('yellow',     None),
+            color_message_debug    = ('color_59',   None),
+            color_message_info     = (None,         None),
+            color_message_warning  = ('color_226',  None),
+            color_message_error    = ('red',        None),
+            color_message_critical = ('bold white', 'red'))
+            # pylint: enable=bad-whitespace
+
+        logging.root.addHandler(rainbow_stream_handler)
+        logging.root.setLevel(level)
+    except ImportError:
+        file_handler = logging.StreamHandler(stream)
+        log_format = "%(levelname)-8s || %(name)-30s || %(message)s"
+        file_handler.formatter = logging.Formatter(log_format)
+        logging.root.addHandler(file_handler)
+        logging.root.setLevel(level)
+
+
+def setupLogging():
+    log_path = '/tmp'
+    log_file = p.join(log_path, 'vim-hdl.log')
+    i = 0
+    while True:
+        try:
+            open(log_file, 'a').close()
+            break
+        except IOError:
+            print "Error opening '%s'" % log_file
+            log_file = p.join(log_path, 'vim_log_%d_%d.log' % (os.getpid(), i))
+            i += 1
+    logging.getLogger('requests').setLevel(logging.WARNING)
+    logging.getLogger('nose2').setLevel(logging.INFO)
+    logging.getLogger('neovim').setLevel(logging.INFO)
+
+    _setupLogging(log_file, logging.DEBUG, True)
+
+setupLogging()
+EOF
+
+autocmd! VimLeavePre * :py onVimLeave()
+

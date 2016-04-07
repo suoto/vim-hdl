@@ -33,6 +33,8 @@ if [ -n "${CLEAN_AND_QUIT}${CLEAN}" ]; then
   git submodule foreach --recursive git clean -fdx || exit -1
   cd ./.ci/test_projects/hdl_lib && git reset HEAD --hard
   cd -
+  cd ./.ci/test_projects/vim-hdl-examples && git reset HEAD --hard
+  cd -
   [ -n "${CLEAN_AND_QUIT}" ] && exit
 fi
 
@@ -54,68 +56,7 @@ if [ ! -d "$DOT_VIM/vim-hdl" ]; then
   ln -s "$PWD" "$DOT_VIM/vim-hdl"
 fi
 
-echo """
-syntax on
-filetype plugin indent on
-set nocompatible
-
-set shortmess=filnxtToO
-
-set rtp+=${DOT_VIM}/syntastic
-set rtp+=${DOT_VIM}/vim-hdl
-
-let g:syntastic_always_populate_loc_list = 1
-let g:syntastic_auto_loc_list = 1
-let g:syntastic_check_on_open = 0
-let g:syntastic_check_on_wq = 1
-
-let g:syntastic_vhdl_vimhdl_sort = 0
-let g:syntastic_vhdl_checkers = ['vimhdl']
-
-python << EOF
-import logging, os
-import coverage
-
-
-cov = coverage.Coverage(config_file='.coveragerc')
-cov.start()
-
-def onVimLeave():
-    global cov
-    cov.stop()
-    cov.save()
-
-def setupLogging():
-    log_path = '../'
-    log_file = os.path.join(log_path, 'vim.log')
-    i = 0
-    while True:
-        try:
-            open(log_file, 'a').close()
-            break
-        except IOError:
-            print \"Error opening '%s'\" % log_file
-            log_file = os.path.join(log_path, 'vim_log_%d_%d.log' % (os.getpid(), i))
-            i += 1
-    logging.getLogger('requests').setLevel(logging.WARNING)
-    logging.getLogger('nose2').setLevel(logging.INFO)
-    logging.getLogger('hdlcc').setLevel(logging.WARNING)
-    logging.getLogger('hdlcc.project_builder').setLevel(logging.WARNING)
-    logging.getLogger('neovim').setLevel(logging.INFO)
-
-    file_handler = logging.FileHandler(log_file)
-    log_format = \"%(levelname)-8s || %(name)-30s || %(message)s\"
-    file_handler.formatter = logging.Formatter(log_format)
-    logging.root.addHandler(file_handler)
-    logging.root.setLevel(logging.DEBUG)
-
-setupLogging()
-EOF
-
-autocmd! VimLeavePre * :py onVimLeave()
-
-
-""" > "$DOT_VIMRC"
+cp ./.ci/vimrc "$DOT_VIMRC"
 
 RESULT=0
 

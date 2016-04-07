@@ -32,15 +32,15 @@
 call vimhdl#setup()
 
 " { Autocommands
-autocmd! BufWritePost *.vhd :py vimhdl.vim_client.postQueuedMessages()
-autocmd! BufEnter     *.vhd :py vimhdl.vim_client.postQueuedMessages()
-autocmd! BufLeave     *.vhd :py vimhdl.vim_client.postQueuedMessages()
-autocmd! FocusGained  *.vhd :py vimhdl.vim_client.postQueuedMessages()
-autocmd! CursorMoved  *.vhd :py vimhdl.vim_client.postQueuedMessages()
-autocmd! CursorMovedI *.vhd :py vimhdl.vim_client.postQueuedMessages()
-autocmd! CursorHold   *.vhd :py vimhdl.vim_client.postQueuedMessages()
-autocmd! CursorHoldI  *.vhd :py vimhdl.vim_client.postQueuedMessages()
-autocmd! InsertLeave  *.vhd :py vimhdl.vim_client.postQueuedMessages()
+autocmd! BufWritePost *.vhd :py vimhdl_client.requestUiMessages()
+autocmd! BufEnter     *.vhd :py vimhdl_client.requestUiMessages()
+autocmd! BufLeave     *.vhd :py vimhdl_client.requestUiMessages()
+autocmd! FocusGained  *.vhd :py vimhdl_client.requestUiMessages()
+autocmd! CursorMoved  *.vhd :py vimhdl_client.requestUiMessages()
+autocmd! CursorMovedI *.vhd :py vimhdl_client.requestUiMessages()
+autocmd! CursorHold   *.vhd :py vimhdl_client.requestUiMessages()
+autocmd! CursorHoldI  *.vhd :py vimhdl_client.requestUiMessages()
+autocmd! InsertLeave  *.vhd :py vimhdl_client.requestUiMessages()
 
 
 " }

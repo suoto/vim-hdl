@@ -15,5 +15,5 @@
 '''vim-hdl is a VHDL syntax check provider that relies on third-party
 tools.  See https://github.com/suoto/vim-hdl for more information'''
 
-import vim_client
+from .vim_client import VimhdlClient
 

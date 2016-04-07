@@ -20,11 +20,11 @@ let s:vimhdl_path = escape(expand('<sfile>:p:h'), '\') . "/../"
 " Setup Vim's Python environment to call vim-hdl within Vim
 function! vimhdl#setup()
 
-    if exists('b:vimhdl_loaded') && b:vimhdl_loaded 
+    if exists('g:vimhdl_loaded') && g:vimhdl_loaded 
         return
     endif
 
-    let b:vimhdl_loaded = 1
+    let g:vimhdl_loaded = 1
 
 python << EOF
 import sys, vim
@@ -35,9 +35,19 @@ for path in (p.join(vim.eval('s:vimhdl_path'), 'python'),
              p.join(vim.eval('s:vimhdl_path'), 'dependencies', 'hdlcc')
          ):
     if path not in sys.path:
-        _logger.info("Adding %s", path)
-        sys.path.insert(0, path)
+        path = p.abspath(path)
+        if p.exists(path):
+            sys.path.insert(0, path)
+            _logger.info("Adding %s", path)
+        else:
+            _logger.warning("Path '%s' doesn't exists!", path)
 import vimhdl
+vimhdl_client = vimhdl.VimhdlClient()
+try:
+    vimhdl_client
+    _logger.warning("vimhdl client already exists, skiping")
+except NameError:
+    vimhdl_client.setup()
 EOF
 endfunction
 " }

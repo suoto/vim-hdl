@@ -23,10 +23,9 @@ import subprocess as subp
 from nose2.tools import such
 
 _PATH_TO_TESTS = p.join(".ci", "vroom")
+_CI = os.environ.get("CI", None) is not None
 
 _logger = logging.getLogger(__name__)
-
-_CI = os.environ.get("CI", None) is not None
 
 def _getVroomArgs():
     args = ['-u']
@@ -36,6 +35,7 @@ def _getVroomArgs():
     else:
         args += [p.expanduser('~/dot_vim/vimrc')]
         args += ['-d0.2', '-t1']
+
     return args
 
 with such.A('vim-hdl test') as it:
@@ -142,11 +142,5 @@ with such.A('vim-hdl test') as it:
             except subp.CalledProcessError:
                 it.fail("Test failed")
 
-#  .ci/tests/test_001_editing_multiple_files.vroom
-#  .ci/tests/test_002_no_project_configured.vroom
-#  .ci/tests/
-#  .ci/tests/
-
 it.createTests(globals())
-
 

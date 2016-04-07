@@ -33,9 +33,10 @@ addons:
 install:
   - pip install -r ./.ci/requirements.txt
   - pip install -r ./dependencies/hdlcc/requirements.txt
-  - pip install ./dependencies/hdlcc/
+  - pip install -e ./dependencies/hdlcc/
 
 before_script:
+  - "git submodule update --init --recursive"
   - "mkdir -p ${CACHE}"
 
   # Setup vroom
@@ -71,7 +72,20 @@ after_success:
   - "coveralls"
   - "codecov"
 after_failure:
-  - "cat vroom.log"
+  - "echo '##########################################################'"
+  - "echo '##########################################################'"
+  - "cat /tmp/vim-hdl.log"
+  - "echo '##########################################################'"
+  - "echo '##########################################################'"
+  - "cat /tmp/hdlcc-stdout.log"
+  - "echo '##########################################################'"
+  - "echo '##########################################################'"
+  - "cat /tmp/hdlcc-stderr.log"
+  - "echo '##########################################################'"
+  - "echo '##########################################################'"
+  - "cat /tmp/hdlcc.log"
+  - "echo '##########################################################'"
+  - "echo '##########################################################'"
 cache:
   directories:
     - ~/cache/
