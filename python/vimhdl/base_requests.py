@@ -27,7 +27,7 @@ class BaseRequest(object):
     _lock = threading.Lock()
 
     def __init__(self, host, port, **kwargs):
-        if host.startswith('http://'):
+        if host.startswith('http://'): # pragma: no cover
             self.url = '%s:%s' % (host, port)
         else:
             self.url = 'http://%s:%s' % (host, port)
@@ -46,7 +46,7 @@ class BaseRequest(object):
             try:
                 with self._lock:
                     func(self.sendRequest())
-            except:
+            except: # pragma: no cover
                 _logger.exception("Error sending request")
                 raise
         threading.Thread(target=asyncRequest).start()
@@ -60,8 +60,9 @@ class BaseRequest(object):
             response = requests.post(self.url + '/' + self._meth,
                                      data=self.payload,
                                      timeout=self.timeout)
-            if not response.ok:
+            if not response.ok: # pragma: no cover
                 _logger.warning("Server response error: '%s'", response.text)
+                response = None
         except requests.exceptions.ConnectionError:
             _logger.warning("Error connecting to server")
             return
@@ -82,5 +83,14 @@ class RequestQueuedMessages(BaseRequest):
     _meth = 'get_ui_messages'
 
     def __init__(self, host, port, project_file):
-        super(RequestQueuedMessages, self).__init__(host, port, project_file=project_file)
+        super(RequestQueuedMessages, self).__init__(host, port,
+                                                    project_file=project_file)
+
+class RequestHdlccInfo(BaseRequest):
+    "Request UI messages"
+    _meth = 'get_diagnose_info'
+
+    def __init__(self, host, port, project_file):
+        super(RequestHdlccInfo, self).__init__(host, port,
+                                               project_file=project_file)
 

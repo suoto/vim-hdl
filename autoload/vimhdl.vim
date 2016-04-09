@@ -15,21 +15,18 @@
 "
 let s:vimhdl_path = escape(expand('<sfile>:p:h'), '\') . "/../"
 
-" { vimhdl#setup()
+" { vimhdl#setupPython()
 " ============================================================================
 " Setup Vim's Python environment to call vim-hdl within Vim
-function! vimhdl#setup()
-
-    if exists('g:vimhdl_loaded') && g:vimhdl_loaded 
-        return
-    endif
-
-    let g:vimhdl_loaded = 1
-
+function! vimhdl#setupPython()
 python << EOF
 import sys, vim
 import os.path as p
 import logging
+
+# Add a null handler for issue #19
+logging.root.addHandler(logging.NullHandler())
+
 _logger = logging.getLogger(__name__)
 for path in (p.join(vim.eval('s:vimhdl_path'), 'python'),
              p.join(vim.eval('s:vimhdl_path'), 'dependencies', 'requests'),
@@ -52,5 +49,53 @@ except NameError:
 EOF
 endfunction
 " }
+"
+" { vimhdl#setupCommands()
+" ============================================================================
+" Setup Vim's Python environment to call vim-hdl within Vim
+function! vimhdl#setupCommands()
+    command! VimhdlInfo               :py vimhdl_client.getVimhdlInfo()
+    " command! VimhdlListLibraries                   call vimhdl#listLibraries()
+    " command! VimhdlListLibrariesAndSources         call vimhdl#listLibrariesAndSources()
+    " command! VimhdlViewLog                         call vimhdl#viewLog()
+    " command! VimhdlCleanProjectCache               call vimhdl#cleanProjectCache()
 
+    " command! -nargs=? VimhdlAddSourceToLibrary call vimhdl#addSourceToLibrary(<f-args>)
+    " command! -nargs=? VimhdlRemoveSourceFromLibrary call vimhdl#removeSourceFromLibrary(<f-args>)
+endfunction
+" }
+"
+" { vimhdl#setupHooks()
+" ============================================================================
+" Setup Vim's Python environment to call vim-hdl within Vim
+function! vimhdl#setupHooks()
+    autocmd! BufWritePost *.vhd :py vimhdl_client.requestUiMessages()
+    autocmd! BufEnter     *.vhd :py vimhdl_client.requestUiMessages()
+    autocmd! BufLeave     *.vhd :py vimhdl_client.requestUiMessages()
+    autocmd! FocusGained  *.vhd :py vimhdl_client.requestUiMessages()
+    autocmd! CursorMoved  *.vhd :py vimhdl_client.requestUiMessages()
+    autocmd! CursorMovedI *.vhd :py vimhdl_client.requestUiMessages()
+    autocmd! CursorHold   *.vhd :py vimhdl_client.requestUiMessages()
+    autocmd! CursorHoldI  *.vhd :py vimhdl_client.requestUiMessages()
+    autocmd! InsertLeave  *.vhd :py vimhdl_client.requestUiMessages()
+endfunction
+" }
+"
+" { vimhdl#setup()
+" ============================================================================
+" Setup Vim's Python environment to call vim-hdl within Vim
+function! vimhdl#setup()
+    if exists('g:vimhdl_loaded') && g:vimhdl_loaded 
+        return
+    endif
+
+    let g:vimhdl_loaded = 1
+
+    call vimhdl#setupPython()
+    call vimhdl#setupCommands()
+    call vimhdl#setupCommands()
+
+endfunction
+" }
+"
 " vim: set foldmarker={,} foldlevel=0 foldmethod=marker :

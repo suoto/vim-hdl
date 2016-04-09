@@ -23,7 +23,9 @@ from multiprocessing import Queue
 
 import vim # pylint: disable=import-error
 import vimhdl.vim_helpers as vim_helpers
-from vimhdl.base_requests import RequestMessagesByPath, RequestQueuedMessages
+from vimhdl.base_requests import (RequestMessagesByPath,
+                                  RequestQueuedMessages,
+                                  RequestHdlccInfo)
 
 _logger = logging.getLogger(__name__)
 
@@ -68,6 +70,19 @@ class VimhdlClient(object):
         "Checks if the the server is alive"
         return self._server.poll() is None
 
+    def getVimhdlInfo(self):
+        project_file = vim_helpers.getProjectFile()
+        request = RequestHdlccInfo(host=self._host, port=self._port,
+                                        project_file=project_file)
+
+        response = request.sendRequest()
+
+        if response is None:
+            return
+
+        for k, v in response.json().items():
+            vim_helpers.postVimInfo("%s: %s" % (k, v))
+
     def setup(self):
         "Launches the hdlcc server"
         self._logger.info("Running initial Vim setup")
@@ -81,12 +96,13 @@ class VimhdlClient(object):
                '--host', self._host,
                '--port', str(self._port),
                '--log-level', str(self._log_level),
-               '--log-stream', self._log_target]
+               '--log-stream', self._log_target,
+               '--attach-to-pid', str(os.getpid())]
 
         self._logger.info(" ".join(cmd))
 
         try:
-            self._server = subp.Popen(cmd, stdout=subp.PIPE)
+            self._server = subp.Popen(cmd, stdout=subp.PIPE, stderr=subp.PIPE)
         except subp.CalledProcessError:
             self._logger.exception("Error calling '%s'", " ".join(cmd))
 
@@ -179,7 +195,4 @@ class VimhdlClient(object):
         self.requestUiMessages()
 
         return vim_helpers.list(_sortBuildMessages(messages))
-
-
-
 
