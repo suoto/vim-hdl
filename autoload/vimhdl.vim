@@ -30,6 +30,10 @@ python << EOF
 import sys, vim
 import os.path as p
 import logging
+
+# Add a null handler for issue #19
+logging.root.addHandler(logging.NullHandler())
+
 _logger = logging.getLogger(__name__)
 for path in (p.join(vim.eval('s:vimhdl_path'), 'python'),
              p.join(vim.eval('s:vimhdl_path'), 'dependencies', 'hdlcc')
