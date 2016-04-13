@@ -94,3 +94,11 @@ class RequestHdlccInfo(BaseRequest):
         super(RequestHdlccInfo, self).__init__(host, port,
                                                project_file=project_file)
 
+class RequestServerResponding(BaseRequest):
+    "Request UI messages"
+    _meth = 'is_alive'
+
+    def __init__(self, host, port):
+        super(RequestServerResponding, self).__init__(host, port)
+
+

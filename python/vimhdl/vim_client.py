@@ -17,7 +17,7 @@
 import os.path as p
 import logging
 import subprocess as subp
-import signal
+import time
 import os
 from multiprocessing import Queue
 
@@ -25,7 +25,8 @@ import vim # pylint: disable=import-error
 import vimhdl.vim_helpers as vim_helpers
 from vimhdl.base_requests import (RequestMessagesByPath,
                                   RequestQueuedMessages,
-                                  RequestHdlccInfo)
+                                  RequestHdlccInfo,
+                                  RequestServerResponding)
 
 _logger = logging.getLogger(__name__)
 
@@ -53,39 +54,57 @@ class VimhdlClient(object):
         self._server = None
         self._host = options.get('host', 'localhost')
         self._port = options.get('port', vim_helpers.getUnusedLocalhostPort())
-        self._log_level = options.get('log_level', 'DEBUG')
-        self._log_target = options.get('log_target', '/tmp/hdlcc.log')
+        self._server_args = [
+            '--log-level', str(options.get('log_level', 'DEBUG')),
+            '--log-stream', options.get('log_target', '/tmp/hdlcc.log')
+        ]
+
+        self._posted_notifications = []
 
         self._ui_queue = Queue()
-        self.setup()
-        # FIXME: The server takes a while to start, find a clean way to
-        # circumvent this
-        import time
-        time.sleep(0.3)
+
+        self._setup()
+        self._waitForServerSetup()
 
         import atexit
         atexit.register(self.shutdown)
 
+    def _postError(self, msg):
+        "Post errors to the user once"
+        if ('error', msg) not in self._posted_notifications:
+            self._posted_notifications += [('error', msg)]
+            vim_helpers.postVimWarning(msg)
+
+    def _postWarning(self, msg):
+        "Post warnings to the user once"
+        if ('warn', msg) not in self._posted_notifications:
+            self._posted_notifications += [('warn', msg)]
+            vim_helpers.postVimWarning(msg)
+
     def _isServerAlive(self):
         "Checks if the the server is alive"
-        return self._server.poll() is None
+        sts = self._server.poll() is None
+        if not sts:
+            self._postWarning("hdlcc server is not running")
+        return sts
 
     def getVimhdlInfo(self):
+        "Gets info about the current project and hdlcc server"
         project_file = vim_helpers.getProjectFile()
         request = RequestHdlccInfo(host=self._host, port=self._port,
-                                        project_file=project_file)
+                                   project_file=project_file)
 
         response = request.sendRequest()
 
         if response is None:
-            return
+            return "hdlcc server is not running"
 
-        for k, v in response.json().items():
-            vim_helpers.postVimInfo("%s: %s" % (k, v))
+        return "\n".join(["%s: %s" % (k, v)
+                          for k, v in response.json().items()])
 
-    def setup(self):
+    def _setup(self):
         "Launches the hdlcc server"
-        self._logger.info("Running initial Vim setup")
+        self._logger.info("Running vim_hdl client setup")
 
         vimhdl_path = p.abspath(p.join(p.dirname(__file__), '..', '..'))
 
@@ -95,24 +114,43 @@ class VimhdlClient(object):
         cmd = [hdlcc_server,
                '--host', self._host,
                '--port', str(self._port),
-               '--log-level', str(self._log_level),
-               '--log-stream', self._log_target,
-               '--attach-to-pid', str(os.getpid())]
+               '--stdout', '/tmp/hdlcc-stdout.log',
+               '--stderr', '/tmp/hdlcc-stderr.log',
+               '--attach-to-pid', str(os.getpid())] + \
+                self._server_args
 
-        self._logger.info(" ".join(cmd))
+        self._logger.info("Starting hdlcc server with '%s'", " ".join(cmd))
 
         try:
             self._server = subp.Popen(cmd, stdout=subp.PIPE, stderr=subp.PIPE)
+            if not self._isServerAlive():
+                vim_helpers.postVimError("Failed to launch hdlcc server")
         except subp.CalledProcessError:
             self._logger.exception("Error calling '%s'", " ".join(cmd))
+
+    def _waitForServerSetup(self):
+        "Wait for ~10s until the server is actually responding"
+        for _ in range(10):
+            request = RequestServerResponding(self._host, self._port)
+            reply = request.sendRequest()
+            self._logger.debug(reply)
+            if reply:
+                self._logger.info("Ok, server is really up")
+                return
+            else:
+                self._logger.info("Server is not responding yet")
+                time.sleep(0.1)
+
+        self._postError("Unable to talk to server")
+
 
     def shutdown(self):
         "Kills the hdlcc server"
         if not self._isServerAlive():
-            self._logger.info("Server is not running")
+            self._logger.warning("Server is not running")
             return
         self._logger.debug("Sending shutdown signal")
-        os.kill(self._server.pid, signal.SIGHUP)
+        self._server.terminate()
         self._logger.debug("Done")
 
     def requestUiMessages(self):
@@ -151,10 +189,9 @@ class VimhdlClient(object):
                         "Unknown severity '%s' for message '%s'" %
                         (severity, message))
 
-    # More info on :help getqflist()
     def getMessages(self, vim_buffer=None):
-        '''Returns a list (vim.List) of messages (vim.Dictionary) to
-        populate the quickfix list'''
+        """Returns a list (vim.List) of messages (vim.Dictionary) to
+        populate the quickfix list. For more info, check :help getqflist()"""
         if not self._isServerAlive():
             return
 
