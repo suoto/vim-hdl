@@ -25,8 +25,7 @@ import vim # pylint: disable=import-error
 import vimhdl.vim_helpers as vim_helpers
 from vimhdl.base_requests import (RequestMessagesByPath,
                                   RequestQueuedMessages,
-                                  RequestHdlccInfo,
-                                  RequestServerResponding)
+                                  RequestHdlccInfo)
 
 _logger = logging.getLogger(__name__)
 
@@ -131,7 +130,8 @@ class VimhdlClient(object):
     def _waitForServerSetup(self):
         "Wait for ~10s until the server is actually responding"
         for _ in range(10):
-            request = RequestServerResponding(self._host, self._port)
+            time.sleep(0.1)
+            request = RequestHdlccInfo(self._host, self._port)
             reply = request.sendRequest()
             self._logger.debug(reply)
             if reply:
@@ -139,7 +139,6 @@ class VimhdlClient(object):
                 return
             else:
                 self._logger.info("Server is not responding yet")
-                time.sleep(0.1)
 
         self._postError("Unable to talk to server")
 

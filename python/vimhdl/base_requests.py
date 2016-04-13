@@ -63,8 +63,18 @@ class BaseRequest(object):
             if not response.ok: # pragma: no cover
                 _logger.warning("Server response error: '%s'", response.text)
                 response = None
-        except requests.exceptions.ConnectionError:
-            _logger.warning("Error connecting to server")
+        # I'm not sure why the requests package would require digging
+        # down to urllib3 exceptions for a connection error. The docs
+        # at http://docs.python-requests.org/en/master/user/quickstart/
+        # Errors and Exceptions section cleary says that "In the event
+        # of a network problem (e.g. DNS failure, refused connection,
+        # etc), Requests will raise a ConnectionError exception."
+        # This issue is being discussed at the requests repo on GitHub
+        # https://github.com/kennethreitz/requests/issues/2887
+        except (requests.RequestException, requests.ConnectionError,
+                requests.packages.urllib3.exceptions.NewConnectionError) as exc:
+            _logger.warning("Sending request '%s' raised exception: '%s'",
+                            str(self), str(exc))
             return
 
         return response
@@ -90,15 +100,7 @@ class RequestHdlccInfo(BaseRequest):
     "Request UI messages"
     _meth = 'get_diagnose_info'
 
-    def __init__(self, host, port, project_file):
+    def __init__(self, host, port, project_file=None):
         super(RequestHdlccInfo, self).__init__(host, port,
                                                project_file=project_file)
-
-class RequestServerResponding(BaseRequest):
-    "Request UI messages"
-    _meth = 'is_alive'
-
-    def __init__(self, host, port):
-        super(RequestServerResponding, self).__init__(host, port)
-
 

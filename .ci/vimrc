@@ -41,7 +41,6 @@ def _setupLogging(stream, level, color=True):
                 return color
             def write(self, *args, **kwargs):
                 super(Stream, self).write(*args, **kwargs)
-                super(Stream, self).write("\n")
 
         stream = Stream(stream, 'ab', buffering=1)
 

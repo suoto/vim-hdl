@@ -14,13 +14,13 @@
 # You should have received a copy of the GNU General Public License
 # along with vim-hdl.  If not, see <http://www.gnu.org/licenses/>.
 
-RUNNER_ARGS=
+RUNNER_ARGS=()
 
 while [ -n "$1" ]; do
 	case "$1" in
     -C) CLEAN_AND_QUIT="1";;
 		-c) CLEAN="1";;
-		*)	RUNNER_ARGS+=" $1"
+    *)	RUNNER_ARGS+=($1)
 	esac
   shift
 done
@@ -32,9 +32,9 @@ if [ -n "${CLEAN_AND_QUIT}${CLEAN}" ]; then
   git clean -fdx || exit -1
   git submodule foreach --recursive git clean -fdx || exit -1
   cd ./.ci/test_projects/hdl_lib && git reset HEAD --hard
-  cd -
+  cd - || exit
   cd ./.ci/test_projects/vim-hdl-examples && git reset HEAD --hard
-  cd -
+  cd - || exit
   [ -n "${CLEAN_AND_QUIT}" ] && exit
 fi
 
@@ -58,12 +58,9 @@ fi
 
 cp ./.ci/vimrc "$DOT_VIMRC"
 
-RESULT=0
-
-# .ci/tests/run_all.py ${RUNNER_ARGS}
 set -x
-nose2 -s .ci/ ${RUNNER_ARGS}
-RESULT=$(($? || ${RESULT}))
+nose2 -s .ci/ "${RUNNER_ARGS[@]}"
+RESULT=$?
 
 coverage combine
 coverage html
