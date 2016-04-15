@@ -87,12 +87,6 @@ def _getBufferVars(vbuffer=None, var=None):
     else:
         return vbuffer.vars[var]
 
-def _getVimOptions(name, vbuffer=None):
-    "Returns Vim option"
-    if vbuffer is None:
-        vbuffer = vim.current.buffer
-    return vbuffer.options[name]
-
 def getProjectFile():
     """Searches for a valid hdlcc configuration file in buffer vars
     (i.e., inside b:) then in global vars (i.e., inside g:)"""

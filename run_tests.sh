@@ -59,7 +59,7 @@ fi
 cp ./.ci/vimrc "$DOT_VIMRC"
 
 set -x
-nose2 -s .ci/ "${RUNNER_ARGS[@]}"
+coverage run -m nose2 -s .ci/ "${RUNNER_ARGS[@]}"
 RESULT=$?
 
 coverage combine

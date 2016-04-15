@@ -99,7 +99,7 @@ with such.A('vim-hdl test') as it:
 
     @it.has_setup
     def setup():
-        gitClean()
+        #  gitClean()
         cleanHdlLib()
         pipInstallHdlcc()
 
