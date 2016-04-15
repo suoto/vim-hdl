@@ -169,5 +169,16 @@ with such.A('vim-hdl test') as it:
                 _logger.exception("Excepion caught while testing")
                 it.fail("Test failed")
 
+    with it.having("test for issue 15 -- jumping from quickfix"):
+        @it.should("not result on E926")
+        def test():
+            vroom_test = p.join(_PATH_TO_TESTS,
+                                'test_005_issue_15_quickfix_jump.vroom')
+            try:
+                subp.check_call(getTestCommand(vroom_test))
+            except subp.CalledProcessError:
+                _logger.exception("Excepion caught while testing")
+                it.fail("Test failed")
+
 it.createTests(globals())
 
