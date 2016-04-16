@@ -69,15 +69,15 @@ endfunction
 " ============================================================================
 " Setup Vim's Python environment to call vim-hdl within Vim
 function! vimhdl#setupHooks()
-    autocmd! BufWritePost *.vhd :py vimhdl_client.requestUiMessages()
-    autocmd! BufEnter     *.vhd :py vimhdl_client.requestUiMessages()
-    autocmd! BufLeave     *.vhd :py vimhdl_client.requestUiMessages()
-    autocmd! FocusGained  *.vhd :py vimhdl_client.requestUiMessages()
-    autocmd! CursorMoved  *.vhd :py vimhdl_client.requestUiMessages()
-    autocmd! CursorMovedI *.vhd :py vimhdl_client.requestUiMessages()
-    autocmd! CursorHold   *.vhd :py vimhdl_client.requestUiMessages()
-    autocmd! CursorHoldI  *.vhd :py vimhdl_client.requestUiMessages()
-    autocmd! InsertLeave  *.vhd :py vimhdl_client.requestUiMessages()
+    autocmd! BufWritePost *.vhd :py vimhdl_client.requestUiMessages('BufWritePost')
+    autocmd! BufEnter     *.vhd :py vimhdl_client.requestUiMessages('BufEnter')
+    autocmd! BufLeave     *.vhd :py vimhdl_client.requestUiMessages('BufLeave')
+    autocmd! FocusGained  *.vhd :py vimhdl_client.requestUiMessages('FocusGained')
+    autocmd! CursorMoved  *.vhd :py vimhdl_client.requestUiMessages('CursorMoved')
+    autocmd! CursorMovedI *.vhd :py vimhdl_client.requestUiMessages('CursorMovedI')
+    autocmd! CursorHold   *.vhd :py vimhdl_client.requestUiMessages('CursorHold')
+    autocmd! CursorHoldI  *.vhd :py vimhdl_client.requestUiMessages('CursorHoldI')
+    autocmd! InsertLeave  *.vhd :py vimhdl_client.requestUiMessages('InsertLeave')
 endfunction
 " }
 "

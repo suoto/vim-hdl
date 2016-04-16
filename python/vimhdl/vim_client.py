@@ -152,9 +152,11 @@ class VimhdlClient(object):
         self._server.terminate()
         self._logger.debug("Done")
 
-    def requestUiMessages(self):
+    def requestUiMessages(self, event):
         """Retrieves UI messages from the server and post them with the
         appropriate severity level"""
+        self._logger.info("Handling event '%s'. Filetype is %s",
+                          event, vim.eval('&filetype'))
         self._postQueuedMessages()
 
         if not self._isServerAlive():
@@ -228,7 +230,7 @@ class VimhdlClient(object):
 
             messages.append(vim_helpers.dict(vim_fmt_dict))
 
-        self.requestUiMessages()
+        self.requestUiMessages('getMessages')
 
         return vim_helpers.list(_sortBuildMessages(messages))
 

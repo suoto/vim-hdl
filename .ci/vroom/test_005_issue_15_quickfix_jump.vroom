@@ -20,9 +20,12 @@ which should result in the static checker saying it is not used
   > o signal unused : integer;<ESC>
   :w
   :lopen
-  \s*source.vhd|43 col 13 warning| signal 'unused' is never used (regex)
+  source.vhd|38 col 13 warning| signal 'unused' is never used
 
 Jump from the quickfix list and check if we move to the line that has the error
   > <CR>
-  E926: Current location list was changed
+  :echom line('.')
+  ~ 38
+  :echom getline('.')
+  ~ \s*signal unused : integer;\s* (regex)
 

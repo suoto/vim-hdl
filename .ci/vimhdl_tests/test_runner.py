@@ -39,6 +39,7 @@ def getTestCommand(test_name):
     #  args += ['--dump-syscalls', base_log_name.format('sys.log')]
     args += ['-u', p.expanduser('~/.vimrc' if _CI else '~/dot_vim/vimrc')]
     args += ['-d0.5', '-t3'] if _CI else ['-d0.2', '-t1']
+    #  args += ['-i']
 
     args += [test_name]
 
@@ -172,6 +173,9 @@ with such.A('vim-hdl test') as it:
     with it.having("test for issue 15 -- jumping from quickfix"):
         @it.should("not result on E926")
         def test():
+            if p.exists('source.vhd'):
+                os.remove('source.vhd')
+
             vroom_test = p.join(_PATH_TO_TESTS,
                                 'test_005_issue_15_quickfix_jump.vroom')
             try:
