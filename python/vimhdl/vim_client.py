@@ -23,9 +23,8 @@ from multiprocessing import Queue
 
 import vim # pylint: disable=import-error
 import vimhdl.vim_helpers as vim_helpers
-from vimhdl.base_requests import (RequestMessagesByPath,
-                                  RequestQueuedMessages,
-                                  RequestHdlccInfo)
+from vimhdl.base_requests import (RequestMessagesByPath, RequestQueuedMessages,
+                                  RequestHdlccInfo, RequestProjectRebuild)
 
 _logger = logging.getLogger(__name__)
 
@@ -40,11 +39,8 @@ def _sortBuildMessages(records):
     records.sort(key=lambda x: (x['type'], x['lnum'], x['col'], x['nr']))
     return records
 
-#############################################
-# Functions that are actually called by Vim #
-#############################################
 class VimhdlClient(object):
-    "Main vimhdl client class"
+    "Point of entry of Vim commands"
 
     def __init__(self, **options):
         self._logger = logging.getLogger(__name__ + '.' + self.__class__.__name__)
@@ -87,20 +83,6 @@ class VimhdlClient(object):
             self._postWarning("hdlcc server is not running")
         return sts
 
-    def getVimhdlInfo(self):
-        "Gets info about the current project and hdlcc server"
-        project_file = vim_helpers.getProjectFile()
-        request = RequestHdlccInfo(host=self._host, port=self._port,
-                                   project_file=project_file)
-
-        response = request.sendRequest()
-
-        if response is None:
-            return "hdlcc server is not running"
-
-        return "\n".join(["%s: %s" % (k, v)
-                          for k, v in response.json().items()])
-
     def _setup(self):
         "Launches the hdlcc server"
         self._logger.info("Running vim_hdl client setup")
@@ -142,7 +124,6 @@ class VimhdlClient(object):
 
         self._postError("Unable to talk to server")
 
-
     def shutdown(self):
         "Kills the hdlcc server"
         if not self._isServerAlive():
@@ -151,23 +132,6 @@ class VimhdlClient(object):
         self._logger.debug("Sending shutdown signal")
         self._server.terminate()
         self._logger.debug("Done")
-
-    def requestUiMessages(self, event):
-        """Retrieves UI messages from the server and post them with the
-        appropriate severity level"""
-        self._logger.info("Handling event '%s'. Filetype is %s",
-                          event, vim.eval('&filetype'))
-        self._postQueuedMessages()
-
-        if not self._isServerAlive():
-            return
-
-        project_file = vim_helpers.getProjectFile()
-
-        request = RequestQueuedMessages(self._host, self._port,
-                                        project_file=project_file)
-
-        request.sendRequestAsync(self._handleAsyncRequest)
 
     def _handleAsyncRequest(self, response):
         "Callback passed to asynchronous requests"
@@ -233,4 +197,50 @@ class VimhdlClient(object):
         self.requestUiMessages('getMessages')
 
         return vim_helpers.list(_sortBuildMessages(messages))
+
+    def requestUiMessages(self, event):
+        """Retrieves UI messages from the server and post them with the
+        appropriate severity level"""
+        self._logger.info("Handling event '%s'. Filetype is %s",
+                          event, vim.eval('&filetype'))
+        self._postQueuedMessages()
+
+        if not self._isServerAlive():
+            return
+
+        project_file = vim_helpers.getProjectFile()
+
+        request = RequestQueuedMessages(self._host, self._port,
+                                        project_file=project_file)
+
+        request.sendRequestAsync(self._handleAsyncRequest)
+
+    def getVimhdlInfo(self):
+        "Gets info about the current project and hdlcc server"
+        project_file = vim_helpers.getProjectFile()
+        request = RequestHdlccInfo(host=self._host, port=self._port,
+                                   project_file=project_file)
+
+        response = request.sendRequest()
+
+        if response is None:
+            return "hdlcc server is not running"
+
+        return "\n".join(["%s: %s" % (k, v)
+                          for k, v in response.json().items()])
+
+    def rebuildProject(self):
+        "Rebuilds the current project"
+        vim_helpers.postVimInfo("Rebuilding project...")
+        project_file = vim_helpers.getProjectFile()
+        request = RequestProjectRebuild(host=self._host, port=self._port,
+                                        project_file=project_file)
+
+        response = request.sendRequest()
+
+        if response is None:
+            return "hdlcc server is not running"
+
+        self._logger.info("Response: %s", repr(response))
+
 

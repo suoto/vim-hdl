@@ -48,12 +48,12 @@ except NameError:
 EOF
 endfunction
 " }
-"
 " { vimhdl#setupCommands()
 " ============================================================================
 " Setup Vim's Python environment to call vim-hdl within Vim
 function! vimhdl#setupCommands()
-    command! VimhdlInfo call s:PrintInfo()
+    command! VimhdlInfo           call s:PrintInfo()
+    command! VimhdlRebuildProject :py vimhdl_client.rebuildProject()
 
     " command! VimhdlListLibraries                   call vimhdl#listLibraries()
     " command! VimhdlListLibrariesAndSources         call vimhdl#listLibrariesAndSources()
@@ -64,7 +64,6 @@ function! vimhdl#setupCommands()
     " command! -nargs=? VimhdlRemoveSourceFromLibrary call vimhdl#removeSourceFromLibrary(<f-args>)
 endfunction
 " }
-"
 " { vimhdl#setupHooks()
 " ============================================================================
 " Setup Vim's Python environment to call vim-hdl within Vim
@@ -80,7 +79,6 @@ function! vimhdl#setupHooks()
     autocmd! InsertLeave  *.vhd :py vimhdl_client.requestUiMessages('InsertLeave')
 endfunction
 " }
-"
 " { vimhdl#setup()
 " ============================================================================
 " Setup Vim's Python environment to call vim-hdl within Vim
@@ -97,7 +95,7 @@ function! vimhdl#setup()
 
 endfunction
 " }
-" { vimhdl#setupHooks()
+" { vimhdl#PrintInfo()
 " ============================================================================
 " Setup Vim's Python environment to call vim-hdl within Vim
 function! s:PrintInfo()

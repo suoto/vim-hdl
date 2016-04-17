@@ -104,3 +104,11 @@ class RequestHdlccInfo(BaseRequest):
         super(RequestHdlccInfo, self).__init__(host, port,
                                                project_file=project_file)
 
+class RequestProjectRebuild(BaseRequest):
+    "Request UI messages"
+    _meth = 'rebuild_project'
+
+    def __init__(self, host, port, project_file=None):
+        super(RequestProjectRebuild, self).__init__(host, port,
+                                                    project_file=project_file)
+
