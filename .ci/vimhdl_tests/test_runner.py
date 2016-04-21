@@ -197,7 +197,17 @@ with such.A('vim-hdl test') as it:
             vroom_test = p.join(_PATH_TO_TESTS,
                                 'test_006_get_vim_info.vroom')
             lines = open(vroom_test, 'r').read()
-            lines = lines.replace("__vimhdl__version__", vimhdl.__version__)
+
+            # We actually change files that are on submodules locate in
+            # the .ci/test_projects folder and this results on a dirty
+            # status. We'll add '.dirty' to the expected version until
+            # this fixed
+            lines = lines.replace("__vimhdl__version__",
+                                  vimhdl.__version__ + '.dirty')
+
+            # Just make sure we don't get too dirty...
+            lines = lines.replace(".dirty.dirty", ".dirty")
+
             lines = lines.replace("__hdlcc__version__", hdlcc.__version__)
 
             vroom_post = vroom_test.replace('test_006', 'alt_test_006')
