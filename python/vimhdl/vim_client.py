@@ -22,6 +22,7 @@ import os
 from multiprocessing import Queue
 
 import vim # pylint: disable=import-error
+import vimhdl
 import vimhdl.vim_helpers as vim_helpers
 from vimhdl.base_requests import (RequestMessagesByPath, RequestQueuedMessages,
                                   RequestHdlccInfo, RequestProjectRebuild)
@@ -226,7 +227,8 @@ class VimhdlClient(object):
         if response is None:
             return "hdlcc server is not running"
 
-        return "\n".join(["%s: %s" % (k, v)
+        return "\n".join(["vimhdl version: " + vimhdl.__version__] +
+                         ["%s: %s" % (k, v)
                           for k, v in response.json().items()])
 
     def rebuildProject(self):

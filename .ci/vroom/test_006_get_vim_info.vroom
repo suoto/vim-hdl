@@ -1,0 +1,9 @@
+Open a buffer and set filetype to VHDL. This should allow us to get VimhdlInfo
+This file will be modified before it runs to replace __vimhdl__version__ and
+__hdlcc__version__ with their real values
+  :set filetype=vhdl
+  :VimhdlInfo
+  ~ vimhdl debug info
+  ~ - vimhdl version: __vimhdl__version__
+  ~ - hdlcc version: __hdlcc__version__
+
