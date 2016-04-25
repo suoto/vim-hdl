@@ -12,12 +12,25 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with vim-hdl.  If not, see <http://www.gnu.org/licenses/>.
-'''vim-hdl is a VHDL syntax check provider that relies on third-party
-tools.  See https://github.com/suoto/vim-hdl for more information'''
 
-from .vim_client import VimhdlClient
+import sys
+import mock
 
-from ._version import get_versions
-__version__ = get_versions()['version']
-del get_versions
+vim = mock.MagicMock() # pylint: disable=invalid-name
+
+def mockVim():
+    sys.modules['vim'] = vim
+
+vim.current = mock.MagicMock()
+vim.current.buffer = mock.MagicMock(
+        vars={'current_buffer_var_0' : 'current_buffer_value_0',
+              'current_buffer_var_1' : 'current_buffer_value_1'})
+
+vim.buffers = {
+    0 : mock.MagicMock(vars={'buffer_0_var_0' : 'buffer_0_var_value_0',
+                             'buffer_0_var_1' : 'buffer_0_var_value_1'}),
+    1 : mock.MagicMock(vars={'buffer_1_var_0' : 'buffer_1_var_value_0',
+                             'buffer_1_var_1' : 'buffer_1_var_value_1'}),
+}
+
 

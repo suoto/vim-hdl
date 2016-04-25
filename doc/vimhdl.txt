@@ -1,0 +1,95 @@
+*vimhdl*    Vim plugin to aid VHDL development
+
+                    .-.  .-..-.       .-. .-..----. .-.                      ~
+                    | | / / '-'.-. .-.| | | || ..  \| |                      ~
+                    | |/ /  .-.|  V  || '-' || | | || |                      ~
+                    |   /   | || |V| || .-. || ''  /| '--.                   ~
+                    '--'    '-''-' '-''-' '-''----' '----'                   ~
+                      Vim plugin to aid VHDL development ~
+
+==============================================================================
+Contents ~
+
+1.  Intro.............................................|vimhdl-intro|
+    1.1. hdlcc........................................|vimhdl-hdlcc|
+    1.2. Supported compilers..........................|vimhdl-compilers-support|
+2.  User guide........................................|vimhdl-user-guide|
+    2.1. Quickstart...................................|vimhdl-quickstart|
+    2.2. Style check..................................|vimhdl-style-check|
+    2.3. Vim commands.................................|vimhdl-commands|
+
+==============================================================================
+1. Intro                                                          *vimhdl-intro*
+
+vimhdl is a plugin that implements an HTTP client that talks to |hdlcc| so its
+output is shown either on Vim's quickfix list via |Syntastic| or Vim's messages.
+
+------------------------------------------------------------------------------
+1.1. hdlcc                                                  *hdlcc* *vimhdl-hdlcc*
+
+hdlcc provides a Python API between a VHDL project and some HDL compilers to
+catch errors and warnings the compilers generate that can be used to populate
+syntax checkers and linters of text editors.
+
+hdlcc automates tasks when possible. Currently, this means
+
+- Taking dependencies into account when building so you don't need to provide
+  a source list ordered by hand.
+- Finding and rebuilding sources and design units that the compiler says are
+  out of date (typically rebuilding sources that depend on package that has
+  been changed)
+- Easily switch between different compilers
+
+==============================================================================
+2. User guide                                                *vimhdl-user-guide*
+
+------------------------------------------------------------------------------
+2.1. Quickstart                                              *vimhdl-quickstart*
+                                   *vimhdl-compilers-options* *vimhdl-config-file*
+
+Vim-hdl requires a configuration file to begin with. The full project file
+documentation can be found at https://github.com/suoto/hdlcc/wiki. The quick
+version can be found below.
+
+The basics:
+- Anything from a '#' character until the end of the line is ignored
+- Give options by doing
+  option_name = option_value ~
+    - Valid options are
+      - global_build_flags: Flags that are always passed to the compiler
+      - batch_build_flags: Flags passed to the compiler when building the
+        entire project. This runs when the project is built for the first time
+        or when |VimhdlRebuildProject| command is used
+      - single_build_flags: Flags passed to the compiler when building a
+        single file, i.e., when you save
+      - builder: Compiler selection (msim = ModelSim, xvhdl = Xilinx XVHDL,
+        ghdl)
+      - target_dir: Location of the compiler files
+- Source files are defined by doing
+  vhdl library_name path_to_source build_flags                                ~
+    - Build flags passed when adding a source file will be applied only to
+      this specific source file
+
+------------------------------------------------------------------------------
+2.2. Style check                                            *vimhdl-style-check*
+
+TODO...
+
+------------------------------------------------------------------------------
+2.3. Vim commands                                              *vimhdl-commands*
+
+:VimhdlInfo                                    *vimhdl-commands-info* *VimhdlInfo*
+
+Use this command to get the versions of both |vimhdl| and |hdlcc|, the builder
+currently in use and some |hdlcc| server info.
+
+:VimhdlRebuildProject             *vimhdl-commands-rebuild* *VimhdlRebuildProject*
+
+Use this command if you feel either |vimhdl| or |hdlcc| seem to be
+misbehaving. This will cause |hdlcc| to clean up both the project cache and the
+target folder and restar building the project from scratch. Please note that
+on project with large numbers of files this can be lengthy.
+
+==============================================================================
+
+vim: ft=help

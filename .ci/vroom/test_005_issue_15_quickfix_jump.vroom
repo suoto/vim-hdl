@@ -1,0 +1,35 @@
+Edit a VHD file without any project file. It is expected to run only the static checker
+  :SyntasticInfo
+I don't want to type the file within vroom, so I'll copy another file :)
+  :tabe .ci/test_projects/hdl_lib/common_lib/edge_detector.vhd
+  > ggVGy
+  ~ 112 lines yanked
+  :echo delete('source.vhd')
+  :tabe source.vhd
+  > P
+  ~ 112 more lines
+  :write
+  ~ "source.vhd" \[New\] \d+L, \d+C written (regex)
+
+This file has no errors, so the quickfix list must be empty
+  :SyntasticCheck
+  :lopen
+  &
+  :lclose
+
+Find where the architecture declaration begins and insert a signal declaration,
+which should result in the static checker saying it is not used
+  > /^\s*architecture\s\+\w\+\s\+of\s\+\w\+<CR>
+  > o signal unused : integer;<ESC>
+  :write
+  ~ "source.vhd" \d+L, \d+C written (regex)
+  :lopen
+  source.vhd|38 col \d+ warning| signal 'unused' is never used (regex)
+
+Jump from the quickfix list and check if we move to the line that has the error
+  > <CR> (1.0)
+  :echom line('.')
+  ~ 38
+  :echom getline('.')
+  ~ ^.*\bsignal unused : integer;\s* (regex)
+

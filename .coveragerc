@@ -1,8 +1,8 @@
 [run]
 source = vimhdl
-
 branch = True
 parallel = True
+omit = ./python/vimhdl/_version.py
 
 [report]
 show_missing = True

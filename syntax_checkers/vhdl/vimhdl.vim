@@ -49,7 +49,10 @@ try:
     loclist = vim.bindeval('loclist')
 except AttributeError:
     loclist = vim.eval('loclist')
-messages = vimhdl.vim_client.getMessages(buf=vim.current.buffer)
+try:
+    messages = vimhdl_client.getMessages(vim.current.buffer)
+except:
+    _logger.exception("Error getting messages")
 if messages:
     loclist.extend(messages)
 EOF
