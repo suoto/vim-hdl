@@ -6,8 +6,6 @@ python:
 env:
   global:
     - VROOM_TAG=v0.12.0
-    # - GRLIB_VERSION=v1.5.0-b4164
-    - GRLIB_VERSION=v1.4.1-b4156
     - CACHE=${HOME}/cache
     - GHDL_HOST="http://downloads.sourceforge.net/project/ghdl-updates/Builds"
     - GHDL_URL ="${GHDL_HOST}/ghdl-0.33/ghdl-0.33-x86_64-linux.tgz"
@@ -48,10 +46,8 @@ before_script:
   - export DISPLAY=:99.0
   - sh -e /etc/init.d/xvfb start
   - "cd ${TRAVIS_BUILD_DIR}"
-
-  # Download grlib from aeroflex
-  - "git clone https://github.com/suoto/grlib -b ${GRLIB_VERSION} \
-       --single-branch --depth 1 ~/grlib/"
+  - "git clone https://github.com/suoto/hdlcc_ci --recursive --depth 1 \
+      ../hdlcc_ci"
 
   - "export VIMRUNTIME=${CACHE}/vim-${VIM_VERSION}/runtime"
   - "export PATH=${CACHE}/vim-${VIM_VERSION}/src/:${PATH}"

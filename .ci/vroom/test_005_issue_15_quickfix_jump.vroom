@@ -1,7 +1,7 @@
 Edit a VHD file without any project file. It is expected to run only the static checker
   :SyntasticInfo
 I don't want to type the file within vroom, so I'll copy another file :)
-  :tabe .ci/test_projects/hdl_lib/common_lib/edge_detector.vhd
+  :tabe ../hdlcc_ci/hdl_lib/common_lib/edge_detector.vhd
   > ggVGy
   ~ 112 lines yanked
   :echo delete('source.vhd')

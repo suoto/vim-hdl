@@ -25,7 +25,7 @@ Macro that checks if vimhdl is enabled
 
 
 Edit some files on Vim after using hdlcc_sa.py to build outside Vim
-  :cd .ci/test_projects/hdl_lib
+  :cd ../hdlcc_ci/hdl_lib
   :let g:vimhdl_conf_file = 'ghdl.prj'
   :edit common_lib/edge_detector.vhd
   @do (vimhdl_check)

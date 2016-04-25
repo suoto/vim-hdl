@@ -23,6 +23,7 @@ import subprocess as subp
 from nose2.tools import such
 
 _PATH_TO_TESTS = p.join(".ci", "vroom")
+HDLCC_CI = p.abspath(p.join("..", "hdlcc_ci"))
 PATH_TO_HDLCC = p.join("dependencies", "hdlcc")
 _CI = os.environ.get("CI", None) is not None
 
@@ -67,7 +68,7 @@ with such.A('vim-hdl test') as it:
     def cleanHdlLib():
         _logger.info("Resetting hdl_lib")
         start_path = p.abspath(".")
-        dest_path = p.join(".ci", "test_projects", "hdl_lib")
+        dest_path = p.join(HDLCC_CI, "hdl_lib")
         os.chdir(dest_path)
         for line in \
             subp.check_output(['git', 'reset', 'HEAD', '--hard']).splitlines():
@@ -147,7 +148,7 @@ with such.A('vim-hdl test') as it:
         @it.should("pass")
         def test(case):
             vroom_test = p.join(_PATH_TO_TESTS, 'test_004_issue_10.vroom')
-            cmd = ['hdlcc', '.ci/test_projects/hdl_lib/ghdl.prj', '-cb', '-vvv']
+            cmd = ['hdlcc', HDLCC_CI + '/hdl_lib/ghdl.prj', '-cb', '-vvv']
 
             _logger.info(cmd)
             exc = None
@@ -196,16 +197,7 @@ with such.A('vim-hdl test') as it:
                                 'test_006_get_vim_info.vroom')
             lines = open(vroom_test, 'r').read()
 
-            #  We actually change files that are on submodules locate in
-            #  the .ci/test_projects folder and this results on a dirty
-            #  status. We'll add '.dirty' to the expected version until
-            #  this fixed
-            lines = lines.replace("__vimhdl__version__",
-                                  vimhdl.__version__ + '.dirty')
-
-            #  Just make sure we don't get too dirty...
-            lines = lines.replace(".dirty.dirty", ".dirty")
-
+            lines = lines.replace("__vimhdl__version__", vimhdl.__version__)
             lines = lines.replace("__hdlcc__version__", hdlcc.__version__)
 
             vroom_post = vroom_test.replace('test_006', 'alt_test_006')

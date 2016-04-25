@@ -31,9 +31,9 @@ set +e
 if [ -n "${CLEAN_AND_QUIT}${CLEAN}" ]; then
   git clean -fdx || exit -1
   git submodule foreach --recursive git clean -fdx || exit -1
-  cd ./.ci/test_projects/hdl_lib && git reset HEAD --hard
+  cd ../hdlcc_ci/hdl_lib && git reset HEAD --hard
   cd - || exit
-  cd ./.ci/test_projects/vim-hdl-examples && git reset HEAD --hard
+  cd ../hdlcc_ci/vim-hdl-examples && git reset HEAD --hard
   cd - || exit
   [ -n "${CLEAN_AND_QUIT}" ] && exit
 fi

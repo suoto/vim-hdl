@@ -11,7 +11,7 @@ Macro that checks if the quickfix is empty
 
 We'll test what happens when we configure a project but the builder it specifies
 is not found, which should trigger using the fallback builder
-  :cd .ci/test_projects/hdl_lib
+  :cd ../hdlcc_ci/hdl_lib
   :let g:vimhdl_conf_file = 'msim.prj'
   :edit common_lib/edge_detector.vhd
   ~ "common_lib/edge_detector.vhd".* (regex)

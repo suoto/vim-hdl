@@ -1,12 +1,6 @@
 [submodule "dependencies/hdlcc"]
 	path = dependencies/hdlcc
 	url = https://github.com/suoto/hdlcc
-[submodule ".ci/test_projects/hdl_lib"]
-	path = .ci/test_projects/hdl_lib
-	url = https://github.com/suoto/hdl_lib
-[submodule ".ci/test_projects/vim-hdl-examples"]
-	path = .ci/test_projects/vim-hdl-examples
-	url = https://github.com/suoto/vim-hdl-examples
 [submodule "dependencies/requests"]
 	path = dependencies/requests
 	url = https://github.com/kennethreitz/requests
