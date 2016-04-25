@@ -112,40 +112,40 @@ with such.A('vim-hdl test') as it:
 
     with it.having("a session with multiple files to edit"):
         @it.should("pass")
-        def test():
+        def test(case):
             vroom_test = p.join(_PATH_TO_TESTS,
                                 "test_001_editing_multiple_files.vroom")
             try:
                 subp.check_call(getTestCommand(vroom_test))
             except subp.CalledProcessError:
                 _logger.exception("Excepion caught while testing")
-                it.fail("Test failed")
+                it.fail("Test failed: %s" % case)
 
     with it.having("no project configured"):
         @it.should("pass")
-        def test():
+        def test(case):
             vroom_test = p.join(_PATH_TO_TESTS,
                                 'test_002_no_project_configured.vroom')
             try:
                 subp.check_call(getTestCommand(vroom_test))
             except subp.CalledProcessError:
                 _logger.exception("Excepion caught while testing")
-                it.fail("Test failed")
+                it.fail("Test failed: %s" % case)
 
     with it.having("a project file but no builder working"):
         @it.should("pass")
-        def test():
+        def test(case):
             vroom_test = p.join(_PATH_TO_TESTS,
                                 'test_003_with_project_without_builder.vroom')
             try:
                 subp.check_call(getTestCommand(vroom_test))
             except subp.CalledProcessError:
                 _logger.exception("Excepion caught while testing")
-                it.fail("Test failed")
+                it.fail("Test failed: %s" % case)
 
     with it.having("built project with hdlcc standalone before editing"):
         @it.should("pass")
-        def test():
+        def test(case):
             vroom_test = p.join(_PATH_TO_TESTS, 'test_004_issue_10.vroom')
             cmd = ['hdlcc', '.ci/test_projects/hdl_lib/ghdl.prj', '-cb', '-vvv']
 
@@ -168,26 +168,24 @@ with such.A('vim-hdl test') as it:
                 subp.check_call(getTestCommand(vroom_test))
             except subp.CalledProcessError:
                 _logger.exception("Excepion caught while testing")
-                it.fail("Test failed")
+                it.fail("Test failed: %s" % case)
 
     with it.having("test for issue 15 -- jumping from quickfix"):
         @it.should("not result on E926")
-        def test():
-            with it.assertRaises(subp.CalledProcessError):
-                if p.exists('source.vhd'):
-                    os.remove('source.vhd')
+        def test(case):
+            if p.exists('source.vhd'):
+                os.remove('source.vhd')
 
-                vroom_test = p.join(_PATH_TO_TESTS,
-                                    'test_005_issue_15_quickfix_jump.vroom')
-                try:
-                    subp.check_call(getTestCommand(vroom_test))
-                except subp.CalledProcessError:
-                    _logger.info("Issue #15 still detected")
-                    raise
+            vroom_test = p.join(_PATH_TO_TESTS,
+                                'test_005_issue_15_quickfix_jump.vroom')
+            try:
+                subp.check_call(getTestCommand(vroom_test))
+            except subp.CalledProcessError:
+                it.fail("Test failed: %s" % case)
 
     with it.having("any VHDL file"):
         @it.should("print vimhdl info")
-        def test():
+        def test(case):
             import sys
             sys.path.insert(0, 'python')
             sys.path.insert(0, p.join('dependencies', 'hdlcc'))
@@ -198,14 +196,14 @@ with such.A('vim-hdl test') as it:
                                 'test_006_get_vim_info.vroom')
             lines = open(vroom_test, 'r').read()
 
-            # We actually change files that are on submodules locate in
-            # the .ci/test_projects folder and this results on a dirty
-            # status. We'll add '.dirty' to the expected version until
-            # this fixed
+            #  We actually change files that are on submodules locate in
+            #  the .ci/test_projects folder and this results on a dirty
+            #  status. We'll add '.dirty' to the expected version until
+            #  this fixed
             lines = lines.replace("__vimhdl__version__",
                                   vimhdl.__version__ + '.dirty')
 
-            # Just make sure we don't get too dirty...
+            #  Just make sure we don't get too dirty...
             lines = lines.replace(".dirty.dirty", ".dirty")
 
             lines = lines.replace("__hdlcc__version__", hdlcc.__version__)
@@ -217,7 +215,7 @@ with such.A('vim-hdl test') as it:
                 subp.check_call(getTestCommand(vroom_post))
             except subp.CalledProcessError:
                 _logger.exception("Excepion caught while testing")
-                it.fail("Test failed")
+                it.fail("Test failed: %s" % case)
 
 it.createTests(globals())
 
