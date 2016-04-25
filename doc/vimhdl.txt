@@ -1,56 +1,95 @@
-*vim-hdl*	Vim plugin to aid VHDL development
+*vimhdl*    Vim plugin to aid VHDL development
 
-===============================================================================
+                    .-.  .-..-.       .-. .-..----. .-.                      ~
+                    | | / / '-'.-. .-.| | | || ..  \| |                      ~
+                    | |/ /  .-.|  V  || '-' || | | || |                      ~
+                    |   /   | || |V| || .-. || ''  /| '--.                   ~
+                    '--'    '-''-' '-''-' '-''----' '----'                   ~
+                      Vim plugin to aid VHDL development ~
+
+==============================================================================
 Contents ~
 
-1. Intro                                                           |vimhdl-intro|
- 1. hdlcc                                                          |vimhdl-hdlcc|
-1. Options                                                       |vimhdl-options|
+1.  Intro.............................................|vimhdl-intro|
+    1.1. hdlcc........................................|vimhdl-hdlcc|
+    1.2. Supported compilers..........................|vimhdl-compilers-support|
+2.  User guide........................................|vimhdl-user-guide|
+    2.1. Quickstart...................................|vimhdl-quickstart|
+    2.2. Style check..................................|vimhdl-style-check|
+    2.3. Vim commands.................................|vimhdl-commands|
 
-===============================================================================
-                                                                  *vimhdl-intro*
+==============================================================================
+1. Intro                                                          *vimhdl-intro*
 
-vim-hdl is a plugin that implements an |vimhdl-hdlcc| HTTP client so the output
-of |vimhdl-hdlcc| is shown either using |Syntastic| or Vim's messages.
+vimhdl is a plugin that implements an HTTP client that talks to |hdlcc| so its
+output is shown either on Vim's quickfix list via |Syntastic| or Vim's messages.
 
-But what is |vimhdl-hdlcc|??
+------------------------------------------------------------------------------
+1.1. hdlcc                                                  *hdlcc* *vimhdl-hdlcc*
 
-|vimhdl-hdlcc| is the backend side of |vim-hdl|. Using |vimhdl-hdlcc| is cool because
-it provides a way to interact with popular compilers/simulators and a bunch of
-VHDL files to catch errors and warnings they generate and populate Vim's
-quickfix window.
+hdlcc provides a Python API between a VHDL project and some HDL compilers to
+catch errors and warnings the compilers generate that can be used to populate
+syntax checkers and linters of text editors.
 
-Summarizing, we get:
+hdlcc automates tasks when possible. Currently, this means
 
-- Syntax checking (using third-party-compilers + |Syntastic|)
-- Style checking
-- Dependencies are taken into account when building so you don't need to
-  provide a source list ordered by hand.
-- No need to find and recompile specific sources and design units the compiler
-  says are out of date. |vimhdl-hdlcc| does that for you
+- Taking dependencies into account when building so you don't need to provide
+  a source list ordered by hand.
+- Finding and rebuilding sources and design units that the compiler says are
+  out of date (typically rebuilding sources that depend on package that has
+  been changed)
 - Easily switch between different compilers
 
--------------------------------------------------------------------------------
-                                                                  *vimhdl-hdlcc*
+==============================================================================
+2. User guide                                                *vimhdl-user-guide*
 
-hdlcc: HDL code checker backend~
+------------------------------------------------------------------------------
+2.1. Quickstart                                              *vimhdl-quickstart*
+                                   *vimhdl-compilers-options* *vimhdl-config-file*
 
-===============================================================================
-                                                              *vimhdl-user-guide*
+Vim-hdl requires a configuration file to begin with. The full project file
+documentation can be found at https://github.com/suoto/hdlcc/wiki. The quick
+version can be found below.
 
-User Guide~
+The basics:
+- Anything from a '#' character until the end of the line is ignored
+- Give options by doing
+  option_name = option_value ~
+    - Valid options are
+      - global_build_flags: Flags that are always passed to the compiler
+      - batch_build_flags: Flags passed to the compiler when building the
+        entire project. This runs when the project is built for the first time
+        or when |VimhdlRebuildProject| command is used
+      - single_build_flags: Flags passed to the compiler when building a
+        single file, i.e., when you save
+      - builder: Compiler selection (msim = ModelSim, xvhdl = Xilinx XVHDL,
+        ghdl)
+      - target_dir: Location of the compiler files
+- Source files are defined by doing
+  vhdl library_name path_to_source build_flags                                ~
+    - Build flags passed when adding a source file will be applied only to
+      this specific source file
 
--------------------------------------------------------------------------------
-                                                             *vimhdl-style-check*
+------------------------------------------------------------------------------
+2.2. Style check                                            *vimhdl-style-check*
 
-Style check~
+TODO...
 
-===============================================================================
-                                                                 *vimhdl-options*
+------------------------------------------------------------------------------
+2.3. Vim commands                                              *vimhdl-commands*
 
-Options ~
+:VimhdlInfo                                    *vimhdl-commands-info* *VimhdlInfo*
 
-Default options won't actually call any VHDL compiler, only |vim-hdl|'s style
-check.
+Use this command to get the versions of both |vimhdl| and |hdlcc|, the builder
+currently in use and some |hdlcc| server info.
+
+:VimhdlRebuildProject             *vimhdl-commands-rebuild* *VimhdlRebuildProject*
+
+Use this command if you feel either |vimhdl| or |hdlcc| seem to be
+misbehaving. This will cause |hdlcc| to clean up both the project cache and the
+target folder and restar building the project from scratch. Please note that
+on project with large numbers of files this can be lengthy.
+
+==============================================================================
 
 vim: ft=help

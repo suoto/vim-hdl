@@ -1,4 +1,4 @@
-syntax on
+syntax off
 filetype plugin indent on
 set nocompatible
 
