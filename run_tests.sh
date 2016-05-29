@@ -40,6 +40,7 @@ if [ -z "${CI}" ]; then
   virtualenv ${VIRTUAL_ENV_DEST}
   . ${VIRTUAL_ENV_DEST}/bin/activate
 
+  pip install git+https://github.com/suoto/rainbow_logging_handler
   pip install -r requirements.txt
 fi
 
