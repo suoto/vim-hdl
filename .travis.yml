@@ -32,6 +32,7 @@ install:
   - pip install -r ./.ci/requirements.txt
   - pip install -r ./dependencies/hdlcc/requirements.txt
   - pip install -e ./dependencies/hdlcc/
+  - pip install git+https://github.com/suoto/rainbow_logging_handler
 
 before_script:
   - "git submodule update --init --recursive"

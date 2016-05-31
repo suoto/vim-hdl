@@ -14,6 +14,8 @@
 # You should have received a copy of the GNU General Public License
 # along with vim-hdl.  If not, see <http://www.gnu.org/licenses/>.
 
+VIRTUAL_ENV_DEST=~/dev/vimhdl_venv
+
 RUNNER_ARGS=()
 
 while [ -n "$1" ]; do
@@ -27,6 +29,20 @@ done
 
 # set -x
 set +e
+
+# If we're not running on a CI server, create a virtual env to mimic
+# its behaviour
+if [ -z "${CI}" ]; then
+  if [ -d "${VIRTUAL_ENV_DEST}" ]; then
+    rm -rf ${VIRTUAL_ENV_DEST}
+  fi
+
+  virtualenv ${VIRTUAL_ENV_DEST}
+  . ${VIRTUAL_ENV_DEST}/bin/activate
+
+  pip install git+https://github.com/suoto/rainbow_logging_handler
+  pip install -r requirements.txt
+fi
 
 if [ -n "${CLEAN_AND_QUIT}${CLEAN}" ]; then
   git clean -fdx || exit -1
@@ -64,5 +80,8 @@ RESULT=$?
 
 coverage combine
 coverage html
+
+[ -z "${CI}" ] && [ -n "${VIRTUAL_ENV}" ] && deactivate
+
 exit ${RESULT}
 

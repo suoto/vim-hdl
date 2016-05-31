@@ -87,8 +87,6 @@ with such.A('vim-hdl test') as it:
 
     def pipInstallHdlcc():
         cmd = ['pip', 'install', '-e', PATH_TO_HDLCC, '-U',]
-        if not _CI:
-            cmd += ['--user']
         _logger.info("Installing HDLCC via pip with command:")
         _logger.info(cmd)
         subp.check_call(cmd)
