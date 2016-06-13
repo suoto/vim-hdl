@@ -1,11 +1,9 @@
 # vim-hdl
 
-[![Build
-Status](https://travis-ci.org/suoto/vim-hdl.svg?branch=master)](https://travis-ci.org/suoto/vim-hdl)
-[![Coverage
-Status](https://coveralls.io/repos/github/suoto/vim-hdl/badge.svg?branch=master)](https://coveralls.io/github/suoto/vim-hdl?branch=master)
-[![Code
-Health](https://landscape.io/github/suoto/vim-hdl/master/landscape.svg?style=flat)](https://landscape.io/github/suoto/vim-hdl/master)
+[![Build Status](https://travis-ci.org/suoto/vim-hdl.svg?branch=master)](https://travis-ci.org/suoto/vim-hdl)
+[![Coverage Status](https://coveralls.io/repos/github/suoto/vim-hdl/badge.svg?branch=master)](https://coveralls.io/github/suoto/vim-hdl?branch=master)
+[![Code Health](https://landscape.io/github/suoto/vim-hdl/master/landscape.svg?style=flat)](https://landscape.io/github/suoto/vim-hdl/master)
+[![Analytics](https://ga-beacon.appspot.com/UA-68153177-3/vim-hdl/README.md?pixel)](https://github.com/suoto/vim-hdl)
 
 vim-hdl is a Vim plugin that uses [`hdlcc`][hdlcc] to provide some helpers to
 VHDL development:
