@@ -1,5 +1,7 @@
 # vim-hdl
 
+[![Join the chat at https://gitter.im/suoto/vim-hdl](https://badges.gitter.im/suoto/vim-hdl.svg)](https://gitter.im/suoto/vim-hdl?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 [![Build Status](https://travis-ci.org/suoto/vim-hdl.svg?branch=master)](https://travis-ci.org/suoto/vim-hdl)
 [![Coverage Status](https://coveralls.io/repos/github/suoto/vim-hdl/badge.svg?branch=master)](https://coveralls.io/github/suoto/vim-hdl?branch=master)
 [![Code Health](https://landscape.io/github/suoto/vim-hdl/master/landscape.svg?style=flat)](https://landscape.io/github/suoto/vim-hdl/master)
