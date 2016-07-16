@@ -24,6 +24,7 @@ function! vimhdl#setupPython()
 python << EOF
 try:
     vimhdl_client
+    _logger = logging.getLogger(__name__)
     _logger.warning("vimhdl client already exists, skiping")
 except NameError:
     import sys, vim
@@ -36,8 +37,7 @@ except NameError:
     _logger = logging.getLogger(__name__)
     for path in (p.join(vim.eval('s:vimhdl_path'), 'python'),
                  p.join(vim.eval('s:vimhdl_path'), 'dependencies', 'requests'),
-                 p.join(vim.eval('s:vimhdl_path'), 'dependencies', 'hdlcc')
-             ):
+                 p.join(vim.eval('s:vimhdl_path'), 'dependencies', 'hdlcc')):
         if path not in sys.path:
             path = p.abspath(path)
             if p.exists(path):
@@ -69,16 +69,15 @@ endfunction
 " { vimhdl#setupHooks()
 " ============================================================================
 " Setup Vim's Python environment to call vim-hdl within Vim
-function! vimhdl#setupHooks()
-    autocmd! BufWritePost *.vhd :py vimhdl_client.requestUiMessages('BufWritePost')
-    autocmd! BufEnter     *.vhd :py vimhdl_client.requestUiMessages('BufEnter')
-    autocmd! BufLeave     *.vhd :py vimhdl_client.requestUiMessages('BufLeave')
-    autocmd! FocusGained  *.vhd :py vimhdl_client.requestUiMessages('FocusGained')
-    autocmd! CursorMoved  *.vhd :py vimhdl_client.requestUiMessages('CursorMoved')
-    autocmd! CursorMovedI *.vhd :py vimhdl_client.requestUiMessages('CursorMovedI')
-    autocmd! CursorHold   *.vhd :py vimhdl_client.requestUiMessages('CursorHold')
-    autocmd! CursorHoldI  *.vhd :py vimhdl_client.requestUiMessages('CursorHoldI')
-    autocmd! InsertLeave  *.vhd :py vimhdl_client.requestUiMessages('InsertLeave')
+function! vimhdl#setupHooks(...)
+    for ext in a:000
+        for event in ['BufWritePost', 'BufEnter', 'BufLeave', 'FocusGained', 
+                     \'CursorMoved', 'CursorMovedI', 'CursorHold', 'CursorHoldI',
+                     \'InsertLeave']
+            execute("autocmd! " . event . " " . ext . " " . 
+                   \":py vimhdl_client.requestUiMessages('" . event . "')")
+        endfor
+    endfor
 endfunction
 " }
 " { vimhdl#setup()
@@ -87,13 +86,13 @@ endfunction
 function! vimhdl#setup()
     if exists('g:vimhdl_loaded') && g:vimhdl_loaded 
         return
-    endif
+    endi
 
     let g:vimhdl_loaded = 1
 
     call vimhdl#setupPython()
     call vimhdl#setupCommands()
-    call vimhdl#setupHooks()
+    call vimhdl#setupHooks('*.vhd', '*.v', '*.sv')
 
 endfunction
 " }

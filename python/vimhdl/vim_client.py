@@ -81,10 +81,10 @@ class VimhdlClient(object):
 
     def _isServerAlive(self):
         "Checks if the the server is alive"
-        sts = self._server.poll() is None
-        if not sts:
+        is_alive = self._server.poll() is None
+        if not is_alive:
             self._postWarning("hdlcc server is not running")
-        return sts
+        return is_alive
 
     def _setup(self):
         "Launches the hdlcc server"
@@ -161,6 +161,7 @@ class VimhdlClient(object):
         """Returns a list (vim.List) of messages (vim.Dictionary) to
         populate the quickfix list. For more info, check :help getqflist()"""
         if not self._isServerAlive():
+            self._logger.warning("Server is not alive, can't get messages")
             return
 
         if vim_buffer is None:
