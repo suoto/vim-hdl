@@ -61,8 +61,8 @@ class VimhdlClient(object):
 
         self._ui_queue = Queue()
 
-        self._setup()
-        self._waitForServerSetup()
+        self.startServer()
+        self.waitForServerSetup()
 
         import atexit
         atexit.register(self.shutdown)
@@ -86,8 +86,8 @@ class VimhdlClient(object):
             self._postWarning("hdlcc server is not running")
         return is_alive
 
-    def _setup(self):
-        "Launches the hdlcc server"
+    def startServer(self):
+        "Starts the hdlcc server"
         self._logger.info("Running vim_hdl client setup")
 
         vimhdl_path = p.abspath(p.join(p.dirname(__file__), '..', '..'))
@@ -112,7 +112,7 @@ class VimhdlClient(object):
         except subp.CalledProcessError:
             self._logger.exception("Error calling '%s'", " ".join(cmd))
 
-    def _waitForServerSetup(self):
+    def waitForServerSetup(self):
         "Wait for ~10s until the server is actually responding"
         for _ in range(10):
             time.sleep(0.1)
@@ -133,6 +133,7 @@ class VimhdlClient(object):
             self._logger.warning("Server is not running")
             return
         self._logger.debug("Sending shutdown signal")
+        os.kill(self._server.pid, 9)
         self._server.terminate()
         self._logger.debug("Done")
 

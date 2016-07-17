@@ -22,14 +22,12 @@ let s:vimhdl_path = escape(expand('<sfile>:p:h'), '\') . "/../"
 " Setup Vim's Python environment to call vim-hdl within Vim
 function! vimhdl#setupPython()
 python << EOF
-try:
-    vimhdl_client
-    _logger = logging.getLogger(__name__)
-    _logger.warning("vimhdl client already exists, skiping")
-except NameError:
+import sys
+if 'vimhdl' not in sys.modules:
     import sys, vim
     import os.path as p
     import logging
+    _logger = logging.getLogger(__name__)
 
     # Add a null handler for issue #19
     logging.root.addHandler(logging.NullHandler())
@@ -46,6 +44,12 @@ except NameError:
             else:
                 _logger.warning("Path '%s' doesn't exists!", path)
     import vimhdl
+
+# Create the client if it doesn't exists yet
+try:
+    vimhdl_client
+    _logger.warning("vimhdl client already exists, skiping")
+except NameError:
     vimhdl_client = vimhdl.VimhdlClient()
 EOF
 endfunction
@@ -56,6 +60,7 @@ endfunction
 function! vimhdl#setupCommands()
     command! VimhdlInfo           call s:PrintInfo()
     command! VimhdlRebuildProject :py vimhdl_client.rebuildProject()
+    command! VimhdlRestartServer  call s:RestartServer()
 
     " command! VimhdlListLibraries                   call vimhdl#listLibraries()
     " command! VimhdlListLibrariesAndSources         call vimhdl#listLibrariesAndSources()
@@ -105,6 +110,20 @@ function! s:PrintInfo()
   for line in split( debug_info, "\n" )
     echom '- ' . line
   endfor
+endfunction
+" }
+" { vimhdl#RestartServer()
+" ============================================================================
+" Restart the hdlcc server
+function! s:RestartServer()
+  echom "Restarting hdlcc server"
+python << EOF
+_logger.info("Restarting hdlcc server")
+vimhdl_client.shutdown()
+del vimhdl_client
+vimhdl_client = vimhdl.VimhdlClient()
+_logger.info("hdlcc restart done")
+EOF
 endfunction
 " }
 "
