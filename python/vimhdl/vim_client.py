@@ -231,9 +231,10 @@ class VimhdlClient(object):
         if response is None:
             return "hdlcc server is not running"
 
+        self._logger.info("Response: %s", str(response.json()['info']))
+
         return "\n".join(["vimhdl version: " + vimhdl.__version__] +
-                         ["%s: %s" % (k, v)
-                          for k, v in response.json().items()])
+                         response.json()['info'])
 
     def rebuildProject(self):
         "Rebuilds the current project"
