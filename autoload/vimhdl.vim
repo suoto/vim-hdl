@@ -89,15 +89,21 @@ endfunction
 " ============================================================================
 " Setup Vim's Python environment to call vim-hdl within Vim
 function! vimhdl#setup()
-    if exists('g:vimhdl_loaded') && g:vimhdl_loaded 
-        return
-    endi
+    if !(exists('g:vimhdl_loaded') && g:vimhdl_loaded)
+        let g:vimhdl_loaded = 1
+        call vimhdl#setupPython()
+        call vimhdl#setupCommands()
+        call vimhdl#setupHooks('*.vhd', '*.v', '*.sv')
+    endif
 
-    let g:vimhdl_loaded = 1
-
-    call vimhdl#setupPython()
-    call vimhdl#setupCommands()
-    call vimhdl#setupHooks('*.vhd', '*.v', '*.sv')
+    if count(['vhdl', 'verilog', 'systemverilog'], &filetype)
+        if !(exists('g:vimhdl_server_started') && g:vimhdl_server_started)
+            let g:vimhdl_server_started = 1
+python << EOF
+vimhdl_client.startServer()
+EOF
+        endif
+    endif
 
 endfunction
 " }
@@ -108,7 +114,7 @@ function! s:PrintInfo()
   echom "vimhdl debug info"
   let debug_info = pyeval('vimhdl_client.getVimhdlInfo()')
   for line in split( debug_info, "\n" )
-    echom '- ' . line
+    echom line
   endfor
 endfunction
 " }
@@ -122,6 +128,7 @@ _logger.info("Restarting hdlcc server")
 vimhdl_client.shutdown()
 del vimhdl_client
 vimhdl_client = vimhdl.VimhdlClient()
+vimhdl_client.startServer()
 _logger.info("hdlcc restart done")
 EOF
 endfunction

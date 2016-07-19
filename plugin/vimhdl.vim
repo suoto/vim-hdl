@@ -15,8 +15,9 @@
 " You should have received a copy of the GNU General Public License
 " along with vim-hdl.  If not, see <http://www.gnu.org/licenses/>.
 "
-autocmd! BufEnter * :call vimhdl#setup()
-autocmd! BufEnter * :call vimhdl#setup()
-autocmd! BufEnter * :call vimhdl#setup()
+autocmd! BufEnter *             :call vimhdl#setup()
+autocmd! Filetype vhdl          :call vimhdl#setup()
+autocmd! Filetype verilog       :call vimhdl#setup()
+autocmd! Filetype systemverilog :call vimhdl#setup()
 
 " vim: set foldmarker={,} foldlevel=0 foldmethod=marker :

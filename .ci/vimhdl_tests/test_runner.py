@@ -21,6 +21,7 @@ import logging
 import subprocess as subp
 
 from nose2.tools import such
+from nose2.tools.params import params
 
 _PATH_TO_TESTS = p.join(".ci", "vroom")
 HDLCC_CI = p.abspath(p.join("..", "hdlcc_ci"))
@@ -197,6 +198,11 @@ with such.A('vim-hdl test') as it:
 
             lines = lines.replace("__vimhdl__version__", vimhdl.__version__)
             lines = lines.replace("__hdlcc__version__", hdlcc.__version__)
+            sys.path.remove('python')
+            sys.path.remove(p.join('dependencies', 'hdlcc'))
+
+            del sys.modules['vimhdl']
+            del sys.modules['hdlcc']
 
             vroom_post = vroom_test.replace('test_006', 'alt_test_006')
             open(vroom_post, 'w').write(lines)
@@ -206,6 +212,42 @@ with such.A('vim-hdl test') as it:
             except subp.CalledProcessError:
                 _logger.exception("Excepion caught while testing")
                 it.fail("Test failed: %s" % case)
+
+    @it.should("only start hdlcc server when opening a hdl file")
+    @params('vhdl', 'verilog', 'systemverilog')
+    def test(case, filetype):
+        vroom_test = p.join(
+            _PATH_TO_TESTS,
+            'test_007_server_should_start_only_when_opening_hdl_file.vroom')
+
+        import sys
+        sys.path.insert(0, 'python')
+        sys.path.insert(0, p.join('dependencies', 'hdlcc'))
+        import vimhdl
+        import hdlcc
+
+        lines = open(vroom_test, 'r').read()
+
+        lines = lines.replace("__vimhdl__version__", vimhdl.__version__)
+        lines = lines.replace("__hdlcc__version__", hdlcc.__version__)
+
+        lines = lines.replace("__filetype__", filetype)
+
+        sys.path.remove('python')
+        sys.path.remove(p.join('dependencies', 'hdlcc'))
+
+        del sys.modules['vimhdl']
+        del sys.modules['hdlcc']
+
+
+        vroom_post = vroom_test.replace('test_007', 'alt_test_007')
+        open(vroom_post, 'w').write(lines)
+
+        try:
+            subp.check_call(getTestCommand(vroom_post))
+        except subp.CalledProcessError:
+            _logger.exception("Excepion caught while testing")
+            it.fail("Test failed: %s" % case)
 
 it.createTests(globals())
 

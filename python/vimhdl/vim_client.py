@@ -61,8 +61,13 @@ class VimhdlClient(object):
 
         self._ui_queue = Queue()
 
-        self.startServer()
-        self.waitForServerSetup()
+    def startServer(self):
+        """
+        Starts the hdlcc server, waits until it responds and register
+        server shutdown when exiting Vim's Python interpreter
+        """
+        self._startServerProcess()
+        self._waitForServerSetup()
 
         import atexit
         atexit.register(self.shutdown)
@@ -86,7 +91,7 @@ class VimhdlClient(object):
             self._postWarning("hdlcc server is not running")
         return is_alive
 
-    def startServer(self):
+    def _startServerProcess(self):
         "Starts the hdlcc server"
         self._logger.info("Running vim_hdl client setup")
 
@@ -112,7 +117,7 @@ class VimhdlClient(object):
         except subp.CalledProcessError:
             self._logger.exception("Error calling '%s'", " ".join(cmd))
 
-    def waitForServerSetup(self):
+    def _waitForServerSetup(self):
         "Wait for ~10s until the server is actually responding"
         for _ in range(10):
             time.sleep(0.1)
@@ -228,13 +233,19 @@ class VimhdlClient(object):
 
         response = request.sendRequest()
 
-        if response is None:
-            return "hdlcc server is not running"
+        if response is not None:
+            # The server has responded something, so just print it
+            self._logger.info("Response: %s", str(response.json()['info']))
 
-        self._logger.info("Response: %s", str(response.json()['info']))
-
-        return "\n".join(["vimhdl version: " + vimhdl.__version__] +
-                         response.json()['info'])
+            return "\n".join(
+                ["- %s" % x for x in
+                 ["vimhdl version: %s\n" % vimhdl.__version__] +
+                 response.json()['info']])
+        else:
+            return "\n".join(
+                ["- %s" % x for x in
+                 ["vimhdl version: %s\n" % vimhdl.__version__,
+                  "hdlcc server is not running"]])
 
     def rebuildProject(self):
         "Rebuilds the current project"
