@@ -16,18 +16,21 @@
 # along with vim-hdl.  If not, see <http://www.gnu.org/licenses/>.
 "Wrapper for vim-hdl usage within Vim's Python interpreter"
 
-import os.path as p
-import logging
-import subprocess as subp
-import time
 import os
+import os.path as p
+import subprocess as subp
+import sys
 from multiprocessing import Queue
+import logging
+import time
 
 import vim # pylint: disable=import-error
 import vimhdl
 import vimhdl.vim_helpers as vim_helpers
 from vimhdl.base_requests import (RequestMessagesByPath, RequestQueuedMessages,
                                   RequestHdlccInfo, RequestProjectRebuild)
+
+_ON_WINDOWS = sys.platform == 'win32'
 
 _logger = logging.getLogger(__name__)
 
@@ -111,7 +114,15 @@ class VimhdlClient(object):
         self._logger.info("Starting hdlcc server with '%s'", " ".join(cmd))
 
         try:
-            self._server = subp.Popen(cmd, stdout=subp.PIPE, stderr=subp.PIPE)
+            if _ON_WINDOWS:
+                self._server = subp.Popen(
+                    cmd, stdout=subp.PIPE, stderr=subp.PIPE,
+                    creationflags=subp.CREATE_NEW_PROCESS_GROUP)
+            else:
+                self._server = subp.Popen(
+                    cmd, stdout=subp.PIPE, stderr=subp.PIPE,
+                    preexec_fn=os.setpgrp)
+
             if not self._isServerAlive():
                 vim_helpers.postVimError("Failed to launch hdlcc server")
         except subp.CalledProcessError:
