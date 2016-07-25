@@ -110,108 +110,103 @@ with such.A('vim-hdl test') as it:
         cleanHdlLib()
         pipUninstallHdlcc()
 
-    with it.having("a session with multiple files to edit"):
-        @it.should("pass")
-        def test(case):
-            vroom_test = p.join(_PATH_TO_TESTS,
-                                "test_001_editing_multiple_files.vroom")
-            try:
-                subp.check_call(getTestCommand(vroom_test))
-            except subp.CalledProcessError:
-                _logger.exception("Excepion caught while testing")
-                it.fail("Test failed: %s" % case)
+    @it.should("handle session with multiple files to edit")
+    def test(case):
+        vroom_test = p.join(_PATH_TO_TESTS,
+                            "test_001_editing_multiple_files.vroom")
+        try:
+            subp.check_call(getTestCommand(vroom_test))
+        except subp.CalledProcessError:
+            _logger.exception("Excepion caught while testing")
+            it.fail("Test failed: %s" % case)
 
-    with it.having("no project configured"):
-        @it.should("pass")
-        def test(case):
-            vroom_test = p.join(_PATH_TO_TESTS,
-                                'test_002_no_project_configured.vroom')
-            try:
-                subp.check_call(getTestCommand(vroom_test))
-            except subp.CalledProcessError:
-                _logger.exception("Excepion caught while testing")
-                it.fail("Test failed: %s" % case)
+    @it.should("run only static checks if no project was configured")
+    def test(case):
+        vroom_test = p.join(_PATH_TO_TESTS,
+                            'test_002_no_project_configured.vroom')
+        try:
+            subp.check_call(getTestCommand(vroom_test))
+        except subp.CalledProcessError:
+            _logger.exception("Excepion caught while testing")
+            it.fail("Test failed: %s" % case)
 
-    with it.having("a project file but no builder working"):
-        @it.should("pass")
-        def test(case):
-            vroom_test = p.join(_PATH_TO_TESTS,
-                                'test_003_with_project_without_builder.vroom')
-            try:
-                subp.check_call(getTestCommand(vroom_test))
-            except subp.CalledProcessError:
-                _logger.exception("Excepion caught while testing")
-                it.fail("Test failed: %s" % case)
+    @it.should("warn when unable to create the configured builder")
+    def test(case):
+        gitClean('../hdlcc_ci/hdl_lib')
+        vroom_test = p.join(_PATH_TO_TESTS,
+                            'test_003_with_project_without_builder.vroom')
+        try:
+            subp.check_call(getTestCommand(vroom_test))
+        except subp.CalledProcessError:
+            _logger.exception("Excepion caught while testing")
+            it.fail("Test failed: %s" % case)
 
-    with it.having("built project with hdlcc standalone before editing"):
-        @it.should("pass")
-        def test(case):
-            vroom_test = p.join(_PATH_TO_TESTS, 'test_004_issue_10.vroom')
-            cmd = ['hdlcc', HDLCC_CI + '/hdl_lib/ghdl.prj', '-cb', '-vvv']
+    @it.should("allow building via hdlcc standalone before editing")
+    def test(case):
+        vroom_test = p.join(_PATH_TO_TESTS, 'test_004_issue_10.vroom')
+        cmd = ['hdlcc', HDLCC_CI + '/hdl_lib/ghdl.prj', '-cb', '-vvv']
 
-            _logger.info(cmd)
-            exc = None
-            try:
-                output = subp.check_output(cmd).splitlines()
-            except subp.CalledProcessError as exc:
-                _logger.exception("Excepion caught while testing")
-                output = list(exc.output.splitlines())
+        _logger.info(cmd)
+        exc = None
+        try:
+            output = subp.check_output(cmd).splitlines()
+        except subp.CalledProcessError as exc:
+            _logger.exception("Excepion caught while testing")
+            output = list(exc.output.splitlines())
 
-            if exc is None:
-                for line in output:
-                    _logger.info("> " + line)
-            else:
-                for line in output:
-                    _logger.warning("> " + line)
+        if exc is None:
+            for line in output:
+                _logger.info("> " + line)
+        else:
+            for line in output:
+                _logger.warning("> " + line)
 
-            try:
-                subp.check_call(getTestCommand(vroom_test))
-            except subp.CalledProcessError:
-                _logger.exception("Excepion caught while testing")
-                it.fail("Test failed: %s" % case)
+        try:
+            subp.check_call(getTestCommand(vroom_test))
+        except subp.CalledProcessError:
+            _logger.exception("Excepion caught while testing")
+            it.fail("Test failed: %s" % case)
 
-    with it.having("test for issue 15 -- jumping from quickfix"):
-        @it.should("not result on E926")
-        def test(case):
-            if p.exists('source.vhd'):
-                os.remove('source.vhd')
+    @it.should("not result on E926 when jumping from quickfix")
+    def test(case):
+        if p.exists('source.vhd'):
+            os.remove('source.vhd')
 
-            vroom_test = p.join(_PATH_TO_TESTS,
-                                'test_005_issue_15_quickfix_jump.vroom')
-            try:
-                subp.check_call(getTestCommand(vroom_test))
-            except subp.CalledProcessError:
-                it.fail("Test failed: %s" % case)
+        vroom_test = p.join(_PATH_TO_TESTS,
+                            'test_005_issue_15_quickfix_jump.vroom')
+        try:
+            subp.check_call(getTestCommand(vroom_test))
+        except subp.CalledProcessError:
+            it.fail("Test failed: %s" % case)
 
-    with it.having("any VHDL file"):
-        @it.should("print vimhdl info")
-        def test(case):
-            import sys
-            sys.path.insert(0, 'python')
-            sys.path.insert(0, p.join('dependencies', 'hdlcc'))
-            import vimhdl
-            import hdlcc
+    @it.should("print vimhdl diagnose info")
+    def test(case):
+        import sys
+        sys.path.insert(0, 'python')
+        sys.path.insert(0, p.join('dependencies', 'hdlcc'))
+        import vimhdl
+        import hdlcc
 
-            vroom_test = p.join(_PATH_TO_TESTS,
-                                'test_006_get_vim_info.vroom')
-            lines = open(vroom_test, 'r').read()
+        vroom_test = p.join(_PATH_TO_TESTS,
+                            'test_006_get_vim_info.vroom')
+        lines = open(vroom_test, 'r').read()
 
-            lines = lines.replace("__vimhdl__version__", vimhdl.__version__)
-            lines = lines.replace("__hdlcc__version__", hdlcc.__version__)
-            sys.path.remove('python')
-            sys.path.remove(p.join('dependencies', 'hdlcc'))
+        lines = lines.replace("__vimhdl__version__", vimhdl.__version__)
+        lines = lines.replace("__hdlcc__version__", hdlcc.__version__)
+        sys.path.remove('python')
+        sys.path.remove(p.join('dependencies', 'hdlcc'))
 
-            del sys.modules['vimhdl']
-            del sys.modules['hdlcc']
+        del sys.modules['vimhdl']
+        del sys.modules['hdlcc']
 
-            vroom_post = vroom_test.replace('test_006', 'alt_test_006')
-            open(vroom_post, 'w').write(lines)
+        vroom_post = vroom_test.replace('test_006', 'alt_test_006')
+        open(vroom_post, 'w').write(lines)
 
-            try:
-                subp.check_call(getTestCommand(vroom_post))
-            except subp.CalledProcessError:
-                _logger.exception("Excepion caught while testing")
-                it.fail("Test failed: %s" % case)
+        try:
+            subp.check_call(getTestCommand(vroom_post))
+        except subp.CalledProcessError:
+            _logger.exception("Excepion caught while testing")
+            it.fail("Test failed: %s" % case)
 
     @it.should("only start hdlcc server when opening a hdl file")
     @params('vhdl', 'verilog', 'systemverilog')
