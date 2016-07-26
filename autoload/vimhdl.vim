@@ -127,7 +127,7 @@ python << EOF
 _logger.info("Restarting hdlcc server")
 vimhdl_client.shutdown()
 del vimhdl_client
-vimhdl_client = vimhdl.VimhdlClient()
+vimhdl_client = vimhdl.VimhdlClient(log_level='WARNING')
 vimhdl_client.startServer()
 _logger.info("hdlcc restart done")
 EOF

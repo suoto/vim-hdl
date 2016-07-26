@@ -55,10 +55,8 @@ class VimhdlClient(object):
         self._server = None
         self._host = options.get('host', 'localhost')
         self._port = options.get('port', vim_helpers.getUnusedLocalhostPort())
-        self._server_args = [
-            '--log-level', str(options.get('log_level', 'DEBUG')),
-            '--log-stream', options.get('log_target', '/tmp/hdlcc.log')
-        ]
+        self._log_level = str(options.get('log_level', 'DEBUG'))
+        self._log_stream = options.get('log_target', '/tmp/hdlcc.log')
 
         self._posted_notifications = []
 
@@ -101,15 +99,16 @@ class VimhdlClient(object):
         vimhdl_path = p.abspath(p.join(p.dirname(__file__), '..', '..'))
 
         hdlcc_server = p.join(vimhdl_path, 'dependencies', 'hdlcc', 'hdlcc',
-                              'code_checker_server.py')
+                              'hdlcc_server.py')
 
         cmd = [hdlcc_server,
                '--host', self._host,
                '--port', str(self._port),
                '--stdout', '/tmp/hdlcc-stdout.log',
                '--stderr', '/tmp/hdlcc-stderr.log',
-               '--attach-to-pid', str(os.getpid())] + \
-                self._server_args
+               '--attach-to-pid', str(os.getpid()),
+               '--log-level', self._log_level,
+               '--log-stream', self._log_stream]
 
         self._logger.info("Starting hdlcc server with '%s'", " ".join(cmd))
 
