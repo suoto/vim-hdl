@@ -20,14 +20,14 @@
 "============================================================================
 
 " { Pre setup
-if exists("g:loaded_syntastic_vhdl_vimhdl_checker")
+if exists("g:loaded_syntastic_verilog_vimhdl_checker")
     finish
 endif
-let g:loaded_syntastic_vhdl_vimhdl_checker = 1
+let g:loaded_syntastic_verilog_vimhdl_checker = 1
 
 
-if !exists("g:syntastic_vhdl_vimhdl_sort")
-    let g:syntastic_vhdl_vimhdl_sort = 0 " vim-hdl returns sorted messages
+if !exists("g:syntastic_verilog_vimhdl_sort")
+    let g:syntastic_verilog_vimhdl_sort = 0 " vim-hdl returns sorted messages
 endif
 
 let s:save_cpo = &cpo
@@ -35,7 +35,7 @@ set cpo&vim
 " }
 
 " { vimhdl availability checker
-function! SyntaxCheckers_vhdl_vimhdl_IsAvailable() dict
+function! SyntaxCheckers_verilog_vimhdl_IsAvailable() dict
     if has('python')
         return 1
     endif
@@ -43,7 +43,7 @@ function! SyntaxCheckers_vhdl_vimhdl_IsAvailable() dict
 endfunction
 
 " { vimhdl location list assembler
-function! SyntaxCheckers_vhdl_vimhdl_GetLocList() dict
+function! SyntaxCheckers_verilog_vimhdl_GetLocList() dict
     let loclist = []
 
 py <<EOF
@@ -66,7 +66,7 @@ endfunction
 " { Register vimhdl within Syntastic
 call g:SyntasticRegistry.CreateAndRegisterChecker({
     \ 'exec'     : '',
-    \ 'filetype' : 'vhdl',
+    \ 'filetype' : 'verilog',
     \ 'name'     : 'vimhdl'})
 " }
 

@@ -6,4 +6,5 @@ __hdlcc__version__ with their real values
   ~ vimhdl debug info
   ~ - vimhdl version: __vimhdl__version__
   ~ - hdlcc version: __hdlcc__version__
+  ~ - Server PID: .* (regex)
 

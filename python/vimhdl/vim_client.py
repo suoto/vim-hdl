@@ -1,5 +1,7 @@
 # This file is part of vim-hdl.
 #
+# Copyright (c) 2015-2016 Andre Souto
+#
 # vim-hdl is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
@@ -14,18 +16,21 @@
 # along with vim-hdl.  If not, see <http://www.gnu.org/licenses/>.
 "Wrapper for vim-hdl usage within Vim's Python interpreter"
 
-import os.path as p
-import logging
-import subprocess as subp
-import time
 import os
+import os.path as p
+import subprocess as subp
+import sys
 from multiprocessing import Queue
+import logging
+import time
 
 import vim # pylint: disable=import-error
 import vimhdl
 import vimhdl.vim_helpers as vim_helpers
 from vimhdl.base_requests import (RequestMessagesByPath, RequestQueuedMessages,
                                   RequestHdlccInfo, RequestProjectRebuild)
+
+_ON_WINDOWS = sys.platform == 'win32'
 
 _logger = logging.getLogger(__name__)
 
@@ -50,16 +55,19 @@ class VimhdlClient(object):
         self._server = None
         self._host = options.get('host', 'localhost')
         self._port = options.get('port', vim_helpers.getUnusedLocalhostPort())
-        self._server_args = [
-            '--log-level', str(options.get('log_level', 'DEBUG')),
-            '--log-stream', options.get('log_target', '/tmp/hdlcc.log')
-        ]
+        self._log_level = str(options.get('log_level', 'DEBUG'))
+        self._log_stream = options.get('log_target', '/tmp/hdlcc.log')
 
         self._posted_notifications = []
 
         self._ui_queue = Queue()
 
-        self._setup()
+    def startServer(self):
+        """
+        Starts the hdlcc server, waits until it responds and register
+        server shutdown when exiting Vim's Python interpreter
+        """
+        self._startServerProcess()
         self._waitForServerSetup()
 
         import atexit
@@ -79,32 +87,41 @@ class VimhdlClient(object):
 
     def _isServerAlive(self):
         "Checks if the the server is alive"
-        sts = self._server.poll() is None
-        if not sts:
+        is_alive = self._server.poll() is None
+        if not is_alive:
             self._postWarning("hdlcc server is not running")
-        return sts
+        return is_alive
 
-    def _setup(self):
-        "Launches the hdlcc server"
+    def _startServerProcess(self):
+        "Starts the hdlcc server"
         self._logger.info("Running vim_hdl client setup")
 
         vimhdl_path = p.abspath(p.join(p.dirname(__file__), '..', '..'))
 
         hdlcc_server = p.join(vimhdl_path, 'dependencies', 'hdlcc', 'hdlcc',
-                              'code_checker_server.py')
+                              'hdlcc_server.py')
 
         cmd = [hdlcc_server,
                '--host', self._host,
                '--port', str(self._port),
                '--stdout', '/tmp/hdlcc-stdout.log',
                '--stderr', '/tmp/hdlcc-stderr.log',
-               '--attach-to-pid', str(os.getpid())] + \
-                self._server_args
+               '--attach-to-pid', str(os.getpid()),
+               '--log-level', self._log_level,
+               '--log-stream', self._log_stream]
 
         self._logger.info("Starting hdlcc server with '%s'", " ".join(cmd))
 
         try:
-            self._server = subp.Popen(cmd, stdout=subp.PIPE, stderr=subp.PIPE)
+            if _ON_WINDOWS:
+                self._server = subp.Popen(
+                    cmd, stdout=subp.PIPE, stderr=subp.PIPE,
+                    creationflags=subp.CREATE_NEW_PROCESS_GROUP)
+            else:
+                self._server = subp.Popen(
+                    cmd, stdout=subp.PIPE, stderr=subp.PIPE,
+                    preexec_fn=os.setpgrp)
+
             if not self._isServerAlive():
                 vim_helpers.postVimError("Failed to launch hdlcc server")
         except subp.CalledProcessError:
@@ -131,6 +148,7 @@ class VimhdlClient(object):
             self._logger.warning("Server is not running")
             return
         self._logger.debug("Sending shutdown signal")
+        os.kill(self._server.pid, 9)
         self._server.terminate()
         self._logger.debug("Done")
 
@@ -159,6 +177,7 @@ class VimhdlClient(object):
         """Returns a list (vim.List) of messages (vim.Dictionary) to
         populate the quickfix list. For more info, check :help getqflist()"""
         if not self._isServerAlive():
+            self._logger.warning("Server is not alive, can't get messages")
             return
 
         if vim_buffer is None:
@@ -224,12 +243,19 @@ class VimhdlClient(object):
 
         response = request.sendRequest()
 
-        if response is None:
-            return "hdlcc server is not running"
+        if response is not None:
+            # The server has responded something, so just print it
+            self._logger.info("Response: %s", str(response.json()['info']))
 
-        return "\n".join(["vimhdl version: " + vimhdl.__version__] +
-                         ["%s: %s" % (k, v)
-                          for k, v in response.json().items()])
+            return "\n".join(
+                ["- %s" % x for x in
+                 ["vimhdl version: %s\n" % vimhdl.__version__] +
+                 response.json()['info']])
+        else:
+            return "\n".join(
+                ["- %s" % x for x in
+                 ["vimhdl version: %s\n" % vimhdl.__version__,
+                  "hdlcc server is not running"]])
 
     def rebuildProject(self):
         "Rebuilds the current project"
