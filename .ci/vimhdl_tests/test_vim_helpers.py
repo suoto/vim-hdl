@@ -27,18 +27,20 @@ _CI = os.environ.get("CI", None) is not None
 _logger = logging.getLogger(__name__)
 
 def _setupPaths():
-    path_to_vimhdl = p.abspath(p.join(p.dirname(__file__), '..', '..', 'python'))
-    print path_to_vimhdl
-    sys.path.insert(0, path_to_vimhdl)
+    base_path = p.abspath(p.join(p.dirname(__file__), '..', '..'))
+    for path in (p.join(base_path, 'python'),
+                 p.join(base_path, 'dependencies', 'requests')):
+        print path
+        sys.path.insert(0, path)
 
 _setupPaths()
 
-from vim_mock import mockVim
+# pylint: disable=import-error,wrong-import-position
+from vimhdl_tests.vim_mock import mockVim
 mockVim()
-
 import vim
-
 import vimhdl.vim_helpers as vim_helpers
+# pylint: enable=import-error,wrong-import-position
 
 with such.A('vim_helpers module') as it:
     @it.should("return all buffer variables from the current buffer if "

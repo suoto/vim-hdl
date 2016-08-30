@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # This file is part of vim-hdl.
 #
+# Copyright (c) 2015-2016 Andre Souto
+#
 # vim-hdl is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
@@ -41,7 +43,6 @@ if [ -z "${CI}" ]; then
   . ${VIRTUAL_ENV_DEST}/bin/activate
 
   pip install git+https://github.com/suoto/rainbow_logging_handler
-  pip install -r requirements.txt
 fi
 
 if [ -n "${CLEAN_AND_QUIT}${CLEAN}" ]; then

@@ -1,5 +1,7 @@
 " This file is part of vim-hdl.
 "
+" Copyright (c) 2015-2016 Andre Souto
+"
 " vim-hdl is free software: you can redistribute it and/or modify
 " it under the terms of the GNU General Public License as published by
 " the Free Software Foundation, either version 3 of the License, or
@@ -20,13 +22,12 @@ let s:vimhdl_path = escape(expand('<sfile>:p:h'), '\') . "/../"
 " Setup Vim's Python environment to call vim-hdl within Vim
 function! vimhdl#setupPython()
 python << EOF
-try:
-    vimhdl_client
-    _logger.warning("vimhdl client already exists, skiping")
-except NameError:
+import sys
+if 'vimhdl' not in sys.modules:
     import sys, vim
     import os.path as p
     import logging
+    _logger = logging.getLogger(__name__)
 
     # Add a null handler for issue #19
     logging.root.addHandler(logging.NullHandler())
@@ -34,8 +35,7 @@ except NameError:
     _logger = logging.getLogger(__name__)
     for path in (p.join(vim.eval('s:vimhdl_path'), 'python'),
                  p.join(vim.eval('s:vimhdl_path'), 'dependencies', 'requests'),
-                 p.join(vim.eval('s:vimhdl_path'), 'dependencies', 'hdlcc')
-             ):
+                 p.join(vim.eval('s:vimhdl_path'), 'dependencies', 'hdlcc')):
         if path not in sys.path:
             path = p.abspath(path)
             if p.exists(path):
@@ -44,6 +44,12 @@ except NameError:
             else:
                 _logger.warning("Path '%s' doesn't exists!", path)
     import vimhdl
+
+# Create the client if it doesn't exists yet
+try:
+    vimhdl_client
+    _logger.warning("vimhdl client already exists, skiping")
+except NameError:
     vimhdl_client = vimhdl.VimhdlClient()
 EOF
 endfunction
@@ -54,6 +60,7 @@ endfunction
 function! vimhdl#setupCommands()
     command! VimhdlInfo           call s:PrintInfo()
     command! VimhdlRebuildProject :py vimhdl_client.rebuildProject()
+    command! VimhdlRestartServer  call s:RestartServer()
 
     " command! VimhdlListLibraries                   call vimhdl#listLibraries()
     " command! VimhdlListLibrariesAndSources         call vimhdl#listLibrariesAndSources()
@@ -67,31 +74,36 @@ endfunction
 " { vimhdl#setupHooks()
 " ============================================================================
 " Setup Vim's Python environment to call vim-hdl within Vim
-function! vimhdl#setupHooks()
-    autocmd! BufWritePost *.vhd :py vimhdl_client.requestUiMessages('BufWritePost')
-    autocmd! BufEnter     *.vhd :py vimhdl_client.requestUiMessages('BufEnter')
-    autocmd! BufLeave     *.vhd :py vimhdl_client.requestUiMessages('BufLeave')
-    autocmd! FocusGained  *.vhd :py vimhdl_client.requestUiMessages('FocusGained')
-    autocmd! CursorMoved  *.vhd :py vimhdl_client.requestUiMessages('CursorMoved')
-    autocmd! CursorMovedI *.vhd :py vimhdl_client.requestUiMessages('CursorMovedI')
-    autocmd! CursorHold   *.vhd :py vimhdl_client.requestUiMessages('CursorHold')
-    autocmd! CursorHoldI  *.vhd :py vimhdl_client.requestUiMessages('CursorHoldI')
-    autocmd! InsertLeave  *.vhd :py vimhdl_client.requestUiMessages('InsertLeave')
+function! vimhdl#setupHooks(...)
+    for ext in a:000
+        for event in ['BufWritePost', 'BufEnter', 'BufLeave', 'FocusGained', 
+                     \'CursorMoved', 'CursorMovedI', 'CursorHold', 'CursorHoldI',
+                     \'InsertLeave']
+            execute("autocmd! " . event . " " . ext . " " . 
+                   \":py vimhdl_client.requestUiMessages('" . event . "')")
+        endfor
+    endfor
 endfunction
 " }
 " { vimhdl#setup()
 " ============================================================================
 " Setup Vim's Python environment to call vim-hdl within Vim
 function! vimhdl#setup()
-    if exists('g:vimhdl_loaded') && g:vimhdl_loaded 
-        return
+    if !(exists('g:vimhdl_loaded') && g:vimhdl_loaded)
+        let g:vimhdl_loaded = 1
+        call vimhdl#setupPython()
+        call vimhdl#setupCommands()
+        call vimhdl#setupHooks('*.vhd', '*.v', '*.sv')
     endif
 
-    let g:vimhdl_loaded = 1
-
-    call vimhdl#setupPython()
-    call vimhdl#setupCommands()
-    call vimhdl#setupHooks()
+    if count(['vhdl', 'verilog', 'systemverilog'], &filetype)
+        if !(exists('g:vimhdl_server_started') && g:vimhdl_server_started)
+            let g:vimhdl_server_started = 1
+python << EOF
+vimhdl_client.startServer()
+EOF
+        endif
+    endif
 
 endfunction
 " }
@@ -102,8 +114,23 @@ function! s:PrintInfo()
   echom "vimhdl debug info"
   let debug_info = pyeval('vimhdl_client.getVimhdlInfo()')
   for line in split( debug_info, "\n" )
-    echom '- ' . line
+    echom line
   endfor
+endfunction
+" }
+" { vimhdl#RestartServer()
+" ============================================================================
+" Restart the hdlcc server
+function! s:RestartServer()
+  echom "Restarting hdlcc server"
+python << EOF
+_logger.info("Restarting hdlcc server")
+vimhdl_client.shutdown()
+del vimhdl_client
+vimhdl_client = vimhdl.VimhdlClient(log_level='WARNING')
+vimhdl_client.startServer()
+_logger.info("hdlcc restart done")
+EOF
 endfunction
 " }
 "
