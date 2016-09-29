@@ -144,7 +144,8 @@ with such.A('vim-hdl test') as it:
     @it.should("allow building via hdlcc standalone before editing")
     def test(case):
         vroom_test = p.join(_PATH_TO_TESTS, 'test_004_issue_10.vroom')
-        cmd = ['hdlcc', HDLCC_CI + '/hdl_lib/ghdl.prj', '-cb', '-vvv']
+        cmd = ['hdlcc', HDLCC_CI + '/hdl_lib/ghdl.prj', '-cvv', '-s',
+               HDLCC_CI + '/common_lib/edge_detector.vhd']
 
         _logger.info(cmd)
         exc = None

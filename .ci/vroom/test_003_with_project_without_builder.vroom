@@ -22,7 +22,7 @@ is not found, which should trigger using the fallback builder
 
 Change the project filename to a builder we have configured
   :let g:vimhdl_conf_file = 'ghdl.prj'
-  :write (10.0)
+  :write (2.0)
   @do (assert_qf_empty)
 
 Remove an important line so the builder must tell there's an error

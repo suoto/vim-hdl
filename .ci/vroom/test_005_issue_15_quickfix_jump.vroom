@@ -8,7 +8,7 @@ I don't want to type the file within vroom, so I'll copy another file :)
   :tabe source.vhd
   > P
   ~ 112 more lines
-  :write (10.0)
+  :write (2.0)
   ~ "source.vhd" \[New\] \d+L, \d+C written (regex)
 
 This file has no errors, so the quickfix list must be empty
