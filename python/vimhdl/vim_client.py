@@ -77,7 +77,7 @@ class VimhdlClient(object):
         "Post errors to the user once"
         if ('error', msg) not in self._posted_notifications:
             self._posted_notifications += [('error', msg)]
-            vim_helpers.postVimWarning(msg)
+            vim_helpers.postVimError(msg)
 
     def _postWarning(self, msg):
         "Post warnings to the user once"
@@ -165,9 +165,9 @@ class VimhdlClient(object):
                 if severity == 'info':
                     vim_helpers.postVimInfo(message)
                 elif severity == 'warning':
-                    vim_helpers.postVimWarning(message)
+                    self._postWarning(message)
                 elif severity == 'error':
-                    vim_helpers.postVimError(message)
+                    self._postError(message)
                 else:
                     vim_helpers.postVimError(
                         "Unknown severity '%s' for message '%s'" %
