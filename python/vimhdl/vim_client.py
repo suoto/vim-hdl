@@ -28,7 +28,8 @@ import vim # pylint: disable=import-error
 import vimhdl
 import vimhdl.vim_helpers as vim_helpers
 from vimhdl.base_requests import (RequestMessagesByPath, RequestQueuedMessages,
-                                  RequestHdlccInfo, RequestProjectRebuild)
+                                  RequestHdlccInfo, RequestProjectRebuild,
+                                  OnBufferVisit, OnBufferLeave)
 
 _ON_WINDOWS = sys.platform == 'win32'
 
@@ -271,4 +272,21 @@ class VimhdlClient(object):
 
         self._logger.info("Response: %s", repr(response))
 
+    def onBufferVisit(self):
+        path = vim.current.buffer.name
+        self._logger.warning("Visited buffer %s", path)
+        project_file = vim_helpers.getProjectFile()
+        request = OnBufferVisit(host=self._host, port=self._port,
+                                project_file=project_file, path=path)
+
+        request.sendRequestAsync()
+
+    def onBufferLeave(self):
+        path = vim.current.buffer.name
+        self._logger.warning("Leaveed buffer %s", path)
+        project_file = vim_helpers.getProjectFile()
+        request = OnBufferLeave(host=self._host, port=self._port,
+                                project_file=project_file, path=path)
+
+        request.sendRequestAsync()
 

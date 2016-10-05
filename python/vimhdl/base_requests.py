@@ -14,7 +14,9 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with vim-hdl.  If not, see <http://www.gnu.org/licenses/>.
-"Wrapper for vim-hdl usage within Vim's Python interpreter"
+"""
+Wrapper for vim-hdl usage within Vim's Python interpreter
+"""
 
 import logging
 import requests
@@ -23,7 +25,9 @@ import threading
 _logger = logging.getLogger(__name__)
 
 class BaseRequest(object):
-    "Base request object"
+    """
+    Base request object
+    """
     _meth = ''
     timeout = 3
     _lock = threading.Lock()
@@ -38,26 +42,34 @@ class BaseRequest(object):
         _logger.debug("Creating request for '%s' with payload '%s'",
                       self._meth, self.payload)
 
-    def sendRequestAsync(self, func):
-        """Processes the request in a separate thread and puts the
-        received request on queue Q"""
+    def sendRequestAsync(self, func=None):
+        """
+        Processes the request in a separate thread and puts the
+        received request on queue Q
+        """
         if self._lock.locked():
             return
         def asyncRequest():
-            "Simple asynchronous request wrapper"
+            """
+            Simple asynchronous request wrapper
+            """
             try:
                 with self._lock:
-                    func(self.sendRequest())
+                    result = self.sendRequest()
+                    if func is not None:
+                        func(result)
             except: # pragma: no cover
                 _logger.exception("Error sending request")
                 raise
         threading.Thread(target=asyncRequest).start()
 
     def sendRequest(self):
-        """Blocking send request. Returns a response object should the
+        """
+        Blocking send request. Returns a response object should the
         server respond. It only catches a ConnectionError exception
         (this means the server could not be reached). In this case,
-        return is None"""
+        return is None
+        """
         try:
             response = requests.post(self.url + '/' + self._meth,
                                      data=self.payload,
@@ -82,35 +94,62 @@ class BaseRequest(object):
         return response
 
 class RequestMessagesByPath(BaseRequest):
-    "Request messages for the quickfix list"
+    """
+    Request messages for the quickfix list
+    """
     _meth = 'get_messages_by_path'
 
     def __init__(self, host, port, project_file, path):
         super(RequestMessagesByPath, self).__init__(
-            host, port,
-            project_file=project_file, path=path)
+            host, port, project_file=project_file, path=path)
 
 class RequestQueuedMessages(BaseRequest):
-    "Request UI messages"
+    """
+    Request UI messages
+    """
     _meth = 'get_ui_messages'
 
     def __init__(self, host, port, project_file):
-        super(RequestQueuedMessages, self).__init__(host, port,
-                                                    project_file=project_file)
+        super(RequestQueuedMessages, self).__init__(
+            host, port, project_file=project_file)
 
 class RequestHdlccInfo(BaseRequest):
-    "Request UI messages"
+    """
+    Request UI messages
+    """
     _meth = 'get_diagnose_info'
 
     def __init__(self, host, port, project_file=None):
-        super(RequestHdlccInfo, self).__init__(host, port,
-                                               project_file=project_file)
+        super(RequestHdlccInfo, self).__init__(
+            host, port, project_file=project_file)
 
 class RequestProjectRebuild(BaseRequest):
-    "Request UI messages"
+    """
+    Request UI messages
+    """
     _meth = 'rebuild_project'
 
     def __init__(self, host, port, project_file=None):
-        super(RequestProjectRebuild, self).__init__(host, port,
-                                                    project_file=project_file)
+        super(RequestProjectRebuild, self).__init__(
+            host, port, project_file=project_file)
+
+class OnBufferVisit(BaseRequest):
+    """
+    Notifies the server that a buffer has been visited
+    """
+    _meth = 'on_buffer_visit'
+
+    def __init__(self, host, port, project_file, path):
+        super(OnBufferVisit, self).__init__(
+            host, port, project_file=project_file, path=path)
+
+class OnBufferLeave(BaseRequest):
+    """
+    Notifies the server that a buffer has been left
+    """
+    _meth = 'on_buffer_leave'
+
+    def __init__(self, host, port, project_file, path):
+        super(OnBufferLeave, self).__init__(
+            host, port, project_file=project_file, path=path)
 

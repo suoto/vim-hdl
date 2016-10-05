@@ -145,7 +145,7 @@ with such.A('vim-hdl test') as it:
     def test(case):
         vroom_test = p.join(_PATH_TO_TESTS, 'test_004_issue_10.vroom')
         cmd = ['hdlcc', HDLCC_CI + '/hdl_lib/ghdl.prj', '-cvv', '-s',
-               HDLCC_CI + '/common_lib/edge_detector.vhd']
+               HDLCC_CI + '/hdl_lib/common_lib/edge_detector.vhd']
 
         _logger.info(cmd)
         exc = None
@@ -154,6 +154,7 @@ with such.A('vim-hdl test') as it:
         except subp.CalledProcessError as exc:
             _logger.exception("Excepion caught while testing")
             output = list(exc.output.splitlines())
+            raise
 
         if exc is None:
             for line in output:
