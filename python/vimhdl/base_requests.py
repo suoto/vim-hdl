@@ -56,8 +56,8 @@ class BaseRequest(object):
             try:
                 with self._lock:
                     result = self.sendRequest()
-                    if func is not None:
-                        func(result)
+                if func is not None:
+                    func(result)
             except: # pragma: no cover
                 _logger.exception("Error sending request")
                 raise
