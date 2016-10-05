@@ -38,7 +38,7 @@ class BaseRequest(object):
         _logger.debug("Creating request for '%s' with payload '%s'",
                       self._meth, self.payload)
 
-    def sendRequestAsync(self, func):
+    def sendRequestAsync(self, func=None):
         """Processes the request in a separate thread and puts the
         received request on queue Q"""
         if self._lock.locked():
@@ -47,7 +47,9 @@ class BaseRequest(object):
             "Simple asynchronous request wrapper"
             try:
                 with self._lock:
-                    func(self.sendRequest())
+                    result = self.sendRequest()
+                if func is not None:
+                    func(result)
             except: # pragma: no cover
                 _logger.exception("Error sending request")
                 raise
@@ -87,30 +89,45 @@ class RequestMessagesByPath(BaseRequest):
 
     def __init__(self, host, port, project_file, path):
         super(RequestMessagesByPath, self).__init__(
-            host, port,
-            project_file=project_file, path=path)
+            host, port, project_file=project_file, path=path)
 
 class RequestQueuedMessages(BaseRequest):
     "Request UI messages"
     _meth = 'get_ui_messages'
 
     def __init__(self, host, port, project_file):
-        super(RequestQueuedMessages, self).__init__(host, port,
-                                                    project_file=project_file)
+        super(RequestQueuedMessages, self).__init__(
+            host, port, project_file=project_file)
 
 class RequestHdlccInfo(BaseRequest):
     "Request UI messages"
     _meth = 'get_diagnose_info'
 
     def __init__(self, host, port, project_file=None):
-        super(RequestHdlccInfo, self).__init__(host, port,
-                                               project_file=project_file)
+        super(RequestHdlccInfo, self).__init__(
+            host, port, project_file=project_file)
 
 class RequestProjectRebuild(BaseRequest):
     "Request UI messages"
     _meth = 'rebuild_project'
 
     def __init__(self, host, port, project_file=None):
-        super(RequestProjectRebuild, self).__init__(host, port,
-                                                    project_file=project_file)
+        super(RequestProjectRebuild, self).__init__(
+            host, port, project_file=project_file)
+
+class OnBufferVisit(BaseRequest):
+    "Request UI messages"
+    _meth = 'on_buffer_visit'
+
+    def __init__(self, host, port, project_file, path):
+        super(OnBufferVisit, self).__init__(
+            host, port, project_file=project_file, path=path)
+
+class OnBufferLeave(BaseRequest):
+    "Request UI messages"
+    _meth = 'on_buffer_leave'
+
+    def __init__(self, host, port, project_file, path):
+        super(OnBufferLeave, self).__init__(
+            host, port, project_file=project_file, path=path)
 
