@@ -65,7 +65,6 @@ endfunction
 
 " { Register vimhdl within Syntastic
 call g:SyntasticRegistry.CreateAndRegisterChecker({
-    \ 'exec'     : '',
     \ 'filetype' : 'vhdl',
     \ 'name'     : 'vimhdl'})
 " }

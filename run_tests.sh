@@ -30,7 +30,7 @@ while [ -n "$1" ]; do
 done
 
 # set -x
-set +e
+set -e
 
 # If we're not running on a CI server, create a virtual env to mimic
 # its behaviour
@@ -76,7 +76,9 @@ fi
 cp ./.ci/vimrc "$DOT_VIMRC"
 
 set -x
+
 coverage run -m nose2 -s .ci/ "${RUNNER_ARGS[@]}"
+
 RESULT=$?
 
 coverage combine
