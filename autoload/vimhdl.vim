@@ -78,11 +78,11 @@ function! vimhdl#setupHooks(...)
     for ext in a:000
         for event in ['BufWritePost', 'FocusGained', 'CursorMoved',
                     \'CursorMovedI', 'CursorHold', 'CursorHoldI',
-                    \'InsertLeave']
+                    \'InsertEnter']
             execute("autocmd! " . event . " " . ext . " " . 
                    \":py vimhdl_client.requestUiMessages('" . event . "')")
         endfor
-        for event in ['BufEnter', 'FocusGained']
+        for event in ['BufEnter', 'FocusGained', 'InsertLeave']
             execute("autocmd! " . event . " " . ext . " " . 
                    \":py vimhdl_client.onBufferVisit()")
         endfor
