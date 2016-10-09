@@ -17,6 +17,7 @@
 
 import os
 import os.path as p
+import glob
 import logging
 import subprocess as subp
 
@@ -109,6 +110,15 @@ with such.A('vim-hdl test') as it:
         #  gitClean()
         cleanHdlLib()
         pipUninstallHdlcc()
+
+        for vroom_test in glob.glob(p.join(_PATH_TO_TESTS, '*.vroom')):
+            vroom_post = p.join(p.dirname(vroom_test),
+                                'alt_' + p.basename(vroom_test))
+            if p.exists(vroom_post):
+                os.remove(vroom_post)
+
+        if p.exists('source.vhd'):
+            os.remove('source.vhd')
 
     @it.should("handle session with multiple files to edit")
     def test(case):
