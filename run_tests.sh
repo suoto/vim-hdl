@@ -66,10 +66,7 @@ export PATH=${HOME}/builders/ghdl/bin/:${PATH}
 
 mkdir -p "$DOT_VIM"
 if [ ! -d "$DOT_VIM/syntastic" ]; then
-  git clone https://github.com/scrooloose/syntastic "$DOT_VIM/syntastic" && \
-    cd "$DOT_VIM/syntastic" && \
-    git reset --hard 59cc80a8f7f7544a364814622dc62efd00d17ca4 && \
-    cd -
+  git clone https://github.com/scrooloose/syntastic "$DOT_VIM/syntastic"
 fi
 if [ ! -d "$DOT_VIM/vim-hdl" ]; then
   ln -s "$PWD" "$DOT_VIM/vim-hdl"

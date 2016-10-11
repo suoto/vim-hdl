@@ -76,12 +76,18 @@ endfunction
 " Setup Vim's Python environment to call vim-hdl within Vim
 function! vimhdl#setupHooks(...)
     for ext in a:000
-        for event in ['BufWritePost', 'BufEnter', 'BufLeave', 'FocusGained', 
-                     \'CursorMoved', 'CursorMovedI', 'CursorHold', 'CursorHoldI',
-                     \'InsertLeave']
+        for event in ['BufWritePost', 'FocusGained', 'CursorMoved',
+                    \'CursorMovedI', 'CursorHold', 'CursorHoldI',
+                    \'InsertEnter']
             execute("autocmd! " . event . " " . ext . " " . 
                    \":py vimhdl_client.requestUiMessages('" . event . "')")
         endfor
+        for event in ['BufEnter', 'FocusGained', 'InsertLeave']
+            execute("autocmd! " . event . " " . ext . " " . 
+                   \":py vimhdl_client.onBufferVisit()")
+        endfor
+        execute("autocmd! BufLeave " . ext . " " . 
+               \":py vimhdl_client.onBufferLeave()")
     endfor
 endfunction
 " }

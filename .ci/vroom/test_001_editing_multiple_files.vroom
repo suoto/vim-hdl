@@ -27,7 +27,7 @@ Macro that checks if vimhdl is enabled
 Edit different files under the same project
   :cd ../hdlcc_ci/hdl_lib
   :let g:vimhdl_conf_file = 'ghdl.prj'
-  :edit common_lib/edge_detector.vhd (10.0)
+  :edit common_lib/edge_detector.vhd (5.0)
   @do (vimhdl_check)
 
 Again, this file has no errors

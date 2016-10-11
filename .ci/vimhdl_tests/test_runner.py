@@ -17,6 +17,7 @@
 
 import os
 import os.path as p
+import glob
 import logging
 import subprocess as subp
 
@@ -110,6 +111,15 @@ with such.A('vim-hdl test') as it:
         cleanHdlLib()
         pipUninstallHdlcc()
 
+        for vroom_test in glob.glob(p.join(_PATH_TO_TESTS, '*.vroom')):
+            vroom_post = p.join(p.dirname(vroom_test),
+                                'alt_' + p.basename(vroom_test))
+            if p.exists(vroom_post):
+                os.remove(vroom_post)
+
+        if p.exists('source.vhd'):
+            os.remove('source.vhd')
+
     @it.should("handle session with multiple files to edit")
     def test(case):
         vroom_test = p.join(_PATH_TO_TESTS,
@@ -144,7 +154,8 @@ with such.A('vim-hdl test') as it:
     @it.should("allow building via hdlcc standalone before editing")
     def test(case):
         vroom_test = p.join(_PATH_TO_TESTS, 'test_004_issue_10.vroom')
-        cmd = ['hdlcc', HDLCC_CI + '/hdl_lib/ghdl.prj', '-cb', '-vvv']
+        cmd = ['hdlcc', HDLCC_CI + '/hdl_lib/ghdl.prj', '-cvv', '-s',
+               HDLCC_CI + '/hdl_lib/common_lib/edge_detector.vhd']
 
         _logger.info(cmd)
         exc = None
@@ -153,6 +164,7 @@ with such.A('vim-hdl test') as it:
         except subp.CalledProcessError as exc:
             _logger.exception("Excepion caught while testing")
             output = list(exc.output.splitlines())
+            raise
 
         if exc is None:
             for line in output:

@@ -36,34 +36,44 @@ except AttributeError:     # pragma: no cover
 
 
 def _escapeForVim(text):
-    """These were "Borrowed" from YCM.
-    See https://github.com/Valloric/YouCompleteMe"""
+    """
+    These were "Borrowed" from YCM.
+    See https://github.com/Valloric/YouCompleteMe
+    """
     return text.replace("'", "''")
 
 def postVimInfo(message):
-    """These were "Borrowed" from YCM.
-    See https://github.com/Valloric/YouCompleteMe"""
+    """
+    These were "Borrowed" from YCM.
+    See https://github.com/Valloric/YouCompleteMe
+    """
     _logger.info(message)
     vim.command("redraw | echom '{0}' | echohl None" \
         .format(_escapeForVim(str(message))))
 
 def postVimWarning(message):
-    """These were "Borrowed" from YCM.
-    See https://github.com/Valloric/YouCompleteMe"""
+    """
+    These were "Borrowed" from YCM.
+    See https://github.com/Valloric/YouCompleteMe
+    """
     _logger.warning(message)
     vim.command("redraw | echohl WarningMsg | echom '{0}' | echohl None" \
         .format(_escapeForVim(str(message))))
 
 def postVimError(message):
-    """These were "Borrowed" from YCM.
-    See https://github.com/Valloric/YouCompleteMe"""
+    """
+    These were "Borrowed" from YCM.
+    See https://github.com/Valloric/YouCompleteMe
+    """
     _logger.error(message)
     vim.command("echohl ErrorMsg | echom '{0}' | echohl None" \
         .format(_escapeForVim(str(message))))
 
 def getUnusedLocalhostPort():
-    """These were "Borrowed" from YCM.
-    See https://github.com/Valloric/YouCompleteMe"""
+    """
+    These were "Borrowed" from YCM.
+    See https://github.com/Valloric/YouCompleteMe
+    """
     sock = socket.socket()
     # This tells the OS to give us any free port in the range [1024 - 65535]
     sock.bind(('', 0))
@@ -74,14 +84,18 @@ def getUnusedLocalhostPort():
 # Methods of accessing g: and b: work only with Vim 7.4+
 
 def _getVimGlobals(var=None):
-    "Returns a global variable, i.e., from g:"
+    """
+    Returns a global variable, i.e., from g:
+    """
     if var is None:
         return vim.vars
     else:
         return vim.vars[var]
 
 def _getBufferVars(vbuffer=None, var=None):
-    "Returns a buffer variable, i.e., from b:"
+    """
+    Returns a buffer variable, i.e., from b:
+    """
     if vbuffer is None:
         vbuffer = vim.current.buffer
     if var is None:
@@ -90,11 +104,14 @@ def _getBufferVars(vbuffer=None, var=None):
         return vbuffer.vars[var]
 
 def getProjectFile():
-    """Searches for a valid hdlcc configuration file in buffer vars
-    (i.e., inside b:) then in global vars (i.e., inside g:)"""
+    """
+    Searches for a valid hdlcc configuration file in buffer vars (i.e.,
+    inside b:) then in global vars (i.e., inside g:)
+    """
     conf_file = None
     if 'vimhdl_conf_file' in _getBufferVars():
-        conf_file = _getBufferVars('vimhdl_conf_file')
+        conf_file = p.abspath(p.expanduser(
+            _getBufferVars(var='vimhdl_conf_file')))
         if not p.exists(conf_file):
             _logger.warning("Buffer config file '%s' is set but not " \
                     "readable", conf_file)
@@ -102,7 +119,8 @@ def getProjectFile():
 
     if conf_file is None:
         if 'vimhdl_conf_file' in _getVimGlobals():
-            conf_file = _getVimGlobals('vimhdl_conf_file')
+            conf_file = p.abspath(p.expanduser(
+                _getVimGlobals('vimhdl_conf_file')))
             if not p.exists(conf_file):
                 _logger.warning("Global config file '%s' is set but not " \
                         "readable", conf_file)
@@ -112,10 +130,5 @@ def getProjectFile():
         _logger.warning("Couldn't find a valid config file")
         return
 
-    conf_file_full_path = p.abspath(p.expanduser(conf_file))
-
-    if p.exists(conf_file_full_path):
-        return conf_file_full_path
-    else:
-        _logger.warning("Config file '%s' doesn't exists", conf_file_full_path)
+    return conf_file
 

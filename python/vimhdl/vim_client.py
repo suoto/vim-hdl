@@ -28,14 +28,17 @@ import vim # pylint: disable=import-error
 import vimhdl
 import vimhdl.vim_helpers as vim_helpers
 from vimhdl.base_requests import (RequestMessagesByPath, RequestQueuedMessages,
-                                  RequestHdlccInfo, RequestProjectRebuild)
+                                  RequestHdlccInfo, RequestProjectRebuild,
+                                  OnBufferVisit, OnBufferLeave)
 
 _ON_WINDOWS = sys.platform == 'win32'
 
 _logger = logging.getLogger(__name__)
 
 def _sortBuildMessages(records):
-    "Sorts the build messages using Vim's terminology"
+    """
+    Sorts the build messages using Vim's terminology
+    """
     for record in records:
         for key in ('lnum', 'nr', 'col'):
             try:
@@ -46,7 +49,9 @@ def _sortBuildMessages(records):
     return records
 
 class VimhdlClient(object):
-    "Point of entry of Vim commands"
+    """
+    Point of entry of Vim commands
+    """
 
     def __init__(self, **options):
         self._logger = logging.getLogger(__name__ + '.' + self.__class__.__name__)
@@ -74,26 +79,34 @@ class VimhdlClient(object):
         atexit.register(self.shutdown)
 
     def _postError(self, msg):
-        "Post errors to the user once"
+        """
+        Post errors to the user once
+        """
         if ('error', msg) not in self._posted_notifications:
             self._posted_notifications += [('error', msg)]
-            vim_helpers.postVimWarning(msg)
+            vim_helpers.postVimError(msg)
 
     def _postWarning(self, msg):
-        "Post warnings to the user once"
+        """
+        Post warnings to the user once
+        """
         if ('warn', msg) not in self._posted_notifications:
             self._posted_notifications += [('warn', msg)]
             vim_helpers.postVimWarning(msg)
 
     def _isServerAlive(self):
-        "Checks if the the server is alive"
+        """
+        Checks if the the server is alive
+        """
         is_alive = self._server.poll() is None
         if not is_alive:
             self._postWarning("hdlcc server is not running")
         return is_alive
 
     def _startServerProcess(self):
-        "Starts the hdlcc server"
+        """
+        Starts the hdlcc server
+        """
         self._logger.info("Running vim_hdl client setup")
 
         vimhdl_path = p.abspath(p.join(p.dirname(__file__), '..', '..'))
@@ -128,7 +141,9 @@ class VimhdlClient(object):
             self._logger.exception("Error calling '%s'", " ".join(cmd))
 
     def _waitForServerSetup(self):
-        "Wait for ~10s until the server is actually responding"
+        """
+        Wait for ~10s until the server is actually responding
+        """
         for _ in range(10):
             time.sleep(0.1)
             request = RequestHdlccInfo(self._host, self._port)
@@ -143,7 +158,9 @@ class VimhdlClient(object):
         self._postError("Unable to talk to server")
 
     def shutdown(self):
-        "Kills the hdlcc server"
+        """
+        Kills the hdlcc server
+        """
         if not self._isServerAlive():
             self._logger.warning("Server is not running")
             return
@@ -153,21 +170,25 @@ class VimhdlClient(object):
         self._logger.debug("Done")
 
     def _handleAsyncRequest(self, response):
-        "Callback passed to asynchronous requests"
+        """
+        Callback passed to asynchronous requests
+        """
         if response is not None:
             self._ui_queue.put(response)
 
     def _postQueuedMessages(self):
-        "Empty our queue in a single message"
+        """
+        Empty our queue in a single message
+        """
         while not self._ui_queue.empty():
             messages = self._ui_queue.get()
             for severity, message in messages.json().get('ui_messages', []):
                 if severity == 'info':
                     vim_helpers.postVimInfo(message)
                 elif severity == 'warning':
-                    vim_helpers.postVimWarning(message)
+                    self._postWarning(message)
                 elif severity == 'error':
-                    vim_helpers.postVimError(message)
+                    self._postError(message)
                 else:
                     vim_helpers.postVimError(
                         "Unknown severity '%s' for message '%s'" %
@@ -236,7 +257,9 @@ class VimhdlClient(object):
         request.sendRequestAsync(self._handleAsyncRequest)
 
     def getVimhdlInfo(self):
-        "Gets info about the current project and hdlcc server"
+        """
+        Gets info about the current project and hdlcc server
+        """
         project_file = vim_helpers.getProjectFile()
         request = RequestHdlccInfo(host=self._host, port=self._port,
                                    project_file=project_file)
@@ -258,7 +281,9 @@ class VimhdlClient(object):
                   "hdlcc server is not running"]])
 
     def rebuildProject(self):
-        "Rebuilds the current project"
+        """
+        Rebuilds the current project
+        """
         vim_helpers.postVimInfo("Rebuilding project...")
         project_file = vim_helpers.getProjectFile()
         request = RequestProjectRebuild(host=self._host, port=self._port,
@@ -270,5 +295,42 @@ class VimhdlClient(object):
             return "hdlcc server is not running"
 
         self._logger.info("Response: %s", repr(response))
+    def onBufferVisit(self):
+        """
+        Notifies the hdlcc server that Vim user has entered the current
+        buffer
+        """
+        self._postQueuedMessages()
+
+        if not self._isServerAlive():
+            return
+
+        project_file = vim_helpers.getProjectFile()
+
+        request = OnBufferVisit(self._host,
+                                self._port,
+                                project_file=project_file,
+                                path=vim.current.buffer.name)
+
+        request.sendRequestAsync(self._handleAsyncRequest)
+
+    def onBufferLeave(self):
+        """
+        Notifies the hdlcc server that Vim user has left the current
+        buffer
+        """
+        self._postQueuedMessages()
+
+        if not self._isServerAlive():
+            return
+
+        project_file = vim_helpers.getProjectFile()
+
+        request = OnBufferLeave(self._host,
+                                self._port,
+                                project_file=project_file,
+                                path=vim.current.buffer.name)
+
+        request.sendRequestAsync(self._handleAsyncRequest)
 
 
