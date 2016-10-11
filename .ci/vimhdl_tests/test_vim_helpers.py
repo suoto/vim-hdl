@@ -19,6 +19,7 @@ import sys
 import os
 import os.path as p
 import logging
+import mock
 
 from nose2.tools import such
 
@@ -77,6 +78,214 @@ with such.A('vim_helpers module') as it:
         it.assertEquals(
             vim_helpers._getBufferVars(vim.buffers[0], 'buffer_0_var_0'),
             'buffer_0_var_value_0',)
+
+    @it.should("post vim info correctly formatted")
+    def test():
+        vim_helpers.postVimInfo("Some info")
+        vim.command.assert_called_with(
+            "redraw | echom 'Some info' | echohl None")
+
+    @it.should("post vim warning correctly formatted")
+    def test():
+        vim_helpers.postVimWarning("Some warning")
+        vim.command.assert_called_with(
+            "redraw | echohl WarningMsg | echom 'Some warning' | echohl None")
+
+    @it.should("post vim error correctly formatted")
+    def test():
+        vim_helpers.postVimError("Some error")
+        vim.command.assert_called_with(
+            "echohl ErrorMsg | echom 'Some error' | echohl None")
+
+    with it.having("both global and local project files configured"):
+        def deleteProjectFiles():
+            for prj_filename in (it._global_prj_filename,
+                                 it._local_prj_filename):
+                if p.exists(prj_filename):
+                    os.remove(prj_filename)
+
+        @it.has_setup
+        def setup():
+            it._global_prj_filename = p.abspath(p.join(
+                os.curdir, 'global_project.prj'))
+
+            it._local_prj_filename = p.abspath(p.join(
+                os.curdir, 'local_project.prj'))
+
+            def _getVimGlobals(var=None):
+                _vars = {'vimhdl_conf_file' : it._global_prj_filename}
+                if var is None:
+                    return _vars
+                assert var == 'vimhdl_conf_file'
+                return _vars[var]
+
+            def _getBufferVars(vbuffer=None, var=None):
+                assert vbuffer is None
+                _vars = {'vimhdl_conf_file' : it._local_prj_filename}
+                if var is None:
+                    return _vars
+                assert var == 'vimhdl_conf_file'
+                return _vars[var]
+
+            it._global_patch = mock.patch('vimhdl.vim_helpers._getVimGlobals',
+                                          _getVimGlobals)
+            it._local_patch = mock.patch('vimhdl.vim_helpers._getBufferVars',
+                                         _getBufferVars)
+            it._global_patch.start()
+            it._local_patch.start()
+
+        @it.has_teardown
+        def teardown():
+            deleteProjectFiles()
+            it._global_patch.stop()
+            it._local_patch.stop()
+
+        @it.should("give precedence to local project file when both are "
+                   "readable")
+        def test():
+            for prj_filename in (it._global_prj_filename,
+                                 it._local_prj_filename):
+                assert not p.exists(prj_filename)
+                open(prj_filename, 'w').close()
+
+            it.assertEqual(it._local_prj_filename,
+                           vim_helpers.getProjectFile())
+
+            deleteProjectFiles()
+
+        @it.should("use the local project file even if the global is not "
+                   "readable")
+        def test():
+            for prj_filename in (it._local_prj_filename, ):
+                assert not p.exists(prj_filename)
+                open(prj_filename, 'w').close()
+
+            it.assertEqual(it._local_prj_filename,
+                           vim_helpers.getProjectFile())
+
+            deleteProjectFiles()
+
+        @it.should("fallback to the global project file when the local "
+                   "project file is not readable")
+        def test():
+            for prj_filename in (it._global_prj_filename, ):
+                assert not p.exists(prj_filename)
+                open(prj_filename, 'w').close()
+
+            it.assertEqual(it._global_prj_filename,
+                           vim_helpers.getProjectFile())
+
+            deleteProjectFiles()
+
+    with it.having("only a global project file configured"):
+        def deleteProjectFiles():
+            for prj_filename in (it._global_prj_filename,
+                                 it._local_prj_filename):
+                if p.exists(prj_filename):
+                    os.remove(prj_filename)
+
+        @it.has_setup
+        def setup():
+            it._global_prj_filename = p.abspath(p.join(
+                os.curdir, 'global_project.prj'))
+
+            it._local_prj_filename = p.abspath(p.join(
+                os.curdir, 'local_project.prj'))
+
+            def _getVimGlobals(var=None):
+                _vars = {'vimhdl_conf_file' : it._global_prj_filename}
+                if var is None:
+                    return _vars
+                assert var == 'vimhdl_conf_file'
+                return _vars[var]
+
+            it._global_patch = mock.patch('vimhdl.vim_helpers._getVimGlobals',
+                                          _getVimGlobals)
+            it._global_patch.start()
+
+        @it.has_teardown
+        def teardown():
+            deleteProjectFiles()
+            it._global_patch.stop()
+
+        @it.should("return the global project file when it's readable")
+        def test():
+            for prj_filename in (it._global_prj_filename, ):
+                assert not p.exists(prj_filename)
+                open(prj_filename, 'w').close()
+
+            it.assertEqual(it._global_prj_filename,
+                           vim_helpers.getProjectFile())
+
+            deleteProjectFiles()
+
+        @it.should("return None if the global project file is not readable")
+        def test():
+            it.assertIsNone(vim_helpers.getProjectFile())
+            deleteProjectFiles()
+
+    with it.having("only a local project file configured"):
+        def deleteProjectFiles():
+            for prj_filename in (it._global_prj_filename,
+                                 it._local_prj_filename):
+                if p.exists(prj_filename):
+                    os.remove(prj_filename)
+
+        @it.has_setup
+        def setup():
+            it._global_prj_filename = p.abspath(p.join(
+                os.curdir, 'global_project.prj'))
+
+            it._local_prj_filename = p.abspath(p.join(
+                os.curdir, 'local_project.prj'))
+
+            def _getBufferVars(vbuffer=None, var=None):
+                assert vbuffer is None
+                _vars = {'vimhdl_conf_file' : it._local_prj_filename}
+                if var is None:
+                    return _vars
+                assert var == 'vimhdl_conf_file'
+                return _vars[var]
+
+            it._local_patch = mock.patch('vimhdl.vim_helpers._getBufferVars',
+                                         _getBufferVars)
+            it._local_patch.start()
+
+        @it.has_teardown
+        def teardown():
+            deleteProjectFiles()
+            it._local_patch.stop()
+
+        @it.should("give precedence to local project file when both are "
+                   "readable")
+        def test():
+            for prj_filename in (it._global_prj_filename,
+                                 it._local_prj_filename):
+                assert not p.exists(prj_filename)
+                open(prj_filename, 'w').close()
+
+            it.assertEqual(it._local_prj_filename,
+                           vim_helpers.getProjectFile())
+
+            deleteProjectFiles()
+
+        @it.should("use the local project file even if the global is not "
+                   "readable")
+        def test():
+            for prj_filename in (it._local_prj_filename, ):
+                assert not p.exists(prj_filename)
+                open(prj_filename, 'w').close()
+
+            it.assertEqual(it._local_prj_filename,
+                           vim_helpers.getProjectFile())
+
+            deleteProjectFiles()
+
+        @it.should("return None if the local project file is not readable")
+        def test():
+            deleteProjectFiles()
+            it.assertIsNone(vim_helpers.getProjectFile())
+            deleteProjectFiles()
 
 it.createTests(globals())
 
