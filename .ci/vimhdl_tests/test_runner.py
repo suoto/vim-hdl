@@ -28,6 +28,7 @@ _PATH_TO_TESTS = p.join(".ci", "vroom")
 HDLCC_CI = p.abspath(p.join("..", "hdlcc_ci"))
 PATH_TO_HDLCC = p.join("dependencies", "hdlcc")
 _CI = os.environ.get("CI", None) is not None
+_NEOVIM = os.environ.get("NVIM", None) is not None
 
 _logger = logging.getLogger(__name__)
 
@@ -41,11 +42,14 @@ def getTestCommand(test_name):
     #  args += ['--dump-commands', base_log_name.format('cmd.log')]
     #  args += ['--dump-syscalls', base_log_name.format('sys.log')]
     args += ['-u', p.expanduser('~/.vimrc' if _CI else '~/dot_vim/vimrc')]
-    args += ['-d0.5', '-t3'] if _CI else ['-d0.2', '-t1']
+    #  args += ['-d0.5', '-t3'] if _CI else ['-d0.2', '-t1']
     #  args += ['-i']
+    if _NEOVIM:
+        args += ['--neovim']
 
     args += [test_name]
 
+    _logger.info("$%s", " ".join(args))
     return args
 
 with such.A('vim-hdl test') as it:

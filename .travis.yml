@@ -8,19 +8,13 @@ env:
     - VROOM_TAG=v0.12.0
     - CACHE=${HOME}/cache
     - GHDL_HOST="http://downloads.sourceforge.net/project/ghdl-updates/Builds"
-    - GHDL_URL ="${GHDL_HOST}/ghdl-0.33/ghdl-0.33-x86_64-linux.tgz"
+    - GHDL_URL="${GHDL_HOST}/ghdl-0.33/ghdl-0.33-x86_64-linux.tgz"
   matrix:
-    # - VIM_VERSION=v7.3
-    # - VIM_VERSION=v7.3.429  # Ubuntu precise 12.04 LTS
-    # - VIM_VERSION=v7.3.547  # Debian 7.9 (wheezy)
-    - VIM_VERSION=v7.4        #
-    # - VIM_VERSION=v7.4.052   # Ubuntu trusty 14.04 LTS
-    # - VIM_VERSION=v7.4.488   # Ubuntu vivid
-    # - VIM_VERSION=v7.4.712   # Ubuntu wily
-    # - VIM_VERSION=v7.4.963   # Ubuntu 15.10
-    - VIM_VERSION=v7.4.1593  # Latest Vim version working with Vroom currently
-    - VIM_VERSION=v8.0.0001
-    - VIM_VERSION=master
+    - VERSION=v7.4      VIM=1
+    - VERSION=v7.4.1593 VIM=1
+    - VERSION=v8.0.0001 VIM=1
+    - VERSION=master    VIM=1
+    # - VERSION=master    NVIM=1
 
 addons:
   apt:
@@ -51,13 +45,15 @@ before_script:
   - "git clone https://github.com/suoto/hdlcc_ci --recursive --depth 1 \
       ../hdlcc_ci"
 
-  - "export VIMRUNTIME=${CACHE}/vim-${VIM_VERSION}/runtime"
-  - "export PATH=${CACHE}/vim-${VIM_VERSION}/src/:${PATH}"
-  - "export VIM_BINARY=${CACHE}/vim-${VIM_VERSION}/src/vim"
+  - "export VIMRUNTIME=${CACHE}/vim-${VERSION}/runtime"
+  - "export PATH=${CACHE}/vim-${VERSION}/src/:${PATH}"
+  - "if [ -n \"$VIM\" ]; then export VIM_BINARY=${CACHE}/vim-${VERSION}/src/vim; fi"
+  - "if [ -n \"$NVIM\" ]; then export VIM_BINARY=${CACHE}/nvim-${VERSION}/build/bin/nvim; fi"
 
   - "./dependencies/hdlcc/.ci/scripts/setup_ghdl.sh"
   - "./.ci/setup_ghdl.sh"
-  - "./.ci/setup_vim.sh"
+  - "if [ -n \"$VIM\" ]; then ./.ci/setup_vim.sh; fi"
+  - "if [ -n \"$NVIM\" ]; then ./.ci/setup_nvim.sh; fi"
   - "[ -n \"$VIM_BINARY\" ] || exit -1"
   - "$VIM_BINARY --version"
 
