@@ -14,8 +14,12 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with vim-hdl.  If not, see <http://www.gnu.org/licenses/>.
-'''vim-hdl is a VHDL syntax check provider that relies on third-party
-tools.  See https://github.com/suoto/vim-hdl for more information'''
+"""
+vim-hdl is a VHDL syntax check provider that relies on third-party
+tools.  See https://github.com/suoto/vim-hdl for more information
+"""
+
+from __future__ import print_function
 
 from .vim_client import VimhdlClient
 

@@ -16,7 +16,10 @@
 # You should have received a copy of the GNU General Public License
 # along with vim-hdl.  If not, see <http://www.gnu.org/licenses/>.
 
+PIP=pip3
+PYTHON_VERSION=python3
 VIRTUAL_ENV_DEST=~/dev/vimhdl_venv
+
 
 RUNNER_ARGS=()
 
@@ -30,6 +33,7 @@ while [ -n "$1" ]; do
 done
 
 set -e
+set -x
 
 # If we're not running on a CI server, create a virtual env to mimic
 # its behaviour
@@ -38,10 +42,16 @@ if [ -z "${CI}" ]; then
     rm -rf ${VIRTUAL_ENV_DEST}
   fi
 
-  virtualenv ${VIRTUAL_ENV_DEST}
+  virtualenv ${VIRTUAL_ENV_DEST} --python="${PYTHON_VERSION}"
   . ${VIRTUAL_ENV_DEST}/bin/activate
 
-  pip install git+https://github.com/suoto/rainbow_logging_handler
+  ${PIP} install git+https://github.com/suoto/rainbow_logging_handler
+  RESULT=$?
+  [ "$RESULT" != "0" ] && exit $RESULT
+  ${PIP} install -r ./.ci/requirements.txt
+  [ "$RESULT" != "0" ] && exit $RESULT
+elif [ "$NVIM" == "1" ]; then
+  eval "$(curl -Ss https://raw.githubusercontent.com/neovim/bot-ci/master/scripts/travis-setup.sh) nightly-x64";
 fi
 
 if [ -n "${CLEAN_AND_QUIT}${CLEAN}" ]; then
@@ -75,7 +85,6 @@ fi
 cp ./.ci/vimrc "$DOT_VIMRC"
 
 set +e
-set -x
 coverage run -m nose2 -s .ci/ "${RUNNER_ARGS[@]}"
 RESULT=$?
 

@@ -14,7 +14,13 @@
 # along with vim-hdl.  If not, see <http://www.gnu.org/licenses/>.
 
 import sys
-import mock
+
+try:  # Python 3.x
+    import unittest.mock as mock # pylint: disable=import-error, no-name-in-module
+except ImportError:  # Python 2.x
+    import mock
+
+
 
 vim = mock.MagicMock() # pylint: disable=invalid-name
 

@@ -65,7 +65,7 @@ with such.A('vim-hdl test') as it:
 
         _logger.info("Cleaning up non-git files")
         for line in subp.check_output(['git', 'clean', '-fdx']).splitlines():
-            _logger.info("> " + line)
+            _logger.info("> %s", line)
 
         if start_path != dest_path:
             _logger.info("Changing back to '%s'", start_path)
@@ -79,7 +79,7 @@ with such.A('vim-hdl test') as it:
         for line in \
             subp.check_output(['git', 'reset', 'HEAD', '--hard']).splitlines():
 
-            _logger.info("> " + line)
+            _logger.info("> %s", line)
 
         gitClean()
 
@@ -87,7 +87,7 @@ with such.A('vim-hdl test') as it:
         for line in \
             subp.check_output(['git', 'status', '--porcelain']).splitlines():
 
-            _logger.info("> " + line)
+            _logger.info("> %s", line)
 
         os.chdir(start_path)
 
@@ -172,10 +172,10 @@ with such.A('vim-hdl test') as it:
 
         if exc is None:
             for line in output:
-                _logger.info("> " + line)
+                _logger.info("> %s", line)
         else:
             for line in output:
-                _logger.warning("> " + line)
+                _logger.warning("> %s", line)
 
         try:
             subp.check_call(getTestCommand(vroom_test))
