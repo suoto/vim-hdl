@@ -12,6 +12,8 @@ Macro that checks if the quickfix is empty
 We'll test what happens when we configure a project but the builder it specifies
 is not found, which should trigger using the fallback builder
   :cd ../hdlcc_ci/hdl_lib
+  :py import os
+  :py if vim.eval("has('nvim')") == "1": os.chdir('../hdlcc_ci/hdl_lib')
   :let g:vimhdl_conf_file = 'msim.prj'
   :edit common_lib/edge_detector.vhd
   ~ "common_lib/edge_detector.vhd".* (regex)

@@ -6,8 +6,9 @@ coveralls
 futures==3.0.5
 greenlet==0.4.10
 logutils==0.3.3
+mock
 msgpack-python==0.4.8
-neovim==0.1.10
+neovim
 nose2
 nose2-cov
 prettytable==0.7.2

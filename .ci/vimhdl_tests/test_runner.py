@@ -17,20 +17,21 @@
 
 import os
 import os.path as p
+import sys
 import glob
 import logging
 import subprocess as subp
-
 from nose2.tools import such
 from nose2.tools.params import params
+import six
+
+_logger = logging.getLogger(__name__)
 
 _PATH_TO_TESTS = p.join(".ci", "vroom")
 HDLCC_CI = p.abspath(p.join("..", "hdlcc_ci"))
 PATH_TO_HDLCC = p.join("dependencies", "hdlcc")
 _CI = os.environ.get("CI", None) is not None
-_NEOVIM = os.environ.get("NVIM", None) is not None
-
-_logger = logging.getLogger(__name__)
+_NEOVIM = os.environ.get("TEST_NVIM", None) is not None
 
 def getTestCommand(test_name):
     #  base_log_name = test_name + ".{0}"
@@ -42,7 +43,6 @@ def getTestCommand(test_name):
     #  args += ['--dump-commands', base_log_name.format('cmd.log')]
     #  args += ['--dump-syscalls', base_log_name.format('sys.log')]
     args += ['-u', p.expanduser('~/.vimrc' if _CI else '~/dot_vim/vimrc')]
-    #  args += ['-d0.5', '-t3'] if _CI else ['-d0.2', '-t1']
     #  args += ['-i']
     if _NEOVIM:
         args += ['--neovim']
@@ -75,7 +75,10 @@ with such.A('vim-hdl test') as it:
         _logger.info("Resetting hdl_lib")
         start_path = p.abspath(".")
         dest_path = p.join(HDLCC_CI, "hdl_lib")
-        os.chdir(dest_path)
+        if start_path != dest_path:
+            _logger.info("Changing from '%s' to '%s'", start_path, dest_path)
+            os.chdir(dest_path)
+
         for line in \
             subp.check_output(['git', 'reset', 'HEAD', '--hard']).splitlines():
 
@@ -146,7 +149,8 @@ with such.A('vim-hdl test') as it:
 
     @it.should("warn when unable to create the configured builder")
     def test(case):
-        gitClean('../hdlcc_ci/hdl_lib')
+        #  gitClean('../hdlcc_ci/hdl_lib')
+        gitClean(p.join(HDLCC_CI, "hdl_lib"))
         vroom_test = p.join(_PATH_TO_TESTS,
                             'test_003_with_project_without_builder.vroom')
         try:

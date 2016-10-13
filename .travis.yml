@@ -2,84 +2,75 @@
 language: python
 python:
   - "2.7"
+  - "3.4"
+  - "3.5"
 
 env:
   global:
-    - VROOM_TAG=v0.12.0
     - CACHE=${HOME}/cache
     - GHDL_HOST="http://downloads.sourceforge.net/project/ghdl-updates/Builds"
     - GHDL_URL="${GHDL_HOST}/ghdl-0.33/ghdl-0.33-x86_64-linux.tgz"
   matrix:
-    - VERSION=v7.4      VIM=1
-    - VERSION=v7.4.1593 VIM=1
-    - VERSION=v8.0.0001 VIM=1
-    - VERSION=master    VIM=1
-    - VERSION=master    NVIM=1
+    - VERSION=v7.4      TEST_VIM=1
+    - VERSION=v7.4.1593 TEST_VIM=1
+    - VERSION=v8.0.0001 TEST_VIM=1
+    - VERSION=master    TEST_VIM=1
+    - VERSION=0.1.5     TEST_NVIM=1
 
 addons:
   apt:
     packages:
       - autoconf
       - python-dev
+      - python3-dev
       - vim-gnome
-
-install:
-  - pip install -r ./.ci/requirements.txt
-  - pip install -r ./dependencies/hdlcc/requirements.txt
-  - pip install -e ./dependencies/hdlcc/
-  - pip install git+https://github.com/suoto/rainbow_logging_handler
+      - libtool
+      - automake
+      - cmake
+      - g++
+      - pkg-config
+      - unzip
 
 before_script:
-  - "git submodule update --init --recursive"
-  - "mkdir -p ${CACHE}"
-
-  # Setup vroom
-  - "cd ~"
-  - "git clone https://github.com/google/vroom -b ${VROOM_TAG} \
-     --single-branch --depth 1"
-  - "cd vroom && python3 setup.py build && python3 setup.py install --user"
+  - pip install -U pip
+  - git submodule update --init --recursive
+  - mkdir -p ${CACHE}
   # Vroom's vim mode currently requires a running X server.
   - export DISPLAY=:99.0
   - sh -e /etc/init.d/xvfb start
-  - "cd ${TRAVIS_BUILD_DIR}"
-  - "git clone https://github.com/suoto/hdlcc_ci --recursive --depth 1 \
-      ../hdlcc_ci"
 
-  - "export VIMRUNTIME=${CACHE}/vim-${VERSION}/runtime"
-  - "export PATH=${CACHE}/vim-${VERSION}/src/:${PATH}"
-  - "if [ -n \"$VIM\" ]; then export VIM_BINARY=${CACHE}/vim-${VERSION}/src/vim; fi"
-  - "if [ -n \"$NVIM\" ]; then export VIM_BINARY=${CACHE}/nvim-${VERSION}/build/bin/nvim; fi"
+  - cd ${TRAVIS_BUILD_DIR}
+  - git clone https://github.com/suoto/hdlcc_ci --recursive --depth 1 ../hdlcc_ci
 
-  - "./dependencies/hdlcc/.ci/scripts/setup_ghdl.sh"
-  - "./.ci/setup_ghdl.sh"
-  - "if [ -n \"$VIM\" ]; then ./.ci/setup_vim.sh; fi"
-  - "if [ -n \"$NVIM\" ]; then ./.ci/setup_nvim.sh; fi"
-  - "[ -n \"$VIM_BINARY\" ] || exit -1"
-  - "$VIM_BINARY --version"
+  - ./dependencies/hdlcc/.ci/scripts/setup_ghdl.sh
+  - ./.ci/setup_ghdl.sh
+  - if [ -n "${TEST_VIM}" ]; then source ./.ci/setup_vim.sh; fi
+  - if [ -n "${TEST_NVIM}" ]; then source ./.ci/setup_nvim.sh; fi
 
 script:
-  - ./run_tests.sh
+  - ./run_tests.sh --log-capture
 
 after_success:
-  - "rm -f .ci/test_projects/hdl_lib/osvvm_lib/CoveragePkg.vhd"
-  - "export COVERALLS_PARALLEL=true"
-  - "coveralls"
-  - "codecov"
+  - rm -f .ci/test_projects/hdl_lib/osvvm_lib/CoveragePkg.vhd
+  - export COVERALLS_PARALLEL=true
+  - coveralls
+  - codecov
 after_failure:
-  - "echo '##########################################################'"
-  - "echo '##########################################################'"
-  - "cat /tmp/vim-hdl.log"
-  - "echo '##########################################################'"
-  - "echo '##########################################################'"
-  - "cat /tmp/hdlcc-stdout.log"
-  - "echo '##########################################################'"
-  - "echo '##########################################################'"
-  - "cat /tmp/hdlcc-stderr.log"
-  - "echo '##########################################################'"
-  - "echo '##########################################################'"
-  - "cat /tmp/hdlcc.log"
-  - "echo '##########################################################'"
-  - "echo '##########################################################'"
+  - echo '##########################################################'
+  - echo '##########################################################'
+  - cat /tmp/vim-hdl.log
+  - echo '##########################################################'
+  - echo '##########################################################'
+  - cat /tmp/hdlcc-stdout.log
+  - echo '##########################################################'
+  - echo '##########################################################'
+  - cat /tmp/hdlcc-stderr.log
+  - echo '##########################################################'
+  - echo '##########################################################'
+  - cat /tmp/hdlcc.log
+  - echo '##########################################################'
+  - echo '##########################################################'
 cache:
   directories:
     - ~/cache/
+

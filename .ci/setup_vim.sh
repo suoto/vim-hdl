@@ -23,7 +23,17 @@ if [ ! -f "${CACHE}/vim-${VERSION}/src/vim" -o "${VERSION}" == "master" ]; then
   make all -j4
 fi
 
+export PATH=${CACHE}/vim-${VERSION}/src:$PATH
+export VIMRUNTIME=${CACHE}/vim-${VERSION}/runtime
+
 cd "${TRAVIS_BUILD_DIR}"
 
-$VIM_BINARY --version
+# Ensure the binary being selected is the one we want
+if [ ! "$(which vim)" -ef "${CACHE}/vim-${VERSION}/src/vim" ]; then
+  echo "Vim binary points to \"$(which vim)\" but it should point to \
+        \"${CACHE}/vim-${VERSION}/src/vim\""
+  exit -1
+fi
+
+vim --version
 

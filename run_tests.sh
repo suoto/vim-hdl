@@ -16,10 +16,29 @@
 # You should have received a copy of the GNU General Public License
 # along with vim-hdl.  If not, see <http://www.gnu.org/licenses/>.
 
-PIP=pip3
-PYTHON_VERSION=python3
-VIRTUAL_ENV_DEST=~/dev/vimhdl_venv
+if [ -z "${CI}" ]; then
+  if [ -z "${TRAVIS_PYTHON_VERSION}" ]; then
+    TRAVIS_PYTHON_VERSION=2.7
+    PYTHON=python${TRAVIS_PYTHON_VERSION}
+  else
+    PYTHON=python
+  fi
 
+  if [ -z "${VERSION}" ]; then
+    if [ -n "${TEST_NVIM}" ]; then
+      VERSION=0.1.5
+    else
+      VERSION=master
+    fi
+  fi
+
+  if [ -z "${CACHE}" ]; then
+    CACHE=~/dev/
+  fi
+fi
+
+VIRTUAL_ENV_DEST=~/dev/vimhdl_venv
+VROOM_DIR=~/vroom
 
 RUNNER_ARGS=()
 
@@ -35,61 +54,125 @@ done
 set -e
 set -x
 
-# If we're not running on a CI server, create a virtual env to mimic
-# its behaviour
-if [ -z "${CI}" ]; then
+##############################################################################
+# Functions ##################################################################
+##############################################################################
+function _setup_vroom {
+  START_PATH=$(pwd)
+  if [ -d "$1" ]; then
+    cd "$1"
+    git pull
+  else
+    git clone https://github.com/google/vroom \
+      -b master --single-branch --depth 1 "$1"
+    cd "$1"
+  fi
+
+  python3 setup.py build
+  set +e
+  pip3 install -e .
+  if [ "$?" != "0" ]; then
+    pip3 install -e . --user
+  fi
+  set -e
+
+  # python3 setup.py install --user
+  cd "${START_PATH}"
+}
+
+function _setup_ci_env {
   if [ -d "${VIRTUAL_ENV_DEST}" ]; then
     rm -rf ${VIRTUAL_ENV_DEST}
   fi
 
-  virtualenv ${VIRTUAL_ENV_DEST} --python="${PYTHON_VERSION}"
-  . ${VIRTUAL_ENV_DEST}/bin/activate
+  virtualenv ${VIRTUAL_ENV_DEST} --python="${PYTHON}"
+  source ${VIRTUAL_ENV_DEST}/bin/activate
+}
 
-  ${PIP} install git+https://github.com/suoto/rainbow_logging_handler
-  RESULT=$?
-  [ "$RESULT" != "0" ] && exit $RESULT
-  ${PIP} install -r ./.ci/requirements.txt
-  [ "$RESULT" != "0" ] && exit $RESULT
-elif [ "$NVIM" == "1" ]; then
-  eval "$(curl -Ss https://raw.githubusercontent.com/neovim/bot-ci/master/scripts/travis-setup.sh) nightly-x64";
+function _install_packages {
+  pip install git+https://github.com/suoto/rainbow_logging_handler
+  pip install -r ./.ci/requirements.txt
+  # pip install -r ./dependencies/hdlcc/requirements.txt
+  pip install -e ./dependencies/hdlcc/
+
+  set +e
+  pip3 install coverage==4.1
+  if [ "$?" != "0" ]; then !! --user; fi
+  pip3 install neovim==0.1.10
+  if [ "$?" != "0" ]; then !! --user; fi
+  set -e
+}
+
+function _cleanup_if_needed {
+  if [ -n "${CLEAN_AND_QUIT}${CLEAN}" ]; then
+    START_PATH=$(pwd)
+    git clean -fdx || exit -1
+    git submodule foreach --recursive git clean -fdx || exit -1
+    cd ../hdlcc_ci/hdl_lib && git reset HEAD --hard
+    cd "${START_PATH}"
+    cd ../hdlcc_ci/vim-hdl-examples && git reset HEAD --hard
+    cd "${START_PATH}"
+
+    if [ -d "${VROOM_DIR}" ]; then rm -rf "${VROOM_DIR}"; fi
+
+    if [ -n "${TEST_NVIM}" ]; then
+      rm -rf "${CACHE}/neovim-${VERSION}"
+      rm -f "${CACHE}/neovim.tar.gz"
+    fi
+
+    if [ -n "${CLEAN_AND_QUIT}" ]; then exit; fi
+  fi
+}
+
+function _setup_dotfiles {
+  if [ "${CI}" == "true" ]; then
+    DOT_VIM="$HOME/.vim"
+    DOT_VIMRC="$HOME/.vimrc"
+  else
+    DOT_VIM="$HOME/dot_vim"
+    DOT_VIMRC="$DOT_VIM/vimrc"
+  fi
+
+  mkdir -p "$DOT_VIM"
+  if [ ! -d "$DOT_VIM/syntastic" ]; then
+    git clone https://github.com/scrooloose/syntastic "$DOT_VIM/syntastic"
+  fi
+  if [ ! -d "$DOT_VIM/vim-hdl" ]; then
+    ln -s "$PWD" "$DOT_VIM/vim-hdl"
+  fi
+
+  cp ./.ci/vimrc "$DOT_VIMRC"
+}
+
+##############################################################################
+# Now to the script itself ###################################################
+##############################################################################
+
+# If we're not running on a CI server, create a virtual env to mimic
+# its behaviour
+if [ -z "${CI}" ]; then
+  _setup_ci_env
 fi
 
-if [ -n "${CLEAN_AND_QUIT}${CLEAN}" ]; then
-  git clean -fdx || exit -1
-  git submodule foreach --recursive git clean -fdx || exit -1
-  cd ../hdlcc_ci/hdl_lib && git reset HEAD --hard
-  cd - || exit
-  cd ../hdlcc_ci/vim-hdl-examples && git reset HEAD --hard
-  cd - || exit
-  [ -n "${CLEAN_AND_QUIT}" ] && exit
-fi
+_cleanup_if_needed
 
-if [ "${CI}" == "true" ]; then
-  DOT_VIM="$HOME/.vim"
-  DOT_VIMRC="$HOME/.vimrc"
-else
-  DOT_VIM="$HOME/dot_vim"
-  DOT_VIMRC="$DOT_VIM/vimrc"
-fi
+_install_packages
+
+_setup_vroom ${VROOM_DIR}
 
 export PATH=${HOME}/builders/ghdl/bin/:${PATH}
 
-mkdir -p "$DOT_VIM"
-if [ ! -d "$DOT_VIM/syntastic" ]; then
-  git clone https://github.com/scrooloose/syntastic "$DOT_VIM/syntastic"
-fi
-if [ ! -d "$DOT_VIM/vim-hdl" ]; then
-  ln -s "$PWD" "$DOT_VIM/vim-hdl"
-fi
+_setup_dotfiles
 
-cp ./.ci/vimrc "$DOT_VIMRC"
+if [ -n "$TEST_VIM" ]; then vim --version; fi
+if [ -n "$TEST_NVIM" ]; then nvim --version; fi
 
 set +e
-coverage run -m nose2 -s .ci/ "${RUNNER_ARGS[@]}"
+python -m coverage run -m nose2 -s .ci/ "${RUNNER_ARGS[@]}"
 RESULT=$?
 
-coverage combine
-coverage html
+python -m coverage combine
+python -m coverage html
 
 [ -z "${CI}" ] && [ -n "${VIRTUAL_ENV}" ] && deactivate
 

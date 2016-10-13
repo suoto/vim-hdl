@@ -12,6 +12,19 @@ else
     set rtp+=~/dot_vim/vim-hdl
 endif
 
+function! UsingPython2()
+  " I'm willing to bet quite a bit that sooner or later, somebody will ask us to
+  " make it configurable which version of Python we use.
+  if has('python')
+    return 1
+  endif
+  return 0
+endfunction
+
+let s:using_python2 = UsingPython2()
+let s:python_until_eof = s:using_python2 ? "python << EOF" : "python3 << EOF"
+let s:python_command = s:using_python2 ? "py " : "py3 "
+
 let g:syntastic_always_populate_loc_list = 1
 let g:syntastic_auto_loc_list = 0
 let g:syntastic_check_on_open = 0
@@ -20,84 +33,75 @@ let g:syntastic_check_on_wq = 1
 let g:syntastic_vhdl_vimhdl_sort = 0
 let g:syntastic_vhdl_checkers = ['vimhdl']
 
-python << EOF
+" To avoid Press "ENTER..." message
+set cmdheight=10
+
+function! SetupPythonEnv() abort
+
+  exec s:python_until_eof
+from __future__ import print_function
 import logging, os
 import os.path as p
-import coverage
-
-
-cov = coverage.Coverage(config_file='.coveragerc')
-cov.start()
-
-def onVimLeave():
-    global cov
-    cov.stop()
-    cov.save()
 
 def _setupLogging(stream, level, color=True):
-    if type(stream) is str:
-        class Stream(file):
-            def isatty(self):
-                return color
-            def write(self, *args, **kwargs):
-                super(Stream, self).write(*args, **kwargs)
+    if isinstance(stream, (str, unicode)):
+        stream_handler = logging.FileHandler(stream)
+    else:
+        stream_handler = logging.StreamHandler(stream)
 
-        stream = Stream(stream, 'ab', buffering=1)
-
-    try:
-        path_to_this_file = p.abspath(p.dirname(__name__))
-
-        sys.path.insert(0, p.join(path_to_this_file, '..', '.ci',
-                                  'rainbow_logging_handler'))
-
-        from rainbow_logging_handler import RainbowLoggingHandler
-        rainbow_stream_handler = RainbowLoggingHandler(
-            stream,
-            #  Customizing each column's color
-            # pylint: disable=bad-whitespace
-            color_asctime          = ('dim white',  'black'),
-            color_name             = ('dim white',  'black'),
-            color_funcName         = ('green',      'black'),
-            color_lineno           = ('dim white',  'black'),
-            color_pathname         = ('black',      'red'),
-            color_module           = ('yellow',     None),
-            color_message_debug    = ('color_59',   None),
-            color_message_info     = (None,         None),
-            color_message_warning  = ('color_226',  None),
-            color_message_error    = ('red',        None),
-            color_message_critical = ('bold white', 'red'))
-            # pylint: enable=bad-whitespace
-
-        logging.root.addHandler(rainbow_stream_handler)
-        logging.root.setLevel(level)
-    except ImportError:
-        file_handler = logging.StreamHandler(stream)
-        log_format = "%(levelname)-8s || %(name)-30s || %(message)s"
-        file_handler.formatter = logging.Formatter(log_format)
-        logging.root.addHandler(file_handler)
-        logging.root.setLevel(level)
+    log_format = "%(levelname)-8s || %(name)-30s || %(message)s"
+    stream_handler.formatter = logging.Formatter(log_format)
+    logging.root.addHandler(stream_handler)
+    logging.root.setLevel(level)
 
 
 def setupLogging():
     log_path = '/tmp'
     log_file = p.join(log_path, 'vim-hdl.log')
-    i = 0
+    index = 0
     while True:
         try:
             open(log_file, 'a').close()
             break
         except IOError:
-            print "Error opening '%s'" % log_file
-            log_file = p.join(log_path, 'vim_log_%d_%d.log' % (os.getpid(), i))
-            i += 1
+            log_file = p.join(log_path, 'vim_log_%d_%d.log' % (os.getpid(), index))
+            index += 1
     logging.getLogger('requests').setLevel(logging.WARNING)
     logging.getLogger('nose2').setLevel(logging.INFO)
     logging.getLogger('neovim').setLevel(logging.INFO)
-
     _setupLogging(log_file, logging.DEBUG, True)
 
 setupLogging()
-EOF
 
-autocmd! VimLeavePre * :py onVimLeave()
+_logger = logging.getLogger(__name__)
+
+import vim
+
+if vim.eval('UsingPython2()'):
+    _logger.info("Using Python 2")
+else:
+    _logger.info("Using Python 3")
+
+try:
+    import coverage
+    _logger.info("Coverage module succesfully imported")
+    cov = coverage.Coverage(config_file='.coveragerc')
+    cov.start()
+
+    def onVimLeave():
+        global cov
+        cov.stop()
+        cov.save()
+
+except:
+    _logger.fatal("Unable to import 'coverage'")
+    def onVimLeave():
+        _logger.warning("No coverage started, can't stop it")
+
+EOF
+    autocmd! VimLeavePre * :py onVimLeave()
+
+endfunction
+
+call SetupPythonEnv()
 
