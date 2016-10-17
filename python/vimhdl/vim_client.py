@@ -194,7 +194,7 @@ class VimhdlClient(object):
                         "Unknown severity '%s' for message '%s'" %
                         (severity, message))
 
-    def getMessages(self, vim_buffer=None, vim_var='loclist'):
+    def getMessages(self, vim_buffer=None, vim_var=None):
         """
         Returns a list of messages to populate the quickfix list. For
         more info, check :help getqflist()
@@ -238,6 +238,9 @@ class VimhdlClient(object):
             messages.append(vim_fmt_dict)
 
         self.requestUiMessages('getMessages')
+
+        if vim_var is None:
+            return _sortBuildMessages(messages)
 
         vim.command('let {0} = {1}'.format(vim_var,
                                            _sortBuildMessages(messages)))

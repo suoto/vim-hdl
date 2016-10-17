@@ -12,16 +12,22 @@ else
     set rtp+=~/dot_vim/vim-hdl
 endif
 
-function! UsingPython2()
-  " I'm willing to bet quite a bit that sooner or later, somebody will ask us to
-  " make it configurable which version of Python we use.
-  if has('python')
-    return 1
-  endif
-  return 0
-endfunction
+if has('python')
+    let s:using_python2 = 1
+elseif has('python3')
+    let s:using_python2 = 0
+else
+    throw "Unable to identify Python version"
+endif
 
-let s:using_python2 = UsingPython2()
+function! s:Pyeval( eval_string ) "{ Inspired on YCM
+  if s:using_python2
+    return pyeval( a:eval_string )
+  endif
+  return py3eval( a:eval_string )
+endfunction
+"}
+"
 let s:python_until_eof = s:using_python2 ? "python << EOF" : "python3 << EOF"
 let s:python_command = s:using_python2 ? "py " : "py3 "
 
@@ -36,15 +42,16 @@ let g:syntastic_vhdl_checkers = ['vimhdl']
 " To avoid Press "ENTER..." message
 set cmdheight=10
 
-function! SetupPythonEnv() abort
+function! s:SetupPythonEnv() abort
 
   exec s:python_until_eof
 from __future__ import print_function
-import logging, os
+import logging
+import os
 import os.path as p
 
 def _setupLogging(stream, level, color=True):
-    if isinstance(stream, (str, unicode)):
+    if isinstance(stream, str):
         stream_handler = logging.FileHandler(stream)
     else:
         stream_handler = logging.StreamHandler(stream)
@@ -77,11 +84,6 @@ _logger = logging.getLogger(__name__)
 
 import vim
 
-if vim.eval('UsingPython2()'):
-    _logger.info("Using Python 2")
-else:
-    _logger.info("Using Python 3")
-
 try:
     import coverage
     _logger.info("Coverage module succesfully imported")
@@ -99,9 +101,23 @@ except:
         _logger.warning("No coverage started, can't stop it")
 
 EOF
-    autocmd! VimLeavePre * :py onVimLeave()
+    autocmd! VimLeavePre * :silent! call s:Pyeval('onVimLeave()')
 
 endfunction
 
-call SetupPythonEnv()
+function! RunWithoutHitEnter(cmd) abort
+    exec s:python_until_eof
+import threading, time
+def bump():
+    time.sleep(0.1)
+    vim.command('redraw!')
+
+t = threading.Thread(target=bump)
+t.start()
+vim.command(vim.eval('a:cmd'))
+
+EOF
+endfunction
+
+call s:SetupPythonEnv()
 

@@ -2,8 +2,8 @@ Macro that checks if the quickfix is empty
   @macro (assert_qf_empty)
   :echom &ft
   ~ vhdl
-  :SyntasticCheck
-  :lopen
+  :silent! SyntasticCheck
+  :silent! lopen
   :echom getline('.')
   &
   :quit
@@ -11,10 +11,8 @@ Macro that checks if the quickfix is empty
 
 We'll test what happens when we configure a project but the builder it specifies
 is not found, which should trigger using the fallback builder
+  :let g:vimhdl_conf_file = '../hdlcc_ci/hdl_lib/msim.prj'
   :cd ../hdlcc_ci/hdl_lib
-  :py import os
-  :py if vim.eval("has('nvim')") == "1": os.chdir('../hdlcc_ci/hdl_lib')
-  :let g:vimhdl_conf_file = 'msim.prj'
   :edit common_lib/edge_detector.vhd
   ~ "common_lib/edge_detector.vhd".* (regex)
   > i<ESC>
@@ -23,7 +21,7 @@ is not found, which should trigger using the fallback builder
   @do (assert_qf_empty)
 
 Change the project filename to a builder we have configured
-  :let g:vimhdl_conf_file = 'ghdl.prj'
+  :let g:vimhdl_conf_file = '../hdlcc_ci/hdl_lib/ghdl.prj'
   :write (2.0)
   @do (assert_qf_empty)
 
@@ -34,8 +32,8 @@ Remove an important line so the builder must tell there's an error
   ~ end edge_detector;
   :write
   ~ ".*".*\swritten (regex)
-  :SyntasticCheck
-  :lopen
+  :silent! SyntasticCheck
+  :silent! lopen
   common_lib/edge_detector.vhd|36 col 1 error| 'end' is expected instead of 'architecture'
   :lclose
   > u

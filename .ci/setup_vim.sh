@@ -35,5 +35,7 @@ if [ ! "$(which vim)" -ef "${CACHE}/vim-${VERSION}/src/vim" ]; then
   exit -1
 fi
 
+set +x
+
 vim --version
 

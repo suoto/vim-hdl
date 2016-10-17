@@ -17,33 +17,25 @@
 
 import os
 import os.path as p
-import sys
 import glob
 import logging
 import subprocess as subp
 from nose2.tools import such
 from nose2.tools.params import params
-import six
 
 _logger = logging.getLogger(__name__)
 
-_PATH_TO_TESTS = p.join(".ci", "vroom")
+PATH_TO_TESTS = p.join(".ci", "vroom")
 HDLCC_CI = p.abspath(p.join("..", "hdlcc_ci"))
 PATH_TO_HDLCC = p.join("dependencies", "hdlcc")
 _CI = os.environ.get("CI", None) is not None
-_NEOVIM = os.environ.get("TEST_NVIM", None) is not None
+_NEOVIM = os.environ.get("CI_TARGET", "vim") == "neovim"
 
 def getTestCommand(test_name):
-    #  base_log_name = test_name + ".{0}"
-
-    args = []
-    args += ['vroom', ]
-    #  args += ['--out',           base_log_name.format('out.log')]
-    #  args += ['--dump-messages', base_log_name.format('msg.log')]
-    #  args += ['--dump-commands', base_log_name.format('cmd.log')]
-    #  args += ['--dump-syscalls', base_log_name.format('sys.log')]
+    args = ['python3', '-m', 'vroom']
     args += ['-u', p.expanduser('~/.vimrc' if _CI else '~/dot_vim/vimrc')]
-    #  args += ['-i']
+    if _CI:
+        args += ['--nocolor']
     if _NEOVIM:
         args += ['--neovim']
 
@@ -118,7 +110,7 @@ with such.A('vim-hdl test') as it:
         cleanHdlLib()
         pipUninstallHdlcc()
 
-        for vroom_test in glob.glob(p.join(_PATH_TO_TESTS, '*.vroom')):
+        for vroom_test in glob.glob(p.join(PATH_TO_TESTS, '*.vroom')):
             vroom_post = p.join(p.dirname(vroom_test),
                                 'alt_' + p.basename(vroom_test))
             if p.exists(vroom_post):
@@ -129,7 +121,7 @@ with such.A('vim-hdl test') as it:
 
     @it.should("handle session with multiple files to edit")
     def test(case):
-        vroom_test = p.join(_PATH_TO_TESTS,
+        vroom_test = p.join(PATH_TO_TESTS,
                             "test_001_editing_multiple_files.vroom")
         try:
             subp.check_call(getTestCommand(vroom_test))
@@ -139,7 +131,7 @@ with such.A('vim-hdl test') as it:
 
     @it.should("run only static checks if no project was configured")
     def test(case):
-        vroom_test = p.join(_PATH_TO_TESTS,
+        vroom_test = p.join(PATH_TO_TESTS,
                             'test_002_no_project_configured.vroom')
         try:
             subp.check_call(getTestCommand(vroom_test))
@@ -151,7 +143,7 @@ with such.A('vim-hdl test') as it:
     def test(case):
         #  gitClean('../hdlcc_ci/hdl_lib')
         gitClean(p.join(HDLCC_CI, "hdl_lib"))
-        vroom_test = p.join(_PATH_TO_TESTS,
+        vroom_test = p.join(PATH_TO_TESTS,
                             'test_003_with_project_without_builder.vroom')
         try:
             subp.check_call(getTestCommand(vroom_test))
@@ -161,7 +153,7 @@ with such.A('vim-hdl test') as it:
 
     @it.should("allow building via hdlcc standalone before editing")
     def test(case):
-        vroom_test = p.join(_PATH_TO_TESTS, 'test_004_issue_10.vroom')
+        vroom_test = p.join(PATH_TO_TESTS, 'test_004_issue_10.vroom')
         cmd = ['hdlcc', HDLCC_CI + '/hdl_lib/ghdl.prj', '-cvv', '-s',
                HDLCC_CI + '/hdl_lib/common_lib/edge_detector.vhd']
 
@@ -192,7 +184,7 @@ with such.A('vim-hdl test') as it:
         if p.exists('source.vhd'):
             os.remove('source.vhd')
 
-        vroom_test = p.join(_PATH_TO_TESTS,
+        vroom_test = p.join(PATH_TO_TESTS,
                             'test_005_issue_15_quickfix_jump.vroom')
         try:
             subp.check_call(getTestCommand(vroom_test))
@@ -207,7 +199,7 @@ with such.A('vim-hdl test') as it:
         import vimhdl
         import hdlcc
 
-        vroom_test = p.join(_PATH_TO_TESTS,
+        vroom_test = p.join(PATH_TO_TESTS,
                             'test_006_get_vim_info.vroom')
         lines = open(vroom_test, 'r').read()
 
@@ -232,7 +224,7 @@ with such.A('vim-hdl test') as it:
     @params('vhdl', 'verilog', 'systemverilog')
     def test(case, filetype):
         vroom_test = p.join(
-            _PATH_TO_TESTS,
+            PATH_TO_TESTS,
             'test_007_server_should_start_only_when_opening_hdl_file.vroom')
 
         import sys

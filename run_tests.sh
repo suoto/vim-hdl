@@ -16,30 +16,9 @@
 # You should have received a copy of the GNU General Public License
 # along with vim-hdl.  If not, see <http://www.gnu.org/licenses/>.
 
-if [ -z "${CI}" ]; then
-  if [ -z "${TRAVIS_PYTHON_VERSION}" ]; then
-    TRAVIS_PYTHON_VERSION=2.7
-    PYTHON=python${TRAVIS_PYTHON_VERSION}
-  else
-    PYTHON=python
-  fi
-
-  if [ -z "${VERSION}" ]; then
-    if [ -n "${TEST_NVIM}" ]; then
-      VERSION=0.1.5
-    else
-      VERSION=master
-    fi
-  fi
-
-  if [ -z "${CACHE}" ]; then
-    CACHE=~/dev/
-  fi
-fi
-
-VIRTUAL_ENV_DEST=~/dev/vimhdl_venv
-VROOM_DIR=~/vroom
-
+##############################################################################
+# Parse CLI arguments ########################################################
+##############################################################################
 RUNNER_ARGS=()
 
 while [ -n "$1" ]; do
@@ -51,8 +30,39 @@ while [ -n "$1" ]; do
   shift
 done
 
-set -e
-set -x
+##############################################################################
+# If we're not running inside CI, adjust some variables to mimic it ##########
+##############################################################################
+if [ -z "${CI}" ]; then
+  if [ -z "${CI_TARGET}" ]; then
+    CI_TARGET=vim
+  fi
+
+  VIRTUAL_ENV_DEST=~/dev/vimhdl_venv
+  if [ -z "${TRAVIS_PYTHON_VERSION}" ]; then
+    TRAVIS_PYTHON_VERSION=2.7
+    PYTHON=python${TRAVIS_PYTHON_VERSION}
+  else
+    PYTHON=python
+  fi
+
+  if [ -z "${VERSION}" ]; then
+    if [ "${CI_TARGET}" == "neovim" ]; then
+      VERSION=0.1.5
+    else
+      VERSION=master
+    fi
+  fi
+
+  if [ -z "${CACHE}" ]; then
+    CACHE=~/dev/
+  fi
+fi
+
+##############################################################################
+# Common definitions for setting up the tests ################################
+##############################################################################
+VROOM_DIR=~/vroom
 
 ##############################################################################
 # Functions ##################################################################
@@ -69,14 +79,8 @@ function _setup_vroom {
   fi
 
   python3 setup.py build
-  set +e
-  pip3 install -e .
-  if [ "$?" != "0" ]; then
-    pip3 install -e . --user
-  fi
-  set -e
+  python3 setup.py install --user
 
-  # python3 setup.py install --user
   cd "${START_PATH}"
 }
 
@@ -92,15 +96,9 @@ function _setup_ci_env {
 function _install_packages {
   pip install git+https://github.com/suoto/rainbow_logging_handler
   pip install -r ./.ci/requirements.txt
-  # pip install -r ./dependencies/hdlcc/requirements.txt
   pip install -e ./dependencies/hdlcc/
 
-  set +e
-  pip3 install coverage==4.1
-  if [ "$?" != "0" ]; then !! --user; fi
-  pip3 install neovim==0.1.10
-  if [ "$?" != "0" ]; then !! --user; fi
-  set -e
+  pip3 install neovim==0.1.10 --user
 }
 
 function _cleanup_if_needed {
@@ -115,7 +113,7 @@ function _cleanup_if_needed {
 
     if [ -d "${VROOM_DIR}" ]; then rm -rf "${VROOM_DIR}"; fi
 
-    if [ -n "${TEST_NVIM}" ]; then
+    if [ "${CI_TARGET}" == "neovim" ]; then
       rm -rf "${CACHE}/neovim-${VERSION}"
       rm -f "${CACHE}/neovim.tar.gz"
     fi
@@ -148,26 +146,27 @@ function _setup_dotfiles {
 # Now to the script itself ###################################################
 ##############################################################################
 
-# If we're not running on a CI server, create a virtual env to mimic
-# its behaviour
+set -e
+set -x
+
+# If we're not running on a CI server, create a virtual env to mimic its
+# behaviour
 if [ -z "${CI}" ]; then
   _setup_ci_env
 fi
 
 _cleanup_if_needed
-
 _install_packages
-
 _setup_vroom ${VROOM_DIR}
 
 export PATH=${HOME}/builders/ghdl/bin/:${PATH}
 
 _setup_dotfiles
 
-if [ -n "$TEST_VIM" ]; then vim --version; fi
-if [ -n "$TEST_NVIM" ]; then nvim --version; fi
+if [ "${CI_TARGET}" == "vim" ]; then vim --version; fi
+if [ "${CI_TARGET}" == "neovim" ]; then nvim --version; fi
 
-set +e
+set +xe
 python -m coverage run -m nose2 -s .ci/ "${RUNNER_ARGS[@]}"
 RESULT=$?
 
