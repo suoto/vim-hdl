@@ -105,19 +105,5 @@ EOF
 
 endfunction
 
-function! RunWithoutHitEnter(cmd) abort
-    exec s:python_until_eof
-import threading, time
-def bump():
-    time.sleep(0.1)
-    vim.command('redraw!')
-
-t = threading.Thread(target=bump)
-t.start()
-vim.command(vim.eval('a:cmd'))
-
-EOF
-endfunction
-
 call s:SetupPythonEnv()
 
