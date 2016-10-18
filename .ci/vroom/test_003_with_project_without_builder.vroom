@@ -11,7 +11,8 @@ Macro that checks if the quickfix is empty
 
 We'll test what happens when we configure a project but the builder it specifies
 is not found, which should trigger using the fallback builder
-  :let g:vimhdl_conf_file = '../hdlcc_ci/hdl_lib/msim.prj'
+  :let hdl_lib_path = getcwd() . '/../hdlcc_ci/hdl_lib'
+  :let g:vimhdl_conf_file = hdl_lib_path . '/msim.prj'
   :cd ../hdlcc_ci/hdl_lib
   :edit common_lib/edge_detector.vhd
   ~ "common_lib/edge_detector.vhd".* (regex)
@@ -21,7 +22,7 @@ is not found, which should trigger using the fallback builder
   @do (assert_qf_empty)
 
 Change the project filename to a builder we have configured
-  :let g:vimhdl_conf_file = '../hdlcc_ci/hdl_lib/ghdl.prj'
+  :let g:vimhdl_conf_file = hdl_lib_path . '/ghdl.prj'
   :write (2.0)
   @do (assert_qf_empty)
 
