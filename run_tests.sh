@@ -22,11 +22,11 @@
 RUNNER_ARGS=()
 
 while [ -n "$1" ]; do
-	case "$1" in
+  case "$1" in
     -C) CLEAN_AND_QUIT="1";;
-		-c) CLEAN="1";;
+    -c) CLEAN="1";;
     *)	RUNNER_ARGS+=($1)
-	esac
+  esac
   shift
 done
 
@@ -54,15 +54,16 @@ if [ -z "${CI}" ]; then
     fi
   fi
 
-  if [ -z "${CACHE}" ]; then
-    CACHE=~/dev/
-  fi
+  VROOM_DIR=~/dev/vroom/
+
 fi
 
 ##############################################################################
 # Common definitions for setting up the tests ################################
 ##############################################################################
-VROOM_DIR=~/vroom
+if [ -n "${CI}" ]; then
+  VROOM_DIR=${HOME}/vroom/
+fi
 
 ##############################################################################
 # Functions ##################################################################
@@ -113,11 +114,6 @@ function _cleanup_if_needed {
 
     if [ -d "${VROOM_DIR}" ]; then rm -rf "${VROOM_DIR}"; fi
 
-    if [ "${CI_TARGET}" == "neovim" ]; then
-      rm -rf "${CACHE}/neovim-${VERSION}"
-      rm -f "${CACHE}/neovim.tar.gz"
-    fi
-
     if [ -n "${CLEAN_AND_QUIT}" ]; then exit; fi
   fi
 }
@@ -157,7 +153,7 @@ fi
 
 _cleanup_if_needed
 _install_packages
-_setup_vroom ${VROOM_DIR}
+_setup_vroom "${VROOM_DIR}"
 
 export PATH=${HOME}/builders/ghdl/bin/:${PATH}
 
