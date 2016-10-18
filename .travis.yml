@@ -49,7 +49,6 @@ before_script:
 
 script:
   - set +xe
-  - printf '\e[8;50;100t'
   - ./run_tests.sh --log-capture
 
 after_success:

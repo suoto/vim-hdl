@@ -2,21 +2,16 @@
 
 set -x
 
-if [ -z "${NEOVIM_BUILD_DIR}" ]; then
-  NEOVIM_BUILD_DIR=${HOME}
-fi
+# Neovim working path defaults to home
+if [ -z "${NEOVIM_BUILD_DIR}" ]; then NEOVIM_BUILD_DIR=${HOME}/neovim-build; fi
 
-if [ ! -d "${NEOVIM_BUILD_DIR}" ]; then
-  mkdir -p "${NEOVIM_BUILD_DIR}"
-fi
+if [ ! -d "${NEOVIM_BUILD_DIR}" ]; then mkdir -p "${NEOVIM_BUILD_DIR}"; fi
 
 if [ "${VERSION}" == "master" ]; then
-  if [ ! -f "${NEOVIM_BUILD_DIR}/neovim-master" ]; then
-    git clone https://github.com/neovim/neovim --depth 1 "${NEOVIM_BUILD_DIR}/neovim-master"
-  else
-    cd "${NEOVIM_BUILD_DIR}/neovim-master" && git pull && cd -
-  fi
+  # Get the master version from git
+  git clone https://github.com/neovim/neovim --depth 1 "${NEOVIM_BUILD_DIR}/neovim-master"
 elif [ ! -f "${NEOVIM_BUILD_DIR}/neovim-${VERSION}" ]; then
+  # Other release tags we get from Neovim's releases archive
   wget "https://github.com/neovim/neovim/archive/v${VERSION}.tar.gz" \
     -O "${NEOVIM_BUILD_DIR}/neovim.tar.gz"
   cd "${NEOVIM_BUILD_DIR}"

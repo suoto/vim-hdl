@@ -38,6 +38,8 @@ def getTestCommand(test_name):
     args += ['-u', p.expanduser('~/.vimrc' if ON_CI else '~/dot_vim/vimrc')]
     if ON_CI:
         args += ['--nocolor']
+    if ON_CI and not NEOVIM_TARGET:
+        args += ['-d', '0.5']
     if NEOVIM_TARGET:
         args += ['--neovim']
     if VROOM_EXTRA_ARGS is not None:
