@@ -19,6 +19,7 @@ import os
 import os.path as p
 import glob
 import logging
+import re
 import subprocess as subp
 from nose2.tools import such
 from nose2.tools.params import params
@@ -28,16 +29,19 @@ _logger = logging.getLogger(__name__)
 PATH_TO_TESTS = p.join(".ci", "vroom")
 HDLCC_CI = p.abspath(p.join("..", "hdlcc_ci"))
 PATH_TO_HDLCC = p.join("dependencies", "hdlcc")
-_CI = os.environ.get("CI", None) is not None
-_NEOVIM = os.environ.get("CI_TARGET", "vim") == "neovim"
+ON_CI = os.environ.get("CI", None) is not None
+NEOVIM_TARGET = os.environ.get("CI_TARGET", "vim") == "neovim"
+VROOM_EXTRA_ARGS = os.environ.get("VROOM_EXTRA_ARGS", None)
 
 def getTestCommand(test_name):
     args = ['python3', '-m', 'vroom']
-    args += ['-u', p.expanduser('~/.vimrc' if _CI else '~/dot_vim/vimrc')]
-    if _CI:
+    args += ['-u', p.expanduser('~/.vimrc' if ON_CI else '~/dot_vim/vimrc')]
+    if ON_CI:
         args += ['--nocolor']
-    if _NEOVIM:
+    if NEOVIM_TARGET:
         args += ['--neovim']
+    if VROOM_EXTRA_ARGS is not None:
+        args += re.split(r"\s+", VROOM_EXTRA_ARGS)
 
     args += [test_name]
 
