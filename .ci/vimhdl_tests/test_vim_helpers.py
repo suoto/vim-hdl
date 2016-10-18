@@ -15,13 +15,19 @@
 
 # pylint: disable=function-redefined, missing-docstring, protected-access
 
+from __future__ import print_function
+
 import sys
 import os
 import os.path as p
 import logging
-import mock
-
 from nose2.tools import such
+
+try:  # Python 3.x
+    import unittest.mock as mock # pylint: disable=import-error, no-name-in-module
+except ImportError:  # Python 2.x
+    import mock
+
 
 _CI = os.environ.get("CI", None) is not None
 
@@ -31,7 +37,7 @@ def _setupPaths():
     base_path = p.abspath(p.join(p.dirname(__file__), '..', '..'))
     for path in (p.join(base_path, 'python'),
                  p.join(base_path, 'dependencies', 'requests')):
-        print path
+        print(path)
         sys.path.insert(0, path)
 
 _setupPaths()

@@ -2,8 +2,8 @@ Macro that checks if the quickfix is empty
   @macro (assert_qf_empty)
   :echom &ft
   ~ vhdl
-  :SyntasticCheck
-  :lopen
+  :silent! SyntasticCheck
+  :silent! lopen
   :echom getline('.')
   &
   :quit
@@ -25,9 +25,9 @@ Macro that checks if vimhdl is enabled
 
 
 Edit different files under the same project
+  :let g:vimhdl_conf_file = getcwd() . '/../hdlcc_ci/hdl_lib/ghdl.prj'
   :cd ../hdlcc_ci/hdl_lib
-  :let g:vimhdl_conf_file = 'ghdl.prj'
-  :edit common_lib/edge_detector.vhd (5.0)
+  :edit common_lib/edge_detector.vhd
   @do (vimhdl_check)
 
 Again, this file has no errors
@@ -40,8 +40,8 @@ Remove an important line so the builder must tell there's an error
   ~ end edge_detector;
   :write
   ~ ".*".*\swritten (regex)
-  :SyntasticCheck
-  :lopen
+  :silent! SyntasticCheck
+  :silent! lopen
   common_lib/edge_detector.vhd|36 col 1 error| 'end' is expected instead of 'architecture'
   :lclose
   > u
@@ -70,7 +70,7 @@ anymore
   :edit common_lib/edge_detector.vhd
   :write
   ~ ".*".*\swritten (regex)
-  :lopen
+  :silent! lopen
   common_lib/edge_detector.vhd|75 col 24 error| no interface for 'clken' in association
   :lclose
 
@@ -97,8 +97,8 @@ what happens!
   > o constant SOME_CONSTANT : integer := 14<ESC>
   :write
   ~ ".*".*\swritten (regex)
-  :SyntasticCheck
-  :lopen
+  :silent! SyntasticCheck
+  :silent! lopen
   common_lib/common_pkg.vhd|12 col 5 error| ';' is expected instead of 'function'
   :q
 

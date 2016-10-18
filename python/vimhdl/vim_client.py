@@ -194,9 +194,11 @@ class VimhdlClient(object):
                         "Unknown severity '%s' for message '%s'" %
                         (severity, message))
 
-    def getMessages(self, vim_buffer=None):
-        """Returns a list (vim.List) of messages (vim.Dictionary) to
-        populate the quickfix list. For more info, check :help getqflist()"""
+    def getMessages(self, vim_buffer=None, vim_var=None):
+        """
+        Returns a list of messages to populate the quickfix list. For
+        more info, check :help getqflist()
+        """
         if not self._isServerAlive():
             self._logger.warning("Server is not alive, can't get messages")
             return
@@ -217,27 +219,31 @@ class VimhdlClient(object):
         messages = []
         for message in response.json().get('messages', []):
             vim_fmt_dict = {
-                'lnum'     : message['line_number'] or '-1',
-                'bufnr'    : vim_buffer.number,
-                'filename' : message['filename'] or vim_buffer.name,
+                'lnum'     : str(message['line_number']) or '-1',
+                'bufnr'    : str(vim_buffer.number),
+                'filename' : str(message['filename']) or vim_buffer.name,
                 'valid'    : '1',
-                'text'     : message['error_message'] or '<none>',
-                'nr'       : message['error_number'] or '0',
-                'type'     : message['error_type'] or 'E',
-                'col'      : message['column'] or '0'
+                'text'     : str(message['error_message']) or '<none>',
+                'nr'       : str(message['error_number']) or '0',
+                'type'     : str(message['error_type']) or 'E',
+                'col'      : str(message['column']) or '0'
             }
             try:
-                vim_fmt_dict['subtype'] = message['error_subtype']
+                vim_fmt_dict['subtype'] = str(message['error_subtype'])
             except KeyError:
                 pass
 
             _logger.info(vim_fmt_dict)
 
-            messages.append(vim_helpers.dict(vim_fmt_dict))
+            messages.append(vim_fmt_dict)
 
         self.requestUiMessages('getMessages')
 
-        return vim_helpers.list(_sortBuildMessages(messages))
+        if vim_var is None:
+            return _sortBuildMessages(messages)
+
+        vim.command('let {0} = {1}'.format(vim_var,
+                                           _sortBuildMessages(messages)))
 
     def requestUiMessages(self, event):
         """Retrieves UI messages from the server and post them with the

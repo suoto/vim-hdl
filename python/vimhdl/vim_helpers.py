@@ -19,21 +19,9 @@
 import os.path as p
 import logging
 import socket
+import vim                 # pylint: disable=import-error
 
 _logger = logging.getLogger(__name__)
-import vim                 # pylint: disable=import-error
-# Check if we should use vim.List and vim.Dictionary (for Vim itself) or
-# Python's list and dict (for neovim)
-try:
-    list = vim.List        # pylint: disable=redefined-builtin,invalid-name
-except AttributeError:     # pragma: no cover
-    pass
-
-try:
-    dict = vim.Dictionary  # pylint: disable=redefined-builtin,invalid-name
-except AttributeError:     # pragma: no cover
-    pass
-
 
 def _escapeForVim(text):
     """

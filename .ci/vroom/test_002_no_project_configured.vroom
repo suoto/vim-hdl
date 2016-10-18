@@ -18,7 +18,7 @@ I don't want to type the file within vroom, so I'll copy another file :)
 
 This file has no errors, so the quickfix list must be empty
   :SyntasticCheck
-  :lopen
+  :silent! lopen
   &
   :lclose
 
@@ -27,7 +27,7 @@ which should result in the static checker saying it is not used
   > /^\s*architecture\s\+\w\+\s\+of\s\+\w\+<CR>
   > o signal unused : integer;<ESC>
   :w
-  :lopen
+  :silent! lopen
   \s*source.vhd|43 col 13 warning| signal 'unused' is never used (regex)
   :echo delete('source.vhd')
 

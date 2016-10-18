@@ -19,33 +19,35 @@ import os
 import os.path as p
 import glob
 import logging
+import re
 import subprocess as subp
-
 from nose2.tools import such
 from nose2.tools.params import params
 
-_PATH_TO_TESTS = p.join(".ci", "vroom")
-HDLCC_CI = p.abspath(p.join("..", "hdlcc_ci"))
-PATH_TO_HDLCC = p.join("dependencies", "hdlcc")
-_CI = os.environ.get("CI", None) is not None
-
 _logger = logging.getLogger(__name__)
 
-def getTestCommand(test_name):
-    #  base_log_name = test_name + ".{0}"
+PATH_TO_TESTS = p.join(".ci", "vroom")
+HDLCC_CI = p.abspath(p.join("..", "hdlcc_ci"))
+PATH_TO_HDLCC = p.join("dependencies", "hdlcc")
+ON_CI = os.environ.get("CI", None) is not None
+NEOVIM_TARGET = os.environ.get("CI_TARGET", "vim") == "neovim"
+VROOM_EXTRA_ARGS = os.environ.get("VROOM_EXTRA_ARGS", None)
 
-    args = []
-    args += ['vroom', ]
-    #  args += ['--out',           base_log_name.format('out.log')]
-    #  args += ['--dump-messages', base_log_name.format('msg.log')]
-    #  args += ['--dump-commands', base_log_name.format('cmd.log')]
-    #  args += ['--dump-syscalls', base_log_name.format('sys.log')]
-    args += ['-u', p.expanduser('~/.vimrc' if _CI else '~/dot_vim/vimrc')]
-    args += ['-d0.5', '-t3'] if _CI else ['-d0.2', '-t1']
-    #  args += ['-i']
+def getTestCommand(test_name):
+    args = ['python3', '-m', 'vroom']
+    args += ['-u', p.expanduser('~/.vimrc' if ON_CI else '~/dot_vim/vimrc')]
+    if ON_CI:
+        args += ['--nocolor']
+    if ON_CI and not NEOVIM_TARGET:
+        args += ['-d', '0.5']
+    if NEOVIM_TARGET:
+        args += ['--neovim']
+    if VROOM_EXTRA_ARGS is not None:
+        args += re.split(r"\s+", VROOM_EXTRA_ARGS)
 
     args += [test_name]
 
+    _logger.info("$%s", " ".join(args))
     return args
 
 with such.A('vim-hdl test') as it:
@@ -61,7 +63,7 @@ with such.A('vim-hdl test') as it:
 
         _logger.info("Cleaning up non-git files")
         for line in subp.check_output(['git', 'clean', '-fdx']).splitlines():
-            _logger.info("> " + line)
+            _logger.info("> %s", line)
 
         if start_path != dest_path:
             _logger.info("Changing back to '%s'", start_path)
@@ -71,11 +73,14 @@ with such.A('vim-hdl test') as it:
         _logger.info("Resetting hdl_lib")
         start_path = p.abspath(".")
         dest_path = p.join(HDLCC_CI, "hdl_lib")
-        os.chdir(dest_path)
+        if start_path != dest_path:
+            _logger.info("Changing from '%s' to '%s'", start_path, dest_path)
+            os.chdir(dest_path)
+
         for line in \
             subp.check_output(['git', 'reset', 'HEAD', '--hard']).splitlines():
 
-            _logger.info("> " + line)
+            _logger.info("> %s", line)
 
         gitClean()
 
@@ -83,7 +88,7 @@ with such.A('vim-hdl test') as it:
         for line in \
             subp.check_output(['git', 'status', '--porcelain']).splitlines():
 
-            _logger.info("> " + line)
+            _logger.info("> %s", line)
 
         os.chdir(start_path)
 
@@ -111,7 +116,7 @@ with such.A('vim-hdl test') as it:
         cleanHdlLib()
         pipUninstallHdlcc()
 
-        for vroom_test in glob.glob(p.join(_PATH_TO_TESTS, '*.vroom')):
+        for vroom_test in glob.glob(p.join(PATH_TO_TESTS, '*.vroom')):
             vroom_post = p.join(p.dirname(vroom_test),
                                 'alt_' + p.basename(vroom_test))
             if p.exists(vroom_post):
@@ -122,7 +127,7 @@ with such.A('vim-hdl test') as it:
 
     @it.should("handle session with multiple files to edit")
     def test(case):
-        vroom_test = p.join(_PATH_TO_TESTS,
+        vroom_test = p.join(PATH_TO_TESTS,
                             "test_001_editing_multiple_files.vroom")
         try:
             subp.check_call(getTestCommand(vroom_test))
@@ -132,7 +137,7 @@ with such.A('vim-hdl test') as it:
 
     @it.should("run only static checks if no project was configured")
     def test(case):
-        vroom_test = p.join(_PATH_TO_TESTS,
+        vroom_test = p.join(PATH_TO_TESTS,
                             'test_002_no_project_configured.vroom')
         try:
             subp.check_call(getTestCommand(vroom_test))
@@ -142,8 +147,9 @@ with such.A('vim-hdl test') as it:
 
     @it.should("warn when unable to create the configured builder")
     def test(case):
-        gitClean('../hdlcc_ci/hdl_lib')
-        vroom_test = p.join(_PATH_TO_TESTS,
+        #  gitClean('../hdlcc_ci/hdl_lib')
+        gitClean(p.join(HDLCC_CI, "hdl_lib"))
+        vroom_test = p.join(PATH_TO_TESTS,
                             'test_003_with_project_without_builder.vroom')
         try:
             subp.check_call(getTestCommand(vroom_test))
@@ -153,7 +159,7 @@ with such.A('vim-hdl test') as it:
 
     @it.should("allow building via hdlcc standalone before editing")
     def test(case):
-        vroom_test = p.join(_PATH_TO_TESTS, 'test_004_issue_10.vroom')
+        vroom_test = p.join(PATH_TO_TESTS, 'test_004_issue_10.vroom')
         cmd = ['hdlcc', HDLCC_CI + '/hdl_lib/ghdl.prj', '-cvv', '-s',
                HDLCC_CI + '/hdl_lib/common_lib/edge_detector.vhd']
 
@@ -168,10 +174,10 @@ with such.A('vim-hdl test') as it:
 
         if exc is None:
             for line in output:
-                _logger.info("> " + line)
+                _logger.info("> %s", line)
         else:
             for line in output:
-                _logger.warning("> " + line)
+                _logger.warning("> %s", line)
 
         try:
             subp.check_call(getTestCommand(vroom_test))
@@ -184,7 +190,7 @@ with such.A('vim-hdl test') as it:
         if p.exists('source.vhd'):
             os.remove('source.vhd')
 
-        vroom_test = p.join(_PATH_TO_TESTS,
+        vroom_test = p.join(PATH_TO_TESTS,
                             'test_005_issue_15_quickfix_jump.vroom')
         try:
             subp.check_call(getTestCommand(vroom_test))
@@ -199,7 +205,7 @@ with such.A('vim-hdl test') as it:
         import vimhdl
         import hdlcc
 
-        vroom_test = p.join(_PATH_TO_TESTS,
+        vroom_test = p.join(PATH_TO_TESTS,
                             'test_006_get_vim_info.vroom')
         lines = open(vroom_test, 'r').read()
 
@@ -224,7 +230,7 @@ with such.A('vim-hdl test') as it:
     @params('vhdl', 'verilog', 'systemverilog')
     def test(case, filetype):
         vroom_test = p.join(
-            _PATH_TO_TESTS,
+            PATH_TO_TESTS,
             'test_007_server_should_start_only_when_opening_hdl_file.vroom')
 
         import sys

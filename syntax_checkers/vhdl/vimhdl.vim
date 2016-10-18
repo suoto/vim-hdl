@@ -36,7 +36,7 @@ set cpo&vim
 
 " { vimhdl availability checker
 function! SyntaxCheckers_vhdl_vimhdl_IsAvailable() dict
-    if has('python')
+    if has('python') || has('python3')
         return 1
     endif
     return 0
@@ -44,22 +44,7 @@ endfunction
 
 " { vimhdl location list assembler
 function! SyntaxCheckers_vhdl_vimhdl_GetLocList() dict
-    let loclist = []
-
-py <<EOF
-try:
-    loclist = vim.bindeval('loclist')
-except AttributeError:
-    loclist = vim.eval('loclist')
-try:
-    messages = vimhdl_client.getMessages(vim.current.buffer)
-except:
-    _logger.exception("Error getting messages")
-if messages:
-    loclist.extend(messages)
-EOF
-    return loclist
-
+    return vimhdl#GetMessagesForCurrentBuffer()
 endfunction
 " }
 

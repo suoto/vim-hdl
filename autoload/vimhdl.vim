@@ -17,11 +17,32 @@
 "
 let s:vimhdl_path = escape(expand('<sfile>:p:h'), '\') . "/../"
 
-" { vimhdl#setupPython()
+function! vimhdl#UsingPython2() "{ Inspired on YCM
+    if has('python3')
+        return 0
+    elseif has('python')
+        return 1
+    endif
+    throw "Unable to identify Python version"
+endfunction
+"}
+
+" Inspired on YCM
+let s:using_python2 = vimhdl#UsingPython2()
+let s:python_until_eof = s:using_python2 ? "python << EOF" : "python3 << EOF"
+let s:python_command = s:using_python2 ? "py " : "py3 "
+
+function! s:Pyeval( eval_string ) "{ Inspired on YCM
+  if s:using_python2
+    return pyeval( a:eval_string )
+  endif
+  return py3eval( a:eval_string )
+endfunction
+"}
+" { vimhdl#setupPython() Setup Vim's Python environment to call vim-hdl within Vim
 " ============================================================================
-" Setup Vim's Python environment to call vim-hdl within Vim
 function! vimhdl#setupPython()
-python << EOF
+    exec s:python_until_eof
 import sys
 if 'vimhdl' not in sys.modules:
     import sys, vim
@@ -54,9 +75,8 @@ except NameError:
 EOF
 endfunction
 " }
-" { vimhdl#setupCommands()
+" { vimhdl#setupCommands() Setup Vim's Python environment to call vim-hdl within Vim
 " ============================================================================
-" Setup Vim's Python environment to call vim-hdl within Vim
 function! vimhdl#setupCommands()
     command! VimhdlInfo           call s:PrintInfo()
     command! VimhdlRebuildProject :py vimhdl_client.rebuildProject()
@@ -71,29 +91,27 @@ function! vimhdl#setupCommands()
     " command! -nargs=? VimhdlRemoveSourceFromLibrary call vimhdl#removeSourceFromLibrary(<f-args>)
 endfunction
 " }
-" { vimhdl#setupHooks()
+" { vimhdl#setupHooks() Setup Vim's Python environment to call vim-hdl within Vim
 " ============================================================================
-" Setup Vim's Python environment to call vim-hdl within Vim
 function! vimhdl#setupHooks(...)
     for ext in a:000
         for event in ['BufWritePost', 'FocusGained', 'CursorMoved',
                     \'CursorMovedI', 'CursorHold', 'CursorHoldI',
                     \'InsertEnter']
             execute("autocmd! " . event . " " . ext . " " . 
-                   \":py vimhdl_client.requestUiMessages('" . event . "')")
+                   \":" . s:python_command . " vimhdl_client.requestUiMessages('" . event . "')")
         endfor
         for event in ['BufEnter', 'FocusGained', 'InsertLeave']
             execute("autocmd! " . event . " " . ext . " " . 
-                   \":py vimhdl_client.onBufferVisit()")
+                   \":" . s:python_command . " vimhdl_client.onBufferVisit()")
         endfor
         execute("autocmd! BufLeave " . ext . " " . 
-               \":py vimhdl_client.onBufferLeave()")
+               \":" . s:python_command . " vimhdl_client.onBufferLeave()")
     endfor
 endfunction
 " }
-" { vimhdl#setup()
+" { vimhdl#setup() Setup Vim's Python environment to call vim-hdl within Vim
 " ============================================================================
-" Setup Vim's Python environment to call vim-hdl within Vim
 function! vimhdl#setup()
     if !(exists('g:vimhdl_loaded') && g:vimhdl_loaded)
         let g:vimhdl_loaded = 1
@@ -105,39 +123,48 @@ function! vimhdl#setup()
     if count(['vhdl', 'verilog', 'systemverilog'], &filetype)
         if !(exists('g:vimhdl_server_started') && g:vimhdl_server_started)
             let g:vimhdl_server_started = 1
-python << EOF
-vimhdl_client.startServer()
-EOF
+            call s:Pyeval('vimhdl_client.startServer()')
         endif
     endif
 
 endfunction
 " }
-" { vimhdl#PrintInfo()
+" { vimhdl#PrintInfo() Setup Vim's Python environment to call vim-hdl within Vim
 " ============================================================================
-" Setup Vim's Python environment to call vim-hdl within Vim
 function! s:PrintInfo()
   echom "vimhdl debug info"
-  let debug_info = pyeval('vimhdl_client.getVimhdlInfo()')
+  let debug_info = s:Pyeval('vimhdl_client.getVimhdlInfo()')
   for line in split( debug_info, "\n" )
     echom line
   endfor
 endfunction
 " }
-" { vimhdl#RestartServer()
+" { vimhdl#RestartServer() Restart the hdlcc server
 " ============================================================================
-" Restart the hdlcc server
 function! s:RestartServer()
   echom "Restarting hdlcc server"
-python << EOF
+    exec s:python_until_eof
 _logger.info("Restarting hdlcc server")
 vimhdl_client.shutdown()
 del vimhdl_client
-vimhdl_client = vimhdl.VimhdlClient(log_level='WARNING')
+vimhdl_client = vimhdl.VimhdlClient(log_level="WARNING")
 vimhdl_client.startServer()
 _logger.info("hdlcc restart done")
 EOF
 endfunction
 " }
-"
+" { vimhdl#RestartServer() Restart the hdlcc server
+" ============================================================================
+function! vimhdl#GetMessagesForCurrentBuffer()
+    let loclist = []
+exec s:python_until_eof
+try:
+    vimhdl_client.getMessages(vim.current.buffer, 'loclist')
+except:
+    _logger.exception("Error getting messages")
+EOF
+    return loclist
+endfunction
+"}
+
 " vim: set foldmarker={,} foldlevel=0 foldmethod=marker :
