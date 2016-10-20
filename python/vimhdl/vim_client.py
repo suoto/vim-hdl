@@ -27,7 +27,7 @@ import time
 import vim # pylint: disable=import-error
 import vimhdl
 import vimhdl.vim_helpers as vim_helpers
-from vimhdl.base_requests import (RequestMessagesByPath, RequestQueuedMessages,
+from vimhdl.base_requests import (RequestCheck, RequestQueuedMessages,
                                   RequestHdlccInfo, RequestProjectRebuild,
                                   OnBufferVisit, OnBufferLeave)
 
@@ -269,9 +269,11 @@ class VimhdlClient(object):
     def _checkByBuffer(self, vim_buffer):
         project_file = vim_helpers.getProjectFile()
         path = p.abspath(vim_buffer.name)
-        request = RequestMessagesByPath(host=self._host, port=self._port,
-                                        project_file=project_file, path=path,
-                                        content=list(vim_buffer))
+        content = '\n'.join(vim_buffer)
+        self._logger.fatal(content)
+        request = RequestCheck(host=self._host, port=self._port,
+                               project_file=project_file, path=path,
+                               content=content)
 
         response = request.sendRequest()
         if response is None:
@@ -281,8 +283,8 @@ class VimhdlClient(object):
 
     def _checkByPath(self, path):
         project_file = vim_helpers.getProjectFile()
-        request = RequestMessagesByPath(host=self._host, port=self._port,
-                                        project_file=project_file, path=path)
+        request = RequestCheck(host=self._host, port=self._port,
+                               project_file=project_file, path=path)
 
         response = request.sendRequest()
         if response is None:

@@ -92,7 +92,7 @@ class BaseRequest(object):
 
         return response
 
-class RequestMessagesByPath(BaseRequest):
+class RequestCheck(BaseRequest):
     """
     Request messages for the quickfix list
     """
@@ -100,11 +100,11 @@ class RequestMessagesByPath(BaseRequest):
 
     def __init__(self, host, port, project_file, path, content=None):
         if content is not None:
-            super(RequestMessagesByPath, self).__init__(
+            super(RequestCheck, self).__init__(
                 host, port, project_file=project_file, path=path,
                 content=content)
         else:
-            super(RequestMessagesByPath, self).__init__(
+            super(RequestCheck, self).__init__(
                 host, port, project_file=project_file, path=path)
 
 class RequestQueuedMessages(BaseRequest):
