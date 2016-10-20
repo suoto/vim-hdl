@@ -96,17 +96,22 @@ endfunction
 function! vimhdl#setupHooks(...)
     for ext in a:000
         for event in ['BufWritePost', 'FocusGained', 'CursorMoved',
-                    \'CursorMovedI', 'CursorHold', 'CursorHoldI',
-                    \'InsertEnter']
-            execute("autocmd! " . event . " " . ext . " " . 
+                    \ 'CursorHold', 'CursorHoldI']
+            execute("autocmd! " . event . " " . ext . " " .
                    \":" . s:python_command . " vimhdl_client.requestUiMessages('" . event . "')")
         endfor
         for event in ['BufEnter', 'FocusGained', 'InsertLeave']
-            execute("autocmd! " . event . " " . ext . " " . 
+            execute("autocmd! " . event . " " . ext . " " .
                    \":" . s:python_command . " vimhdl_client.onBufferVisit()")
         endfor
-        execute("autocmd! BufLeave " . ext . " " . 
+        execute("autocmd! BufLeave " . ext . " " .
                \":" . s:python_command . " vimhdl_client.onBufferLeave()")
+        execute("autocmd! TextChangedI  " . ext . " " .
+               \":" . s:python_command . " vimhdl_client.onTextChangedI()")
+        execute("autocmd! InsertEnter  " . ext . " " .
+               \":" . s:python_command . " vimhdl_client.onInsertEnter()")
+        execute("autocmd! InsertLeave  " . ext . " " .
+               \":" . s:python_command . " vimhdl_client.onInsertLeave()")
     endfor
 endfunction
 " }
@@ -159,7 +164,7 @@ function! vimhdl#GetMessagesForCurrentBuffer()
     let loclist = []
 exec s:python_until_eof
 try:
-    vimhdl_client.getMessages(vim.current.buffer, 'loclist')
+    vimhdl_client.checkBuffer(vim.current.buffer, 'loclist')
 except:
     _logger.exception("Error getting messages")
 EOF

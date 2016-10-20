@@ -39,8 +39,7 @@ class BaseRequest(object):
             self.url = 'http://%s:%s' % (host, port)
 
         self.payload = kwargs
-        _logger.debug("Creating request for '%s' with payload '%s'",
-                      self._meth, self.payload)
+        _logger.debug("Creating request '%s'", self._meth)
 
     def sendRequestAsync(self, func=None):
         """
@@ -99,9 +98,14 @@ class RequestMessagesByPath(BaseRequest):
     """
     _meth = 'get_messages_by_path'
 
-    def __init__(self, host, port, project_file, path):
-        super(RequestMessagesByPath, self).__init__(
-            host, port, project_file=project_file, path=path)
+    def __init__(self, host, port, project_file, path, content=None):
+        if content is not None:
+            super(RequestMessagesByPath, self).__init__(
+                host, port, project_file=project_file, path=path,
+                content=content)
+        else:
+            super(RequestMessagesByPath, self).__init__(
+                host, port, project_file=project_file, path=path)
 
 class RequestQueuedMessages(BaseRequest):
     """
