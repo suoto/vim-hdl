@@ -20,11 +20,13 @@ import os
 import os.path as p
 import subprocess as subp
 import sys
-from multiprocessing import Queue
 import logging
 import time
+import re
 
-import vim # pylint: disable=import-error
+from multiprocessing import Queue
+
+import vim  # pylint: disable=import-error
 import vimhdl
 import vimhdl.vim_helpers as vim_helpers
 from vimhdl.base_requests import (RequestCheck, RequestQueuedMessages,
@@ -32,6 +34,7 @@ from vimhdl.base_requests import (RequestCheck, RequestQueuedMessages,
                                   OnBufferVisit, OnBufferLeave)
 
 _ON_WINDOWS = sys.platform == 'win32'
+_COMMENT_SCAN = re.compile('--.*').search
 
 _logger = logging.getLogger(__name__)
 
@@ -54,6 +57,9 @@ class CursorPosition(object):
         self.column = None
 
     def clear(self):
+        """
+        Clears the line and column fields
+        """
         self.line = None
         self.column = None
 
@@ -61,16 +67,16 @@ class CursorPosition(object):
         return "(line %s, column %s)" % (str(self.line), str(self.column))
 
     def __eq__(self, other):
-        if other is None and self.line is None and self.column is None:
-            return True
-        try:
-            return (self.line, self.column) == (other[0], other[1])
-        except:
-            return False
+        if other is None:
+            return self.line is None and self.column is None
+        return (self.line, self.column) == (other[0], other[1])
 
     def __iter__(self):
         yield self.line
         yield self.column
+
+    def __getitem__(self, i):
+        return tuple(iter(self))[i]
 
 class VimhdlClient(object):
     """
@@ -78,9 +84,6 @@ class VimhdlClient(object):
     """
 
     def __init__(self, **options):
-        self._logger = logging.getLogger(__name__ + '.' + self.__class__.__name__)
-        self._logger.info("Creating vimhdl client object...")
-
         self._server = None
         self._host = options.get('host', 'localhost')
         self._port = options.get('port', vim_helpers.getUnusedLocalhostPort())
@@ -134,7 +137,7 @@ class VimhdlClient(object):
         """
         Starts the hdlcc server
         """
-        self._logger.info("Running vim_hdl client setup")
+        _logger.info("Running vim_hdl client setup")
 
         vimhdl_path = p.abspath(p.join(p.dirname(__file__), '..', '..'))
 
@@ -150,7 +153,7 @@ class VimhdlClient(object):
                '--log-level', self._log_level,
                '--log-stream', self._log_stream]
 
-        self._logger.info("Starting hdlcc server with '%s'", " ".join(cmd))
+        _logger.info("Starting hdlcc server with '%s'", " ".join(cmd))
 
         try:
             if _ON_WINDOWS:
@@ -165,7 +168,7 @@ class VimhdlClient(object):
             if not self._isServerAlive():
                 vim_helpers.postVimError("Failed to launch hdlcc server")
         except subp.CalledProcessError:
-            self._logger.exception("Error calling '%s'", " ".join(cmd))
+            _logger.exception("Error calling '%s'", " ".join(cmd))
 
     def _waitForServerSetup(self):
         """
@@ -175,12 +178,12 @@ class VimhdlClient(object):
             time.sleep(0.1)
             request = RequestHdlccInfo(self._host, self._port)
             reply = request.sendRequest()
-            self._logger.debug(reply)
+            _logger.debug(reply)
             if reply:
-                self._logger.info("Ok, server is really up")
+                _logger.info("Ok, server is really up")
                 return
             else:
-                self._logger.info("Server is not responding yet")
+                _logger.info("Server is not responding yet")
 
         self._postError("Unable to talk to server")
 
@@ -189,12 +192,12 @@ class VimhdlClient(object):
         Kills the hdlcc server
         """
         if not self._isServerAlive():
-            self._logger.warning("Server is not running")
+            _logger.warning("Server is not running")
             return
-        self._logger.debug("Sending shutdown signal")
+        _logger.debug("Sending shutdown signal")
         os.kill(self._server.pid, 9)
         self._server.terminate()
-        self._logger.debug("Done")
+        _logger.debug("Done")
 
     def _handleAsyncRequest(self, response):
         """
@@ -227,17 +230,13 @@ class VimhdlClient(object):
         more info, check :help getqflist()
         """
         if not self._isServerAlive():
-            self._logger.warning("Server is not alive, can't get messages")
+            _logger.warning("Server is not alive, can't get messages")
             return
 
         if vim_buffer is None:
             vim_buffer = vim.current.buffer
 
-        if vim.eval('&modified') == "0":
-            path = p.abspath(vim_buffer.name)
-            messages = self._checkByPath(path)
-        else:
-            messages = self._checkByBuffer(vim_buffer)
+        messages = self._checkBuffer(vim_buffer, vim.eval('&modified') == "1")
 
         vim_messages = []
         for message in messages:
@@ -266,37 +265,33 @@ class VimhdlClient(object):
         vim.command('let {0} = {1}'.format(vim_var,
                                            _sortBuildMessages(vim_messages)))
 
-    def _checkByBuffer(self, vim_buffer):
+    def _checkBuffer(self, vim_buffer, include_content):
+        """
+        Requests a syntax check for the hdlcc server. If include_content
+        is True, the current buffer's content will be included in the
+        request
+        """
         project_file = vim_helpers.getProjectFile()
         path = p.abspath(vim_buffer.name)
-        content = '\n'.join(vim_buffer)
-        self._logger.fatal(content)
+
+        if include_content:
+            content = '\n'.join(vim_buffer)
+        else:
+            content = None
+
         request = RequestCheck(host=self._host, port=self._port,
                                project_file=project_file, path=path,
                                content=content)
 
         response = request.sendRequest()
-        if response is None:
-            return []
-
-        return response.json().get('messages', [])
-
-    def _checkByPath(self, path):
-        project_file = vim_helpers.getProjectFile()
-        request = RequestCheck(host=self._host, port=self._port,
-                               project_file=project_file, path=path)
-
-        response = request.sendRequest()
-        if response is None:
-            return []
 
         return response.json().get('messages', [])
 
     def requestUiMessages(self, event):
         """Retrieves UI messages from the server and post them with the
         appropriate severity level"""
-        self._logger.info("Handling event '%s'. Filetype is %s",
-                          event, vim.eval('&filetype'))
+        _logger.info("Handling event '%s'. Filetype is %s",
+                     event, vim.eval('&filetype'))
         self._postQueuedMessages()
 
         if not self._isServerAlive():
@@ -321,7 +316,7 @@ class VimhdlClient(object):
 
         if response is not None:
             # The server has responded something, so just print it
-            self._logger.info("Response: %s", str(response.json()['info']))
+            _logger.info("Response: %s", str(response.json()['info']))
 
             return "\n".join(
                 ["- %s" % x for x in
@@ -347,7 +342,86 @@ class VimhdlClient(object):
         if response is None:
             return "hdlcc server is not running"
 
-        self._logger.info("Response: %s", repr(response))
+        _logger.info("Response: %s", repr(response))
+
+    def _updateCursorTracking(self):
+        """
+        Updates the current and previous cursor position
+        """
+        if self._current_pos != None:
+            self._prev_pos.line = self._current_pos.line
+            self._prev_pos.column = self._current_pos.column
+
+        line, column = vim.current.window.cursor
+        line -= 1
+
+        self._current_pos.line = line
+        self._current_pos.column = column
+
+        if self._current_pos == self._prev_pos:
+            return
+
+        _logger.debug("Moved from %s to %s", self._prev_pos, self._current_pos)
+
+    def _cursorMoved(self):
+        """
+        Checks if the insert cursor has moved
+        """
+        if None in self._prev_pos:
+            return False
+        return self._current_pos != self._prev_pos
+
+    def _getInsertedText(self):
+        """
+        Returns the last inserted character by the user or None when
+        not applicable
+        """
+        if not self._cursorMoved():
+            return
+
+        # If the line has incremented by 1, the user has pressed Enter,
+        # so fake this as a \n character
+        if self._current_pos.line == self._prev_pos.line + 1:
+            return '\n'
+
+        current_line = vim.current.buffer[self._prev_pos.line]
+        if not len(current_line) or self._prev_pos.column >= len(current_line):
+            return
+
+        return current_line[self._prev_pos.column]
+
+    def _shouldCheckNow(self):
+        """
+        Evaluates the user input to decide if a check should be done
+        """
+        self._updateCursorTracking()
+        _logger.debug("Change: %s", vim.eval('changenr()'))
+        line = vim.current.buffer[self._current_pos.line]
+
+        comment = _COMMENT_SCAN(line)
+        if comment is not None:
+            comment_start = comment.start()
+            # Avoid checking if changes were made inside a comment
+            if self._current_pos.column > comment_start:
+                _logger.info("Insertion after comment")
+                return False
+
+        return self._getInsertedText() in (';', )
+
+    ########################
+    # Hooks for vim events #
+    ########################
+
+    def onInsertEnter(self):
+        """
+        Actions for vim's InsertEnter event
+        """
+        self._prev_pos.clear()
+
+    def onInsertLeave(self):
+        """
+        Actions for vim's InsertLeave event
+        """
 
     def onBufferVisit(self):
         """
@@ -387,71 +461,19 @@ class VimhdlClient(object):
 
         request.sendRequestAsync(self._handleAsyncRequest)
 
-    def onInsertEnter(self):
-        self._prev_pos.clear()
-
-    def onInsertLeave(self):
-        pass
-
     def onTextChangedI(self):
         """
+        Checks the characters being inserted to trigger as you type
+        syntax checking
         """
-        self._updateCursorTracking()
-        inserted_text = self._getInsertedText()
-        if inserted_text is None:
-            return
+        if self._shouldCheckNow():
+            bufnum = vim.current.buffer.number
+            vim.command("SyntasticCheck")
+            vim.eval("setpos('.', [{0}, {1}, {2}])".format(
+                bufnum, self._current_pos.line + 1, self._current_pos.column + 1))
+            # Break the undo history so the user can undo until the point
+            # where the check was triggered. This is now the ideal, but
+            # it's the best so far :-\
+            vim.eval('feedkeys("u")')
 
-        if inserted_text in (';', '\n'):
-            self._logger.debug("Inserted text is %s, triggering location "
-                               "list update", repr(inserted_text))
-            self._updateLocationList()
-
-    def _updateLocationList(self):
-        # Disable Syntastc full redraws before asking for an update
-        syntastic_full_redraws = vim.eval("g:syntastic_full_redraws")
-        vim.command("SyntasticCheck")
-        if syntastic_full_redraws != "0":
-            vim.command("let g:syntastic_full_redraws = %s" %
-                        syntastic_full_redraws)
-
-    def _updateCursorTracking(self):
-        if self._current_pos != None:
-            self._prev_pos.line = self._current_pos.line
-            self._prev_pos.column = self._current_pos.column
-
-        line, column = vim.current.window.cursor
-        line -= 1
-
-        self._current_pos.line = line
-        self._current_pos.column = column
-
-        if self._current_pos == self._prev_pos:
-            return
-
-        self._logger.debug(
-            "Moved from %s to %s", self._prev_pos, self._current_pos)
-
-    def _cursorMoved(self):
-        return self._current_pos != self._prev_pos
-
-    def _getInsertedText(self):
-        inserted_char = None
-
-        if None in self._prev_pos or not self._cursorMoved():
-            return
-
-        if self._current_pos.line == self._prev_pos.line + 1:
-            return '\n'
-
-        current_line = vim.current.buffer[self._prev_pos.line]
-        if not len(current_line) or self._prev_pos.column >= len(current_line):
-            return
-
-        try:
-            inserted_char = current_line[self._prev_pos.column]
-        except:
-            self._logger.exception(
-                "Error while getting char from %d, %d",
-                self._prev_pos.line, self._prev_pos.column)
-        return inserted_char
 

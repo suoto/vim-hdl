@@ -1,0 +1,41 @@
+Macro that checks if the quickfix is empty
+  @macro (assert_qf_empty)
+  :echom &ft
+  ~ vhdl
+  :silent! SyntasticCheck
+  :silent! lopen
+  :echom getline('.')
+  &
+  :quit
+  @endmacro
+
+Macro that checks if vimhdl is enabled
+  @macro (vimhdl_check)
+  :SyntasticInfo
+  ~ Syntastic version:.* (regex)
+  ~ Info for filetype: vhdl
+  ~ Global mode: active
+  ~ Filetype vhdl is active
+  ~ The current file will be checked automatically
+  ~ Available checker(s:|:)\s*.*\bvimhdl\b.* (regex)
+  ~ Currently enabled checker(s:|:)\s*.*\bvimhdl\b.* (regex)
+  @endmacro
+
+
+
+
+Open an empty buffer and save it empty so that Syntastic is able to check
+  :edit a.vhd
+  :write
+  ~ ".*".*\swritten (regex)
+  @do (vimhdl_check)
+  @do (assert_qf_empty)
+
+Just define a library named work and we should get 2 warnings
+  > ilibrary work;<ESC>
+  :SyntasticCheck
+  :silent! lopen
+  a.vhd|1 col 9 warning| library 'work' is never used
+  a.vhd|1 col 9 warning| Declaration of library 'work' can be omitted
+  :lclose
+

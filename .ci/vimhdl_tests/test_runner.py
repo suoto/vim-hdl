@@ -122,8 +122,9 @@ with such.A('vim-hdl test') as it:
             if p.exists(vroom_post):
                 os.remove(vroom_post)
 
-        if p.exists('source.vhd'):
-            os.remove('source.vhd')
+        for path in ('source.vhd', 'a.vhd'):
+            if p.exists(path):
+                os.remove(path)
 
     @it.should("handle session with multiple files to edit")
     def test(case):
@@ -258,6 +259,18 @@ with such.A('vim-hdl test') as it:
 
         try:
             subp.check_call(getTestCommand(vroom_post))
+        except subp.CalledProcessError:
+            _logger.exception("Excepion caught while testing")
+            it.fail("Test failed: %s" % case)
+
+    @it.should("provide as you type checking")
+    def test(case):
+        vroom_test = p.join(
+            PATH_TO_TESTS,
+            'test_008_dynamic_check.vroom')
+
+        try:
+            subp.check_call(getTestCommand(vroom_test))
         except subp.CalledProcessError:
             _logger.exception("Excepion caught while testing")
             it.fail("Test failed: %s" % case)

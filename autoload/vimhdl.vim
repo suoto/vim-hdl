@@ -75,7 +75,7 @@ except NameError:
 EOF
 endfunction
 " }
-" { vimhdl#setupCommands() Setup Vim's Python environment to call vim-hdl within Vim
+" { vimhdl#setupCommands() Setup commands available for the user
 " ============================================================================
 function! vimhdl#setupCommands()
     command! VimhdlInfo           call s:PrintInfo()
@@ -91,7 +91,7 @@ function! vimhdl#setupCommands()
     " command! -nargs=? VimhdlRemoveSourceFromLibrary call vimhdl#removeSourceFromLibrary(<f-args>)
 endfunction
 " }
-" { vimhdl#setupHooks() Setup Vim's Python environment to call vim-hdl within Vim
+" { vimhdl#setupHooks() Setup hooks for calling vim client stuff
 " ============================================================================
 function! vimhdl#setupHooks(...)
     for ext in a:000
@@ -112,10 +112,13 @@ function! vimhdl#setupHooks(...)
                \":" . s:python_command . " vimhdl_client.onInsertEnter()")
         execute("autocmd! InsertLeave  " . ext . " " .
                \":" . s:python_command . " vimhdl_client.onInsertLeave()")
+        for event in ['CursorHold', 'CursorHoldI']
+            execute("autocmd! " . event . " " . ext . " :SyntasticCheck")
+        endfor
     endfor
 endfunction
 " }
-" { vimhdl#setup() Setup Vim's Python environment to call vim-hdl within Vim
+" { vimhdl#setup() Main setup runner (calls all setup functions)
 " ============================================================================
 function! vimhdl#setup()
     if !(exists('g:vimhdl_loaded') && g:vimhdl_loaded)
@@ -134,7 +137,7 @@ function! vimhdl#setup()
 
 endfunction
 " }
-" { vimhdl#PrintInfo() Setup Vim's Python environment to call vim-hdl within Vim
+" { vimhdl#PrintInfo() Print vimhdl debug information
 " ============================================================================
 function! s:PrintInfo()
   echom "vimhdl debug info"
@@ -144,7 +147,7 @@ function! s:PrintInfo()
   endfor
 endfunction
 " }
-" { vimhdl#RestartServer() Restart the hdlcc server
+" { vimhdl#RestartServer() Restarts the hdlcc server
 " ============================================================================
 function! s:RestartServer()
   echom "Restarting hdlcc server"
@@ -158,7 +161,8 @@ _logger.info("hdlcc restart done")
 EOF
 endfunction
 " }
-" { vimhdl#RestartServer() Restart the hdlcc server
+" { vimhdl#GetMessagesForCurrentBuffer() Gets the check messages for the
+" current buffer and dequeues UI messages
 " ============================================================================
 function! vimhdl#GetMessagesForCurrentBuffer()
     let loclist = []
