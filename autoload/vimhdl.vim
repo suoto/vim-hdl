@@ -42,6 +42,8 @@ endfunction
 " { vimhdl#setupPython() Setup Vim's Python environment to call vim-hdl within Vim
 " ============================================================================
 function! vimhdl#setupPython()
+    let python = s:using_python2 ? "python2" : "python3"
+
     exec s:python_until_eof
 import sys
 if 'vimhdl' not in sys.modules:
@@ -71,7 +73,7 @@ try:
     vimhdl_client
     _logger.warning("vimhdl client already exists, skiping")
 except NameError:
-    vimhdl_client = vimhdl.VimhdlClient()
+    vimhdl_client = vimhdl.VimhdlClient(python=vim.eval('python'))
 EOF
 endfunction
 " }
@@ -117,7 +119,7 @@ function! vimhdl#setup()
         let g:vimhdl_loaded = 1
         call vimhdl#setupPython()
         call vimhdl#setupCommands()
-        call vimhdl#setupHooks('*.vhd', '*.v', '*.sv')
+        call vimhdl#setupHooks('*.vhd', '*.vhdl', '*.v', '*.sv')
     endif
 
     if count(['vhdl', 'verilog', 'systemverilog'], &filetype)
@@ -147,7 +149,7 @@ function! s:RestartServer()
 _logger.info("Restarting hdlcc server")
 vimhdl_client.shutdown()
 del vimhdl_client
-vimhdl_client = vimhdl.VimhdlClient(log_level="WARNING")
+vimhdl_client = vimhdl.VimhdlClient()
 vimhdl_client.startServer()
 _logger.info("hdlcc restart done")
 EOF
