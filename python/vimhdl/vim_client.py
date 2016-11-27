@@ -35,6 +35,15 @@ _ON_WINDOWS = sys.platform == 'win32'
 
 _logger = logging.getLogger(__name__)
 
+def _sortKey(record):
+    """
+    Key for sorting records
+    """
+    return (ord(record['type']),
+            record['lnum'] if isinstance(record['lnum'], int) else 0,
+            record['col'] if isinstance(record['col'], int) else 0,
+            record['nr'] if isinstance(record['nr'], int) else 0)
+
 def _sortBuildMessages(records):
     """
     Sorts the build messages using Vim's terminology
@@ -45,7 +54,7 @@ def _sortBuildMessages(records):
                 record[key] = int(record[key])
             except ValueError:
                 pass
-    records.sort(key=lambda x: (x['type'], x['lnum'], x['col'], x['nr']))
+    records.sort(key=_sortKey)
     return records
 
 class VimhdlClient(object):
@@ -58,6 +67,8 @@ class VimhdlClient(object):
         self._logger.info("Creating vimhdl client object...")
 
         self._server = None
+        # Store constructor args
+        self._python = options.get('python', 'python')
         self._host = options.get('host', 'localhost')
         self._port = options.get('port', vim_helpers.getUnusedLocalhostPort())
         self._log_level = str(options.get('log_level', 'DEBUG'))
@@ -114,7 +125,8 @@ class VimhdlClient(object):
         hdlcc_server = p.join(vimhdl_path, 'dependencies', 'hdlcc', 'hdlcc',
                               'hdlcc_server.py')
 
-        cmd = [hdlcc_server,
+        cmd = [self._python,
+               hdlcc_server,
                '--host', self._host,
                '--port', str(self._port),
                '--stdout', '/tmp/hdlcc-stdout.log',
@@ -123,7 +135,7 @@ class VimhdlClient(object):
                '--log-level', self._log_level,
                '--log-stream', self._log_stream]
 
-        self._logger.info("Starting hdlcc server with '%s'", " ".join(cmd))
+        self._logger.info("Starting hdlcc server with '%s'", cmd)
 
         try:
             if _ON_WINDOWS:
@@ -218,23 +230,22 @@ class VimhdlClient(object):
 
         messages = []
         for message in response.json().get('messages', []):
+            text = (str(message['error_message']) or '').replace("'", '"')
             vim_fmt_dict = {
                 'lnum'     : str(message['line_number']) or '-1',
                 'bufnr'    : str(vim_buffer.number),
                 'filename' : str(message['filename']) or vim_buffer.name,
                 'valid'    : '1',
-                'text'     : str(message['error_message']) or '<none>',
+                'text'     : text,
                 'nr'       : str(message['error_number']) or '0',
                 'type'     : str(message['error_type']) or 'E',
-                'col'      : str(message['column']) or '0'
-            }
+                'col'      : str(message['column']) or '0'}
             try:
                 vim_fmt_dict['subtype'] = str(message['error_subtype'])
             except KeyError:
                 pass
 
             _logger.info(vim_fmt_dict)
-
             messages.append(vim_fmt_dict)
 
         self.requestUiMessages('getMessages')
@@ -242,8 +253,13 @@ class VimhdlClient(object):
         if vim_var is None:
             return _sortBuildMessages(messages)
 
-        vim.command('let {0} = {1}'.format(vim_var,
-                                           _sortBuildMessages(messages)))
+        try:
+            vim.command('let {0} = {1}'.format(vim_var,
+                                               _sortBuildMessages(messages)))
+        except:  # pylint: disable=bare-except
+            self._logger.exception("Error decoding some messages")
+            self._postError("Error decoding some messages")
+
 
     def requestUiMessages(self, event):
         """Retrieves UI messages from the server and post them with the
@@ -338,5 +354,3 @@ class VimhdlClient(object):
                                 path=vim.current.buffer.name)
 
         request.sendRequestAsync(self._handleAsyncRequest)
-
-

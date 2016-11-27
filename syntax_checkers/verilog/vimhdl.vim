@@ -36,7 +36,7 @@ set cpo&vim
 
 " { vimhdl availability checker
 function! SyntaxCheckers_verilog_vimhdl_IsAvailable() dict
-    if has('python')
+    if has('python') || has('python3')
         return 1
     endif
     return 0
@@ -50,7 +50,6 @@ endfunction
 
 " { Register vimhdl within Syntastic
 call g:SyntasticRegistry.CreateAndRegisterChecker({
-    \ 'exec'     : '',
     \ 'filetype' : 'verilog',
     \ 'name'     : 'vimhdl'})
 " }

@@ -24,7 +24,7 @@ which should result in the static checker saying it is not used
   :write
   ~ "source.vhd" \d+L, \d+C written (regex)
   :lopen
-  source.vhd|38 col \d+ warning| signal 'unused' is never used (regex)
+  source.vhd|38 col \d+ warning| signal "unused" is never used (regex)
 
 Jump from the quickfix list and check if we move to the line that has the error
   > <CR> (1.0)

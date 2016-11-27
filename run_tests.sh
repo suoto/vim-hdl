@@ -40,7 +40,7 @@ if [ -z "${CI}" ]; then
 
   VIRTUAL_ENV_DEST=~/dev/vimhdl_venv
   if [ -z "${TRAVIS_PYTHON_VERSION}" ]; then
-    TRAVIS_PYTHON_VERSION=2.7
+    TRAVIS_PYTHON_VERSION=3.5
     PYTHON=python${TRAVIS_PYTHON_VERSION}
   else
     PYTHON=python
@@ -80,7 +80,13 @@ function _setup_vroom {
   fi
 
   python3 setup.py build
-  python3 setup.py install --user
+
+  set +e
+  python3 setup.py install
+  if [ "$?" != "0" ]; then
+    set -e
+    python3 setup.py install --user
+  fi
 
   cd "${START_PATH}"
 }
@@ -99,7 +105,12 @@ function _install_packages {
   pip install -r ./.ci/requirements.txt
   pip install -e ./dependencies/hdlcc/
 
-  pip3 install neovim==0.1.10 --user
+  set +e
+  pip3 install neovim==0.1.10
+  if [ "$?" != "0" ]; then
+    set -e
+    pip3 install neovim==0.1.10 --user
+  fi
 }
 
 function _cleanup_if_needed {

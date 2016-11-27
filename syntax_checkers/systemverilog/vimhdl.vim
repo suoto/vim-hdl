@@ -36,7 +36,7 @@ set cpo&vim
 
 " { vimhdl availability checker
 function! SyntaxCheckers_systemverilog_vimhdl_IsAvailable() dict
-    if has('python')
+    if has('python') || has('python3')
         return 1
     endif
     return 0
