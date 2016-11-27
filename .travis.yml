@@ -13,7 +13,7 @@ env:
     - CI_TARGET=vim    VERSION=v7.4.1593
     - CI_TARGET=vim    VERSION=v8.0.0001
     - CI_TARGET=vim    VERSION=master
-    - CI_TARGET=neovim VERSION=0.1.5
+    - CI_TARGET=neovim VERSION=0.1.6
     - CI_TARGET=neovim VERSION=master
 
 addons:
