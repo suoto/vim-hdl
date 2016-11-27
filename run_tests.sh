@@ -80,7 +80,13 @@ function _setup_vroom {
   fi
 
   python3 setup.py build
-  python3 setup.py install #--user
+
+  set +e
+  python3 setup.py install
+  if [ "$?" != "0" ]; then
+    python3 setup.py install --user
+  fi
+  set -e
 
   cd "${START_PATH}"
 }
@@ -99,10 +105,12 @@ function _install_packages {
   pip install -r ./.ci/requirements.txt
   pip install -e ./dependencies/hdlcc/
 
+  set +e
   pip3 install neovim==0.1.10 #--user
   if [ "$?" != "0" ]; then
     pip3 install neovim==0.1.10 --user
   fi
+  set -e
 }
 
 function _cleanup_if_needed {
