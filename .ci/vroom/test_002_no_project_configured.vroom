@@ -28,6 +28,6 @@ which should result in the static checker saying it is not used
   > o signal unused : integer;<ESC>
   :w
   :silent! lopen
-  \s*source.vhd|43 col 13 warning| signal 'unused' is never used (regex)
+  \s*source.vhd|43 col 13 warning| signal "unused" is never used (regex)
   :echo delete('source.vhd')
 
