@@ -77,7 +77,7 @@ except NameError:
 EOF
 endfunction
 " }
-" { vimhdl#setupCommands() Setup Vim's Python environment to call vim-hdl within Vim
+" { vimhdl#setupCommands() Setup Vim commands to interact with vim-hdl
 " ============================================================================
 function! vimhdl#setupCommands()
     command! VimhdlInfo           call s:PrintInfo()
@@ -93,7 +93,7 @@ function! vimhdl#setupCommands()
     " command! -nargs=? VimhdlRemoveSourceFromLibrary call vimhdl#removeSourceFromLibrary(<f-args>)
 endfunction
 " }
-" { vimhdl#setupHooks() Setup Vim's Python environment to call vim-hdl within Vim
+" { vimhdl#setupHooks() Setup filetype hooks
 " ============================================================================
 function! vimhdl#setupHooks(...)
     for ext in a:000
@@ -112,7 +112,7 @@ function! vimhdl#setupHooks(...)
     endfor
 endfunction
 " }
-" { vimhdl#setup() Setup Vim's Python environment to call vim-hdl within Vim
+" { vimhdl#setup() Main vim-hdl setup
 " ============================================================================
 function! vimhdl#setup()
     if !(exists('g:vimhdl_loaded') && g:vimhdl_loaded)
@@ -131,7 +131,7 @@ function! vimhdl#setup()
 
 endfunction
 " }
-" { vimhdl#PrintInfo() Setup Vim's Python environment to call vim-hdl within Vim
+" { vimhdl#PrintInfo() Handle for VimHdlInfo command
 " ============================================================================
 function! s:PrintInfo()
   echom "vimhdl debug info"
@@ -141,15 +141,16 @@ function! s:PrintInfo()
   endfor
 endfunction
 " }
-" { vimhdl#RestartServer() Restart the hdlcc server
+" { vimhdl#RestartServer() Handle for VimHdlRestartServer command
 " ============================================================================
 function! s:RestartServer()
   echom "Restarting hdlcc server"
-    exec s:python_until_eof
+  let python = s:using_python2 ? "python2" : "python3"
+  exec s:python_until_eof
 _logger.info("Restarting hdlcc server")
 vimhdl_client.shutdown()
 del vimhdl_client
-vimhdl_client = vimhdl.VimhdlClient()
+vimhdl_client = vimhdl.VimhdlClient(python=vim.eval('python'))
 vimhdl_client.startServer()
 _logger.info("hdlcc restart done")
 EOF
