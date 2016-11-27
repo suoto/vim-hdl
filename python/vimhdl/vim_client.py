@@ -35,6 +35,15 @@ _ON_WINDOWS = sys.platform == 'win32'
 
 _logger = logging.getLogger(__name__)
 
+def _sortKey(record):
+    """
+    Key for sorting records
+    """
+    return (ord(record['type']),
+            record['lnum'] if isinstance(record['lnum'], int) else 0,
+            record['col'] if isinstance(record['col'], int) else 0,
+            record['nr'] if isinstance(record['nr'], int) else 0)
+
 def _sortBuildMessages(records):
     """
     Sorts the build messages using Vim's terminology
@@ -45,7 +54,7 @@ def _sortBuildMessages(records):
                 record[key] = int(record[key])
             except ValueError:
                 pass
-    records.sort(key=lambda x: (x['type'], x['lnum'], x['col'], x['nr']))
+    records.sort(key=_sortKey)
     return records
 
 class VimhdlClient(object):
@@ -221,13 +230,13 @@ class VimhdlClient(object):
 
         messages = []
         for message in response.json().get('messages', []):
-            #  text = (str(message['error_message']) or '').replace("'", '"')
+            text = (str(message['error_message']) or '').replace("'", '"')
             vim_fmt_dict = {
                 'lnum'     : str(message['line_number']) or '-1',
                 'bufnr'    : str(vim_buffer.number),
                 'filename' : str(message['filename']) or vim_buffer.name,
                 'valid'    : '1',
-                'text'     : str(message['error_message'] or ''),
+                'text'     : text,
                 'nr'       : str(message['error_number']) or '0',
                 'type'     : str(message['error_type']) or 'E',
                 'col'      : str(message['column']) or '0'}
