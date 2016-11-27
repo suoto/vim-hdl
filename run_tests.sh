@@ -100,6 +100,9 @@ function _install_packages {
   pip install -e ./dependencies/hdlcc/
 
   pip3 install neovim==0.1.10 #--user
+  if [ "$?" != "0" ]; then
+    pip3 install neovim==0.1.10 --user
+  fi
 }
 
 function _cleanup_if_needed {
