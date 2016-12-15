@@ -43,6 +43,7 @@ endfunction
 " ============================================================================
 function! vimhdl#setupPython()
     let python = s:using_python2 ? "python2" : "python3"
+    let log_level = get(g:, 'vimhdl_log_level', 'INFO')
 
     exec s:python_until_eof
 import sys
@@ -73,7 +74,8 @@ try:
     vimhdl_client
     _logger.warning("vimhdl client already exists, skiping")
 except NameError:
-    vimhdl_client = vimhdl.VimhdlClient(python=vim.eval('python'))
+    vimhdl_client = vimhdl.VimhdlClient(python=vim.eval('python'),
+                                        log_level=vim.eval('log_level'))
 EOF
 endfunction
 " }
@@ -146,11 +148,13 @@ endfunction
 function! s:RestartServer()
   echom "Restarting hdlcc server"
   let python = s:using_python2 ? "python2" : "python3"
+  let log_level = get(g:, 'vimhdl_log_level', 'INFO')
   exec s:python_until_eof
 _logger.info("Restarting hdlcc server")
 vimhdl_client.shutdown()
 del vimhdl_client
-vimhdl_client = vimhdl.VimhdlClient(python=vim.eval('python'))
+vimhdl_client = vimhdl.VimhdlClient(python=vim.eval('python'),
+                                    log_level=vim.eval('log_level'))
 vimhdl_client.startServer()
 _logger.info("hdlcc restart done")
 EOF
