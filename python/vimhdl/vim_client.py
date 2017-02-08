@@ -29,7 +29,8 @@ import vimhdl
 import vimhdl.vim_helpers as vim_helpers
 from vimhdl.base_requests import (RequestMessagesByPath, RequestQueuedMessages,
                                   RequestHdlccInfo, RequestProjectRebuild,
-                                  OnBufferVisit, OnBufferLeave)
+                                  OnBufferVisit, OnBufferLeave,
+                                  GetDependencies)
 
 _ON_WINDOWS = sys.platform == 'win32'
 
@@ -57,7 +58,7 @@ def _sortBuildMessages(records):
     records.sort(key=_sortKey)
     return records
 
-class VimhdlClient(object):
+class VimhdlClient(object):  #pylint: disable=too-many-instance-attributes
     """
     Point of entry of Vim commands
     """
@@ -156,12 +157,12 @@ class VimhdlClient(object):
         """
         Wait for ~10s until the server is actually responding
         """
-        for _ in range(10):
-            time.sleep(0.1)
+        for _ in range(20):
+            time.sleep(0.5)
             request = RequestHdlccInfo(self._host, self._port)
-            reply = request.sendRequest()
-            self._logger.debug(reply)
-            if reply:
+            response = request.sendRequest()
+            self._logger.debug(response)
+            if response:
                 self._logger.info("Ok, server is really up")
                 return
             else:
@@ -354,3 +355,30 @@ class VimhdlClient(object):
                                 path=vim.current.buffer.name)
 
         request.sendRequestAsync(self._handleAsyncRequest)
+
+    def getDependencies(self):
+        """
+        Gets the dependencies for a given path
+        """
+        self._postQueuedMessages()
+
+        if not self._isServerAlive():
+            return
+
+        project_file = vim_helpers.getProjectFile()
+
+        request = GetDependencies(self._host,
+                                  self._port,
+                                  project_file=project_file,
+                                  path=vim.current.buffer.name)
+
+        response = request.sendRequest()
+        if response is not None:
+            self._logger.debug("Response: %s", str(response.json()['dependencies']))
+
+            return "\n".join(
+                ["Dependencies for %s" % vim.current.buffer.name] +
+                ["- %s" % x for x in response.json()['dependencies']])
+        else:
+            return "Source has no dependencies"
+

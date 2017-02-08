@@ -80,9 +80,10 @@ endfunction
 " { vimhdl#setupCommands() Setup Vim commands to interact with vim-hdl
 " ============================================================================
 function! vimhdl#setupCommands()
-    command! VimhdlInfo           call s:PrintInfo()
-    command! VimhdlRebuildProject :py vimhdl_client.rebuildProject()
-    command! VimhdlRestartServer  call s:RestartServer()
+    command! VimhdlInfo              call s:PrintInfo()
+    command! VimhdlPrintDependencies call s:printDependencies()
+    command! VimhdlRebuildProject    :py vimhdl_client.rebuildProject()
+    command! VimhdlRestartServer     call s:RestartServer()
 
     " command! VimhdlListLibraries                   call vimhdl#listLibraries()
     " command! VimhdlListLibrariesAndSources         call vimhdl#listLibrariesAndSources()
@@ -156,7 +157,7 @@ _logger.info("hdlcc restart done")
 EOF
 endfunction
 " }
-" { vimhdl#RestartServer() Restart the hdlcc server
+" { vimhdl#GetMessagesForCurrentBuffer() 
 " ============================================================================
 function! vimhdl#GetMessagesForCurrentBuffer()
     let loclist = []
@@ -167,6 +168,15 @@ except:
     _logger.exception("Error getting messages")
 EOF
     return loclist
+endfunction
+"}
+" { vimhdl#printDependencies()
+" ============================================================================
+function! s:printDependencies()
+  let dependencies = s:Pyeval('vimhdl_client.getDependencies()')
+  for line in split( dependencies, "\n" )
+    echom line
+  endfor
 endfunction
 "}
 

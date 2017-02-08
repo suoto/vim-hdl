@@ -153,3 +153,13 @@ class OnBufferLeave(BaseRequest):
         super(OnBufferLeave, self).__init__(
             host, port, project_file=project_file, path=path)
 
+class GetDependencies(BaseRequest):
+    """
+    Notifies the server that a buffer has been left
+    """
+    _meth = 'get_dependencies'
+
+    def __init__(self, host, port, project_file, path):
+        super(GetDependencies, self).__init__(
+            host, port, project_file=project_file, path=path)
+
