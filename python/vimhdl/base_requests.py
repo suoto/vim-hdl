@@ -86,7 +86,7 @@ class BaseRequest(object):
         # This issue is being discussed at the requests repo on GitHub
         # https://github.com/kennethreitz/requests/issues/2887
         except (requests.RequestException, requests.ConnectionError,
-                requests.packages.urllib3.exceptions.NewConnectionError) as exc:
+                requests.packages.urllib3.exceptions.HTTPError) as exc:
             _logger.warning("Sending request '%s' raised exception: '%s'",
                             str(self), str(exc))
             return
