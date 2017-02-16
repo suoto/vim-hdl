@@ -82,7 +82,7 @@ endfunction
 function! vimhdl#setupCommands()
     command! VimhdlInfo              call s:PrintInfo()
     command! VimhdlPrintDependencies call s:printDependencies()
-    command! VimhdlRebuildProject    :py vimhdl_client.rebuildProject()
+    command! VimhdlRebuildProject    call s:Pyeval('vimhdl_client.rebuildProject()')
     command! VimhdlRestartServer     call s:RestartServer()
 
     " command! VimhdlListLibraries                   call vimhdl#listLibraries()
