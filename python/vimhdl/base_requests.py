@@ -163,3 +163,13 @@ class GetDependencies(BaseRequest):
         super(GetDependencies, self).__init__(
             host, port, project_file=project_file, path=path)
 
+class GetBuildSequence(BaseRequest):
+    """
+    Notifies the server that a buffer has been left
+    """
+    _meth = 'get_build_sequence'
+
+    def __init__(self, host, port, project_file, path):
+        super(GetBuildSequence, self).__init__(
+            host, port, project_file=project_file, path=path)
+

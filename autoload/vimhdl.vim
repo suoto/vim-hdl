@@ -32,7 +32,7 @@ let s:using_python2 = vimhdl#UsingPython2()
 let s:python_until_eof = s:using_python2 ? "python << EOF" : "python3 << EOF"
 let s:python_command = s:using_python2 ? "py " : "py3 "
 
-function! s:Pyeval( eval_string ) "{ Inspired on YCM
+function! s:pyEval( eval_string ) "{ Inspired on YCM
   if s:using_python2
     return pyeval( a:eval_string )
   endif
@@ -80,15 +80,11 @@ endfunction
 " { vimhdl#setupCommands() Setup Vim commands to interact with vim-hdl
 " ============================================================================
 function! vimhdl#setupCommands()
-    command! VimhdlInfo              call s:PrintInfo()
+    command! VimhdlInfo              call s:printInfo()
     command! VimhdlPrintDependencies call s:printDependencies()
-    command! VimhdlRebuildProject    call s:Pyeval('vimhdl_client.rebuildProject()')
-    command! VimhdlRestartServer     call s:RestartServer()
-
-    " command! VimhdlListLibraries                   call vimhdl#listLibraries()
-    " command! VimhdlListLibrariesAndSources         call vimhdl#listLibrariesAndSources()
-    " command! VimhdlViewLog                         call vimhdl#viewLog()
-    " command! VimhdlCleanProjectCache               call vimhdl#cleanProjectCache()
+    command! VimhdlRebuildProject    call s:pyEval('vimhdl_client.rebuildProject()')
+    command! VimhdlRestartServer     call s:restartServer()
+    command! VimhdlViewBuildSequence call s:printBuildSequence()
 
     " command! -nargs=? VimhdlAddSourceToLibrary call vimhdl#addSourceToLibrary(<f-args>)
     " command! -nargs=? VimhdlRemoveSourceFromLibrary call vimhdl#removeSourceFromLibrary(<f-args>)
@@ -126,7 +122,7 @@ function! vimhdl#setup()
     if count(['vhdl', 'verilog', 'systemverilog'], &filetype)
         if !(exists('g:vimhdl_server_started') && g:vimhdl_server_started)
             let g:vimhdl_server_started = 1
-            call s:Pyeval('vimhdl_client.startServer()')
+            call s:pyEval('vimhdl_client.startServer()')
         endif
     endif
 
@@ -134,9 +130,9 @@ endfunction
 " }
 " { vimhdl#PrintInfo() Handle for VimHdlInfo command
 " ============================================================================
-function! s:PrintInfo()
+function! s:printInfo()
   echom "vimhdl debug info"
-  let debug_info = s:Pyeval('vimhdl_client.getVimhdlInfo()')
+  let debug_info = s:pyEval('vimhdl_client.getVimhdlInfo()')
   for line in split( debug_info, "\n" )
     echom line
   endfor
@@ -144,7 +140,7 @@ endfunction
 " }
 " { vimhdl#RestartServer() Handle for VimHdlRestartServer command
 " ============================================================================
-function! s:RestartServer()
+function! s:restartServer()
   echom "Restarting hdlcc server"
   let python = s:using_python2 ? "python2" : "python3"
   exec s:python_until_eof
@@ -170,11 +166,20 @@ EOF
     return loclist
 endfunction
 "}
-" { vimhdl#printDependencies()
+" { vimhdl#listDependencies()
 " ============================================================================
 function! s:printDependencies()
-  let dependencies = s:Pyeval('vimhdl_client.getDependencies()')
-  for line in split( dependencies, "\n" )
+  let dependencies = s:pyEval('vimhdl_client.getDependencies()')
+  for line in split(dependencies, "\n")
+    echom line
+  endfor
+endfunction
+"}
+" { vimhdl#listBuildSequence()
+" ============================================================================
+function! s:printBuildSequence()
+  let sequence = s:pyEval('vimhdl_client.getBuildSequence()')
+  for line in split(sequence, "\n")
     echom line
   endfor
 endfunction

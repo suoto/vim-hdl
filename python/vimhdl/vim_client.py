@@ -30,7 +30,7 @@ import vimhdl.vim_helpers as vim_helpers
 from vimhdl.base_requests import (RequestMessagesByPath, RequestQueuedMessages,
                                   RequestHdlccInfo, RequestProjectRebuild,
                                   OnBufferVisit, OnBufferLeave,
-                                  GetDependencies)
+                                  GetDependencies, GetBuildSequence)
 
 _ON_WINDOWS = sys.platform == 'win32'
 
@@ -318,6 +318,7 @@ class VimhdlClient(object):  #pylint: disable=too-many-instance-attributes
             return "hdlcc server is not running"
 
         self._logger.info("Response: %s", repr(response))
+
     def onBufferVisit(self):
         """
         Notifies the hdlcc server that Vim user has entered the current
@@ -381,4 +382,36 @@ class VimhdlClient(object):  #pylint: disable=too-many-instance-attributes
                 ["- %s" % x for x in response.json()['dependencies']])
         else:
             return "Source has no dependencies"
+
+    def getBuildSequence(self):
+        """
+        Gets the build sequence for the current path
+        """
+        self._postQueuedMessages()
+
+        if not self._isServerAlive():
+            return
+
+        project_file = vim_helpers.getProjectFile()
+
+        request = GetBuildSequence(self._host,
+                                   self._port,
+                                   project_file=project_file,
+                                   path=vim.current.buffer.name)
+
+        response = request.sendRequest()
+        if response is not None:
+            self._logger.debug("Response: %s", str(response.json()['sequence']))
+
+            sequence = response.json()['sequence']
+            if sequence:
+                i = 1
+                msg = ["Build sequence for %s\n" % vim.current.buffer.name]
+                for i in range(len(sequence)):  # pylint:disable=consider-using-enumerate
+                    msg += ["%d: %s" % (i, sequence[i])]
+                return '\n'.join(msg)
+            else:
+                return "Build sequence is empty"
+        else:
+            return ""
 
