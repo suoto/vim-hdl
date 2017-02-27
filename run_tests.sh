@@ -173,6 +173,8 @@ _setup_dotfiles
 if [ "${CI_TARGET}" == "vim" ]; then vim --version; fi
 if [ "${CI_TARGET}" == "neovim" ]; then nvim --version; fi
 
+echo "Terminal size is $COLUMNS x $LINES"
+
 set +xe
 python -m coverage run -m nose2 -s .ci/ "${RUNNER_ARGS[@]}"
 RESULT=$?

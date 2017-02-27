@@ -262,5 +262,16 @@ with such.A('vim-hdl test') as it:
             _logger.exception("Excepion caught while testing")
             it.fail("Test failed: %s" % case)
 
+    @it.should("get dependencies and build sequence")
+    def test(case):
+        vroom_test = p.join(PATH_TO_TESTS,
+                            "test_008_get_dependencies_and_build_sequence.vroom")
+        try:
+            subp.check_call(getTestCommand(vroom_test))
+        except subp.CalledProcessError:
+            _logger.exception("Excepion caught while testing")
+            it.fail("Test failed: %s" % case)
+
+
 it.createTests(globals())
 

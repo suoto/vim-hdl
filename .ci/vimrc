@@ -40,7 +40,7 @@ let g:syntastic_vhdl_vimhdl_sort = 0
 let g:syntastic_vhdl_checkers = ['vimhdl']
 
 " To avoid Press "ENTER..." message
-set cmdheight=10
+set cmdheight=12
 
 function! s:SetupPythonEnv() abort
 

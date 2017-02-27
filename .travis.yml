@@ -8,6 +8,8 @@ env:
     - CACHE=${HOME}/cache
     - GHDL_HOST="http://downloads.sourceforge.net/project/ghdl-updates/Builds"
     - GHDL_URL="${GHDL_HOST}/ghdl-0.33/ghdl-0.33-x86_64-linux.tgz"
+    - COLUMNS=80
+    - LINES=50
   matrix:
     # - CI_TARGET=vim    VERSION=v7.4
     - CI_TARGET=vim    VERSION=v7.4.1593
