@@ -20,18 +20,17 @@
 "============================================================================
 
 " { Pre setup
-if exists("g:loaded_syntastic_vhdl_vimhdl_checker")
+if exists('g:loaded_syntastic_vhdl_vimhdl_checker')
     finish
 endif
 let g:loaded_syntastic_vhdl_vimhdl_checker = 1
 
-
-if !exists("g:syntastic_vhdl_vimhdl_sort")
+if !exists('g:syntastic_vhdl_vimhdl_sort')
     let g:syntastic_vhdl_vimhdl_sort = 0 " vim-hdl returns sorted messages
 endif
 
-let s:save_cpo = &cpo
-set cpo&vim
+let s:save_cpo = &cpoptions
+set cpoptions&vim
 " }
 
 " { vimhdl availability checker
@@ -54,7 +53,7 @@ call g:SyntasticRegistry.CreateAndRegisterChecker({
     \ 'name'     : 'vimhdl'})
 " }
 
-let &cpo = s:save_cpo
+let &cpoptions = s:save_cpo
 unlet s:save_cpo
 
 " vim: set foldmarker={,} foldlevel=0 foldmethod=marker :
