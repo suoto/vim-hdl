@@ -307,6 +307,10 @@ class VimhdlClient(object):  #pylint: disable=too-many-instance-attributes
         """
         Rebuilds the current project
         """
+        if vim.eval('&filetype') not in ('vhdl', 'verilog', 'systemverilog'):
+            vim_helpers.postVimWarning("Not a VHDL file, can't rebuild")
+            return
+
         vim_helpers.postVimInfo("Rebuilding project...")
         project_file = vim_helpers.getProjectFile()
         request = RequestProjectRebuild(host=self._host, port=self._port,

@@ -32,7 +32,6 @@ endif
 let s:save_cpo = &cpoptions
 set cpoptions&vim
 " }
-
 " { vimhdl availability checker
 function! SyntaxCheckers_systemverilog_vimhdl_IsAvailable() dict
     if has('python') || has('python3')
@@ -43,7 +42,7 @@ endfunction
 
 " { vimhdl location list assembler
 function! SyntaxCheckers_systemverilog_vimhdl_GetLocList() dict
-    return vimhdl#GetMessagesForCurrentBuffer()
+    return vimhdl#getMessagesForCurrentBuffer()
 endfunction
 " }
 
