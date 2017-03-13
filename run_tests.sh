@@ -38,6 +38,10 @@ if [ -z "${CI}" ]; then
     CI_TARGET=vim
   fi
 
+  if [ -z "${NVIM_TUI_ENABLE_CURSOR_SHAPE}" ]; then
+    export NVIM_TUI_ENABLE_CURSOR_SHAPE=0
+  fi
+
   VIRTUAL_ENV_DEST=~/dev/vimhdl_venv
   if [ -z "${TRAVIS_PYTHON_VERSION}" ]; then
     TRAVIS_PYTHON_VERSION=3.5

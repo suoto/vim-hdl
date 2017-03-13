@@ -19,8 +19,8 @@ Wrapper for vim-hdl usage within Vim's Python interpreter
 """
 
 import logging
-import requests
 import threading
+import requests
 
 _logger = logging.getLogger(__name__)
 
