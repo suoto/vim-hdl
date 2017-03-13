@@ -14,12 +14,12 @@ elif [ ! -f "${NEOVIM_BUILD_DIR}/neovim-${VERSION}" ]; then
   # Other release tags we get from Neovim's releases archive
   wget "https://github.com/neovim/neovim/archive/v${VERSION}.tar.gz" \
     -O "${NEOVIM_BUILD_DIR}/neovim.tar.gz"
-  cd "${NEOVIM_BUILD_DIR}"
+  cd "${NEOVIM_BUILD_DIR}" || exit
   tar zxvf "neovim.tar.gz"
 fi
 
 if [ ! -f "${NEOVIM_BUILD_DIR}/neovim-${VERSION}/build/bin/nvim" ]; then
-  cd "${NEOVIM_BUILD_DIR}/neovim-${VERSION}"
+  cd "${NEOVIM_BUILD_DIR}/neovim-${VERSION}" || exit
   make clean
   make CMAKE_BUILD_TYPE=Release -j4
 fi
@@ -27,7 +27,7 @@ fi
 export PATH="${NEOVIM_BUILD_DIR}/neovim-${VERSION}/build/bin:${PATH}"
 export VIM="${NEOVIM_BUILD_DIR}/neovim-${VERSION}/runtime"
 
-cd "${TRAVIS_BUILD_DIR}"
+cd "${TRAVIS_BUILD_DIR}" || exit
 
 # Ensure the binary being selected is the one we want
 if [ ! "$(which nvim)" -ef "${NEOVIM_BUILD_DIR}/neovim-${VERSION}/build/bin/nvim" ]; then

@@ -14,6 +14,20 @@ engines:
     config:
       python_version: 2
       threshold: "C"
+  fixme:
+    enabled: true
+    checks:
+      FIXME:
+        enabled: false
+      TODO:
+        enabled: false
+      XXX:
+        enabled: false
 ratings:
   paths:
     - "**.py"
+exclude_paths:
+  - .ci/vimhdl_tests/*
+  - python/vimhdl/_version.py
+  - versioneer.py
+

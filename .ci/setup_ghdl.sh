@@ -6,13 +6,13 @@ set -x
 CURRENT=$(pwd)
 
 if [ ! -f "${CACHE}/ghdl/bin/ghdl" ]; then
-  mkdir -p ${CACHE}/ghdl
+  mkdir -p "${CACHE}/ghdl"
 
   # Setup GHDL
-  cd ${CACHE}/ghdl
-  wget ${GHDL_URL} -O ghdl.tar.gz
+  cd "${CACHE}/ghdl" || exit
+  wget "${GHDL_URL}" -O ghdl.tar.gz
   tar zxvf ghdl.tar.gz
 fi
 
-cd $CURRENT
+cd "$CURRENT"
 
