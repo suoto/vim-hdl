@@ -29,7 +29,7 @@ class BaseRequest(object):
     Base request object
     """
     _meth = ''
-    timeout = 3
+    timeout = 10
     _lock = threading.Lock()
 
     def __init__(self, host, port, **kwargs):

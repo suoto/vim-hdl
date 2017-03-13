@@ -33,10 +33,10 @@ let s:python_until_eof = s:using_python2 ? 'python << EOF' : 'python3 << EOF'
 let s:python_command = s:using_python2 ? 'py ' : 'py3 '
 
 function! s:pyEval( eval_string ) abort "{ Inspired on YCM
-    if s:using_python2
-        return pyeval( a:eval_string )
-    endif
-    return py3eval( a:eval_string )
+  if s:using_python2
+    return pyeval( a:eval_string )
+  endif
+  return py3eval( a:eval_string )
 endfunction
 "}
 "{ function!
@@ -48,7 +48,6 @@ endfunction
 " ============================================================================
 function! s:setupPython() abort
     let l:python = s:using_python2 ? 'python2' : 'python3'
-
     exec s:python_until_eof
 import sys
 if 'vimhdl' not in sys.modules:
@@ -118,7 +117,7 @@ function! s:printInfo() abort
     let l:debug_info = s:pyEval('vimhdl_client.getVimhdlInfo()')
     for l:line in split( l:debug_info, '\n' )
         echom l:line
-    endfor
+  endfor
 endfunction
 " }
 " { s:restartServer() Handle for VimHdlRestartServer command

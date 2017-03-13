@@ -16,7 +16,9 @@ Contents ~
 2.  User guide........................................|vimhdl-user-guide|
     2.1. Quickstart...................................|vimhdl-quickstart|
     2.2. Style check..................................|vimhdl-style-check|
-    2.3. Vim commands.................................|vimhdl-commands|
+3.  Options...........................................|vimhdl-options|
+    3.1. Configuration file...........................|vimhdl-config-file|
+    3.2. Logging level................................|vimhdl-log-level|
 
 ==============================================================================
 1. Intro                                                          *vimhdl-intro*
@@ -45,7 +47,7 @@ hdlcc automates tasks when possible. Currently, this means
 
 ------------------------------------------------------------------------------
 2.1. Quickstart                                              *vimhdl-quickstart*
-                                   *vimhdl-compilers-options* *vimhdl-config-file*
+                                                      *vimhdl-compilers-options*
 
 Vim-hdl requires a configuration file to begin with. The full project file
 documentation can be found at https://github.com/suoto/hdlcc/wiki. The quick
@@ -89,6 +91,40 @@ Use this command if you feel either |vimhdl| or |hdlcc| seem to be
 misbehaving. This will cause |hdlcc| to clean up both the project cache and the
 target folder and restar building the project from scratch. Please note that
 on project with large numbers of files this can be lengthy.
+
+==============================================================================
+3. Options                                                      *vimhdl-options*
+
+------------------------------------------------------------------------------
+3.1. Configuration file                                     *vimhdl-config-file*
+
+                                     *'b:vimhdl_conf_file'* *'g:vimhdl_conf_file'*
+
+Type: string
+Default: <unset>
+See |vimhdl-quickstart| for a quick intro or a more complete version on GitHub
+at https://github.com/suoto/hdlcc/wiki.
+
+Usage:
+    let g:vimhdl_conf_file = '<path/to/config/file>'
+or
+    let b:vimhdl_conf_file = '<path/to/config/file>'
+
+Note that b:vimhdl_conf_file have preference over g:vimhdl_conf_file.
+
+------------------------------------------------------------------------------
+3.2. Logging level                                            *vimhdl-log-level*
+
+                                                          *'g:vimhdl_log_level'*
+
+Type: string
+Default: 'INFO'
+Select the debug level from the |hdlcc| server instance. Valid values are
+CRITICAL, ERROR, WARNING, INFO and DEBUG. The log level is placed at
+"/tmp/hdlcc.log"
+
+    let g:vimhdl_log_level = 'INFO'
+
 
 ==============================================================================
 
