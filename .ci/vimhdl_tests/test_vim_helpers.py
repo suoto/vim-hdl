@@ -28,7 +28,6 @@ try:  # Python 3.x
 except ImportError:  # Python 2.x
     import mock
 
-
 _CI = os.environ.get("CI", None) is not None
 
 _logger = logging.getLogger(__name__)
@@ -46,6 +45,7 @@ _setupPaths()
 from vimhdl_tests.vim_mock import mockVim
 mockVim()
 import vim
+import vimhdl  # pylint: disable=unused-import
 import vimhdl.vim_helpers as vim_helpers
 # pylint: enable=import-error,wrong-import-position
 
@@ -137,6 +137,7 @@ with such.A('vim_helpers module') as it:
                                           _getVimGlobals)
             it._local_patch = mock.patch('vimhdl.vim_helpers._getBufferVars',
                                          _getBufferVars)
+
             it._global_patch.start()
             it._local_patch.start()
 

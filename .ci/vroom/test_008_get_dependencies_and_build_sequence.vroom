@@ -1,0 +1,43 @@
+Macro that checks if the quickfix is empty
+  @macro (assert_qf_empty)
+  :echom &ft
+  ~ vhdl
+  :silent! SyntasticCheck
+  :silent! lopen
+  :echom getline('.')
+  &
+  :quit
+  @endmacro
+
+Macro that checks if vimhdl is enabled
+  @macro (vimhdl_check)
+  :SyntasticInfo
+  ~ Syntastic version:.* (regex)
+  ~ Info for filetype: vhdl
+  ~ Global mode: active
+  ~ Filetype vhdl is active
+  ~ The current file will be checked automatically
+  ~ Available checker(s:|:)\s*.*\bvimhdl\b.* (regex)
+  ~ Currently enabled checker(s:|:)\s*.*\bvimhdl\b.* (regex)
+  @endmacro
+
+Edit different files under the same project
+  :let g:vimhdl_conf_file = getcwd() . '/../hdlcc_ci/hdl_lib/ghdl.prj'
+  :cd ../hdlcc_ci/hdl_lib
+  :edit common_lib/edge_detector.vhd
+  @do (vimhdl_check)
+
+  :VimhdlPrintDependencies
+  ~ Dependencies for .*/edge_detector.vhd (regex)
+  ~ - ieee.std_logic_1164
+  ~ - common_lib.common_pkg
+  ~ - common_lib.synchronizer
+  ~ - common_lib.sr_delay
+
+  :VimhdlViewBuildSequence
+  ~ Build sequence for .*/edge_detector.vhd (regex)
+  ~ 0: .*/hdl_lib/common_lib/common_pkg.vhd (regex)
+  ~ 1: .*/hdl_lib/common_lib/synchronizer.vhd (regex)
+  ~ 2: .*/hdl_lib/common_lib/sr_delay.vhd (regex)
+
+

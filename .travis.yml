@@ -8,12 +8,15 @@ env:
     - CACHE=${HOME}/cache
     - GHDL_HOST="http://downloads.sourceforge.net/project/ghdl-updates/Builds"
     - GHDL_URL="${GHDL_HOST}/ghdl-0.33/ghdl-0.33-x86_64-linux.tgz"
+    - COLUMNS=80
+    - LINES=50
+    - NVIM_TUI_ENABLE_CURSOR_SHAPE=0
   matrix:
     # - CI_TARGET=vim    VERSION=v7.4
     - CI_TARGET=vim    VERSION=v7.4.1593
     - CI_TARGET=vim    VERSION=v8.0.0001
     - CI_TARGET=vim    VERSION=master
-    - CI_TARGET=neovim VERSION=0.1.6
+    - CI_TARGET=neovim VERSION=0.1.7
     - CI_TARGET=neovim VERSION=master
 
 addons:

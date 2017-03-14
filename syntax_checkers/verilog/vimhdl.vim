@@ -20,20 +20,18 @@
 "============================================================================
 
 " { Pre setup
-if exists("g:loaded_syntastic_verilog_vimhdl_checker")
+if exists('g:loaded_syntastic_verilog_vimhdl_checker')
     finish
 endif
 let g:loaded_syntastic_verilog_vimhdl_checker = 1
 
-
-if !exists("g:syntastic_verilog_vimhdl_sort")
+if !exists('g:syntastic_verilog_vimhdl_sort')
     let g:syntastic_verilog_vimhdl_sort = 0 " vim-hdl returns sorted messages
 endif
 
-let s:save_cpo = &cpo
-set cpo&vim
+let s:save_cpo = &cpoptions
+set cpoptions&vim
 " }
-
 " { vimhdl availability checker
 function! SyntaxCheckers_verilog_vimhdl_IsAvailable() dict
     if has('python') || has('python3')
@@ -44,7 +42,7 @@ endfunction
 
 " { vimhdl location list assembler
 function! SyntaxCheckers_verilog_vimhdl_GetLocList() dict
-    return vimhdl#GetMessagesForCurrentBuffer()
+    return vimhdl#getMessagesForCurrentBuffer()
 endfunction
 " }
 
@@ -54,7 +52,7 @@ call g:SyntasticRegistry.CreateAndRegisterChecker({
     \ 'name'     : 'vimhdl'})
 " }
 
-let &cpo = s:save_cpo
+let &cpoptions = s:save_cpo
 unlet s:save_cpo
 
 " vim: set foldmarker={,} foldlevel=0 foldmethod=marker :

@@ -8,8 +8,8 @@ if [ ! -d "${CACHE}/vim-${VERSION}" ]; then
 fi
 
 
-if [ ! -f "${CACHE}/vim-${VERSION}/src/vim" -o "${VERSION}" == "master" ]; then
-  cd "${CACHE}/vim-${VERSION}"
+if [ ! -f "${CACHE}/vim-${VERSION}/src/vim" || "${VERSION}" == "master" ]; then
+  cd "${CACHE}/vim-${VERSION}" || exit
   if [ "${VERSION}" == "master" ]; then
     # If we're testing the latest Vim version, we only pull the latest changes
     git clean -fdx
@@ -26,7 +26,7 @@ fi
 export PATH=${CACHE}/vim-${VERSION}/src:$PATH
 export VIMRUNTIME=${CACHE}/vim-${VERSION}/runtime
 
-cd "${TRAVIS_BUILD_DIR}"
+cd "${TRAVIS_BUILD_DIR}" || exit
 
 # Ensure the binary being selected is the one we want
 if [ ! "$(which vim)" -ef "${CACHE}/vim-${VERSION}/src/vim" ]; then
