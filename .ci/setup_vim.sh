@@ -8,7 +8,7 @@ if [ ! -d "${CACHE}/vim-${VERSION}" ]; then
 fi
 
 
-if [ ! -f "${CACHE}/vim-${VERSION}/src/vim" || "${VERSION}" == "master" ]; then
+if [ ! -f "${CACHE}/vim-${VERSION}/src/vim" -o "${VERSION}" == "master" ]; then
   cd "${CACHE}/vim-${VERSION}" || exit
   if [ "${VERSION}" == "master" ]; then
     # If we're testing the latest Vim version, we only pull the latest changes
