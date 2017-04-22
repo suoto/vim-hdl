@@ -23,12 +23,49 @@ import vim                 # pylint: disable=import-error
 
 _logger = logging.getLogger(__name__)
 
-def _escapeForVim(text):
+def _toUnicode(value):
     """
+    Returns a unicode type; either the new python-future str type or
+    the real unicode type. The difference shouldn't matter.
+
     These were "Borrowed" from YCM.
     See https://github.com/Valloric/YouCompleteMe
     """
-    return text.replace("'", "''")
+    if not value:
+        return str()
+    if isinstance(value, str):
+        return value
+    if isinstance(value, bytes):
+        # All incoming text should be utf8
+        return str(value, 'utf8')
+    return str(value)
+
+def _escapeForVim(text):
+    """
+    Escape text for Vim.
+    """
+    return _toUnicode(text.replace("'", "' . \"'\" .  '"))
+
+def toVimDict(obj, vim_variable):
+    """
+    Converts the 'obj' dict to a Vim dictionary by iterating over the
+    key/value pairs. The reason for this is because Vim has some issues
+    interpreting strings with both escaped single and double quotes (or
+    I haven't found a way to code it properly...). The thing is, in some
+    cases, doing vim.command('let foo = <some_dict>') often fails when
+    key or value has both single and double quotes, but it works if
+    the fields are assigned individually, because we can force which
+    one of the quotes will require escape
+    """
+    vim.command("let %s = { }" % vim_variable)
+    for key, value in obj.items():
+        if isinstance(value, str) or isinstance(value, bytes):
+            value = _escapeForVim(value)
+        if isinstance(key, str) or isinstance(key, bytes):
+            key = _escapeForVim(key)
+        vim.command("let {0}['{1}'] = '{2}'".format(vim_variable, key, value))
+
+    vim.command('echom {0}["text"]'.format(vim_variable))
 
 def postVimInfo(message):
     """

@@ -219,6 +219,9 @@ class VimhdlClient(object):  #pylint: disable=too-many-instance-attributes
         if vim_buffer is None:
             vim_buffer = vim.current.buffer
 
+        if vim_var is not None:
+            vim.command("let {0} = []".format(vim_var))
+
         project_file = vim_helpers.getProjectFile()
         path = p.abspath(vim_buffer.name)
 
@@ -230,19 +233,19 @@ class VimhdlClient(object):  #pylint: disable=too-many-instance-attributes
             return
 
         messages = []
-        for message in response.json().get('messages', []):
-            text = (str(message['error_message']) or '').replace("'", '"')
+        for msg in response.json().get('messages', []):
+            text = str(msg['error_message']) if msg['error_message'] else ''
             vim_fmt_dict = {
-                'lnum'     : str(message['line_number']) or '-1',
+                'lnum'     : str(msg['line_number']) or '-1',
                 'bufnr'    : str(vim_buffer.number),
-                'filename' : str(message['filename']) or vim_buffer.name,
+                'filename' : str(msg['filename']) or vim_buffer.name,
                 'valid'    : '1',
                 'text'     : text,
-                'nr'       : str(message['error_number']) or '0',
-                'type'     : str(message['error_type']) or 'E',
-                'col'      : str(message['column']) or '0'}
+                'nr'       : str(msg['error_number']) or '0',
+                'type'     : str(msg['error_type']) or 'E',
+                'col'      : str(msg['column']) or '0'}
             try:
-                vim_fmt_dict['subtype'] = str(message['error_subtype'])
+                vim_fmt_dict['subtype'] = str(msg['error_subtype'])
             except KeyError:
                 pass
 
@@ -254,13 +257,10 @@ class VimhdlClient(object):  #pylint: disable=too-many-instance-attributes
         if vim_var is None:
             return _sortBuildMessages(messages)
 
-        try:
-            vim.command('let {0} = {1}'.format(vim_var,
-                                               _sortBuildMessages(messages)))
-        except:  # pylint: disable=bare-except
-            self._logger.exception("Error decoding some messages")
-            self._postError("Error decoding some messages")
-
+        for msg in _sortBuildMessages(messages):
+            vim_helpers.toVimDict(msg, '_dict')
+            vim.command("let {0} += [{1}]".format(vim_var, '_dict'))
+            vim.command("unlet! _dict")
 
     def requestUiMessages(self, event):
         """Retrieves UI messages from the server and post them with the
