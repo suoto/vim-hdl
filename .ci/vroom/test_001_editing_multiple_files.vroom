@@ -42,7 +42,7 @@ Remove an important line so the builder must tell there's an error
   ~ ".*".*\swritten (regex)
   :silent! SyntasticCheck
   :silent! lopen
-  common_lib/edge_detector.vhd|36 col 1 error| "end" is expected instead of "architecture"
+  common_lib/edge_detector.vhd|36 col 1 error| 'end' is expected instead of 'architecture'
   :lclose
   > u
   :write
@@ -71,7 +71,7 @@ anymore
   :write
   ~ ".*".*\swritten (regex)
   :silent! lopen
-  common_lib/edge_detector.vhd|75 col 24 error| no interface for "clken" in association
+  common_lib/edge_detector.vhd|75 col 24 error| no interface for 'clken' in association
   :lclose
 
 Let's undo our changes
@@ -99,7 +99,7 @@ what happens!
   ~ ".*".*\swritten (regex)
   :silent! SyntasticCheck
   :silent! lopen
-  common_lib/common_pkg.vhd|12 col 5 error| ";" is expected instead of "function"
+  common_lib/common_pkg.vhd|12 col 5 error| ';' is expected instead of 'function'
   :q
 
   > a;<ESC>
@@ -114,12 +114,12 @@ rebuilt
   :write
   @do (assert_qf_empty)
 
-Let's rebuild 
+Let's rebuild
   :edit common_lib/synchronizer.vhd
   :write
   @do (assert_qf_empty)
 
-Let's rebuild 
+Let's rebuild
   :edit common_lib/sr_delay.vhd
   :write
   @do (assert_qf_empty)

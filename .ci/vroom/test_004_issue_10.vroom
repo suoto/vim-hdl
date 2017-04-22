@@ -42,7 +42,7 @@ Remove an important line so the builder must tell there's an error
   ~ ".*".*\swritten (regex)
   :SyntasticCheck
   :lopen
-  common_lib/edge_detector.vhd|36 col 1 error| "end" is expected instead of "architecture"
+  common_lib/edge_detector.vhd|36 col 1 error| 'end' is expected instead of 'architecture'
   :lclose
   > u
   :write
