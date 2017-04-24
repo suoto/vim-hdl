@@ -73,14 +73,13 @@ fi
 # Functions ##################################################################
 ##############################################################################
 function _setup_vroom {
-  START_PATH=$(pwd)
   if [ -d "$1" ]; then
-    cd "$1"
+    pushd "$1"
     git pull
   else
     git clone https://github.com/google/vroom \
       -b master --single-branch --depth 1 "$1"
-    cd "$1"
+    pushd "$1"
   fi
 
   python3 setup.py build
@@ -92,7 +91,7 @@ function _setup_vroom {
     python3 setup.py install --user
   fi
 
-  cd "${START_PATH}"
+  popd
 }
 
 function _setup_ci_env {
@@ -119,13 +118,14 @@ function _install_packages {
 
 function _cleanup_if_needed {
   if [ -n "${CLEAN_AND_QUIT}${CLEAN}" ]; then
-    START_PATH=$(pwd)
     git clean -fdx || exit -1
     git submodule foreach --recursive git clean -fdx || exit -1
-    cd ../hdlcc_ci/hdl_lib && git reset HEAD --hard
-    cd "${START_PATH}"
-    cd ../hdlcc_ci/vim-hdl-examples && git reset HEAD --hard
-    cd "${START_PATH}"
+    pushd ../hdlcc_ci/hdl_lib
+    git reset HEAD --hard
+    popd
+    pushd ../hdlcc_ci/vim-hdl-examples
+    git reset HEAD --hard
+    popd
 
     if [ -d "${VROOM_DIR}" ]; then rm -rf "${VROOM_DIR}"; fi
 
