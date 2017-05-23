@@ -65,8 +65,6 @@ def toVimDict(obj, vim_variable):
             key = _escapeForVim(key)
         vim.command("let {0}['{1}'] = '{2}'".format(vim_variable, key, value))
 
-    vim.command('echom {0}["text"]'.format(vim_variable))
-
 def postVimInfo(message):
     """
     These were "Borrowed" from YCM.
