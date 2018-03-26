@@ -109,10 +109,18 @@ function _install_packages {
   pip install -e ./dependencies/hdlcc/
 
   set +e
-  pip3 install neovim==0.1.10
-  if [ "$?" != "0" ]; then
-    set -e
-    pip3 install neovim==0.1.10 --user
+  if [ "${CI_TARGET}" == "neovim" ]; then
+    if [ "${VERSION}" == "master" ]; then
+      neovim="neovim==0.1.10"
+    else
+      neovim="neovim"
+    fi
+
+    pip3 install ${neovim}
+    if [ "$?" != "0" ]; then
+      set -e
+      pip3 install ${neovim} --user
+    fi
   fi
 }
 
