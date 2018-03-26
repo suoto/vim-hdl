@@ -23,6 +23,7 @@ import sys
 from multiprocessing import Queue
 import logging
 import time
+import tempfile
 
 import vim # pylint: disable=import-error
 import vimhdl
@@ -58,6 +59,13 @@ def _sortBuildMessages(records):
     records.sort(key=_sortKey)
     return records
 
+def _createLogfile(prefix=''):
+    with tempfile.NamedTemporaryFile(prefix=prefix,
+                                     suffix='.log',
+                                     delete=False) as logfile:
+        return logfile.name
+
+
 class VimhdlClient(object):  #pylint: disable=too-many-instance-attributes
     """
     Point of entry of Vim commands
@@ -73,7 +81,12 @@ class VimhdlClient(object):  #pylint: disable=too-many-instance-attributes
         self._host = options.get('host', 'localhost')
         self._port = options.get('port', vim_helpers.getUnusedLocalhostPort())
         self._log_level = str(options.get('log_level', 'DEBUG'))
-        self._log_stream = options.get('log_target', '/tmp/hdlcc.log')
+        self._log_stream = options.get(
+            'log_target',
+            _createLogfile('hdlcc_{}_'.format(os.getpid())))
+
+        self._hdlcc_stdout = _createLogfile('hdlcc_stdout_{}_'.format(os.getpid()))
+        self._hdlcc_stderr = _createLogfile('hdlcc_stderr_{}_'.format(os.getpid()))
 
         self._posted_notifications = []
 
@@ -130,8 +143,8 @@ class VimhdlClient(object):  #pylint: disable=too-many-instance-attributes
                hdlcc_server,
                '--host', self._host,
                '--port', str(self._port),
-               '--stdout', '/tmp/hdlcc-stdout.log',
-               '--stderr', '/tmp/hdlcc-stderr.log',
+               '--stdout', self._hdlcc_stdout,
+               '--stderr', self._hdlcc_stderr,
                '--attach-to-pid', str(os.getpid()),
                '--log-level', self._log_level,
                '--log-stream', self._log_stream]
@@ -152,6 +165,9 @@ class VimhdlClient(object):  #pylint: disable=too-many-instance-attributes
                 vim_helpers.postVimError("Failed to launch hdlcc server")
         except subp.CalledProcessError:
             self._logger.exception("Error calling '%s'", " ".join(cmd))
+            return 1
+
+        return 0
 
     def _waitForServerSetup(self):
         """
@@ -287,21 +303,21 @@ class VimhdlClient(object):  #pylint: disable=too-many-instance-attributes
         request = RequestHdlccInfo(host=self._host, port=self._port,
                                    project_file=project_file)
 
+        msg = ["vimhdl version: %s\n" % vimhdl.__version__]
+
         response = request.sendRequest()
 
         if response is not None:
-            # The server has responded something, so just print it
-            self._logger.info("Response: %s", str(response.json()['info']))
-
-            return "\n".join(
-                ["- %s" % x for x in
-                 ["vimhdl version: %s\n" % vimhdl.__version__] +
-                 response.json()['info']])
+            msg += ['- %s' % x for x in response.json()['info']]
         else:
-            return "\n".join(
-                ["- %s" % x for x in
-                 ["vimhdl version: %s\n" % vimhdl.__version__,
-                  "hdlcc server is not running"]])
+            msg += ['hdlcc server is not running']
+
+
+        msg += ['- hdlcc main log: %s' % self._log_stream,
+                '- hdlcc stdout log: %s' % self._hdlcc_stdout,
+                '- hdlcc stderr log: %s' % self._hdlcc_stderr]
+
+        return '\n'.join(msg)
 
     def rebuildProject(self):
         """

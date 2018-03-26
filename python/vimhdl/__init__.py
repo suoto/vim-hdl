@@ -22,8 +22,8 @@ tools.  See https://github.com/suoto/vim-hdl for more information
 from __future__ import print_function
 
 from .vim_client import VimhdlClient
+from .vim_helpers import postVimError
 
 from ._version import get_versions
 __version__ = get_versions()['version']
 del get_versions
-

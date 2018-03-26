@@ -74,11 +74,19 @@ if 'vimhdl' not in sys.modules:
 
 # Create the client if it doesn't exists yet
 try:
-    vimhdl_client
-    _logger.warning("vimhdl client already exists, skiping")
-except NameError:
-    vimhdl_client = vimhdl.VimhdlClient(python=vim.eval('l:python'))
+    if 'vimhdl_client' not in dir():
+        vimhdl_client = vimhdl.VimhdlClient(python=vim.eval('l:python'))
+except Exception as e:
+    vimhdl.postVimError("Couldn't create vim-hdl client")
+    for line in str(e).split('\n'):
+        vimhdl.postVimError(line)
 EOF
+
+    if s:pyEval("'vimhdl_client' in dir()") =~ 'true'
+        return 1
+    else
+        return 0
+    endif
 endfunction
 " }
 " { s:setupCommands() Setup Vim commands to interact with vim-hdl
@@ -181,18 +189,24 @@ endfunction
 " { vimhdl#setup() Main vim-hdl setup
 " ============================================================================
 function! vimhdl#setup() abort
-    if !(exists('g:vimhdl_loaded') && g:vimhdl_loaded)
-        let g:vimhdl_loaded = 1
-        call s:setupPython()
-        call s:setupCommands()
-        call s:setupHooks('*.vhd', '*.vhdl', '*.v', '*.sv')
+    if !(exists('g:vimhdl_setup_ok'))
+        let g:vimhdl_setup_ok = 0
     endif
 
-    if count(['vhdl', 'verilog', 'systemverilog'], &filetype)
-        if !(exists('g:vimhdl_server_started') && g:vimhdl_server_started)
-            let g:vimhdl_server_started = 1
-            call s:pyEval('vimhdl_client.startServer()')
+    if !(exists('g:vimhdl_loaded') && g:vimhdl_loaded)
+        let g:vimhdl_loaded = 1
+        let g:vimhdl_setup_ok = s:setupPython()
+        if g:vimhdl_setup_ok
+            call s:setupCommands()
+            call s:setupHooks('*.vhd', '*.vhdl', '*.v', '*.sv')
         endif
+    endif
+
+    if g:vimhdl_setup_ok
+            \ && count(['vhdl', 'verilog', 'systemverilog'], &filetype)
+            \ && !(exists('g:vimhdl_server_started') && g:vimhdl_server_started)
+        let g:vimhdl_server_started = 1
+        call s:pyEval('vimhdl_client.startServer()')
     endif
 
 endfunction
