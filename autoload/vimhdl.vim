@@ -79,6 +79,7 @@ try:
 except NameError:
     vimhdl_client = vimhdl.VimhdlClient(python=vim.eval('l:python'))
 EOF
+
 endfunction
 " }
 " { s:setupCommands() Setup Vim commands to interact with vim-hdl
@@ -86,7 +87,7 @@ endfunction
 function! s:setupCommands() abort
     command! VimhdlInfo              call s:printInfo()
     command! VimhdlPrintDependencies call s:printDependencies()
-    command! VimhdlRebuildProject    call s:pyEval('vimhdl_client.rebuildProject()')
+    command! VimhdlRebuildProject    call s:pyEval('bool(vimhdl_client.rebuildProject())')
     command! VimhdlRestartServer     call s:restartServer()
     command! VimhdlViewBuildSequence call s:printBuildSequence()
 endfunction
@@ -191,7 +192,7 @@ function! vimhdl#setup() abort
     if count(['vhdl', 'verilog', 'systemverilog'], &filetype)
         if !(exists('g:vimhdl_server_started') && g:vimhdl_server_started)
             let g:vimhdl_server_started = 1
-            call s:pyEval('vimhdl_client.startServer()')
+            call s:pyEval('bool(vimhdl_client.startServer())')
         endif
     endif
 

@@ -43,12 +43,12 @@ if [ -z "${CI}" ]; then
   fi
 
   VIRTUAL_ENV_DEST=~/dev/vimhdl_venv
-  if [ -z "${TRAVIS_PYTHON_VERSION}" ]; then
-    TRAVIS_PYTHON_VERSION=3.5
-    PYTHON=python${TRAVIS_PYTHON_VERSION}
-  else
-    PYTHON=python
-  fi
+  # if [ -z "${TRAVIS_PYTHON_VERSION}" ]; then
+  #   TRAVIS_PYTHON_VERSION=3.5
+  #   PYTHON=python${TRAVIS_PYTHON_VERSION}
+  # else
+  #   PYTHON=python
+  # fi
 
   if [ -z "${VERSION}" ]; then
     if [ "${CI_TARGET}" == "neovim" ]; then
@@ -99,7 +99,13 @@ function _setup_ci_env {
     rm -rf ${VIRTUAL_ENV_DEST}
   fi
 
-  virtualenv ${VIRTUAL_ENV_DEST} --python="${PYTHON}"
+  cmd="virtualenv ${VIRTUAL_ENV_DEST}"
+
+  if [ -n "${PYTHON}" ]; then
+    cmd="$cmd --python=${PYTHON}"
+  fi
+
+  $cmd
   source ${VIRTUAL_ENV_DEST}/bin/activate
 }
 
@@ -109,11 +115,19 @@ function _install_packages {
   pip install -e ./dependencies/hdlcc/
 
   set +e
-  pip3 install neovim==0.1.10
+
+  pip3 install neovim
   if [ "$?" != "0" ]; then
-    set -e
-    pip3 install neovim==0.1.10 --user
+    pip3 install neovim --user
   fi
+
+  pip install neovim
+  if [ "$?" != "0" ]; then
+    pip install neovim --user
+  fi
+
+  set -e
+
 }
 
 function _cleanup_if_needed {

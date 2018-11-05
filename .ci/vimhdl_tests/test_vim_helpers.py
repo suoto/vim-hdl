@@ -37,6 +37,7 @@ def _setupPaths():
     for path in (p.join(base_path, 'python'),
                  p.join(base_path, 'dependencies', 'requests')):
         print(path)
+        assert p.exists(path), "Path '%s' doesn't exists!" % path
         sys.path.insert(0, path)
 
 _setupPaths()
@@ -133,10 +134,15 @@ with such.A('vim_helpers module') as it:
                 assert var == 'vimhdl_conf_file'
                 return _vars[var]
 
-            it._global_patch = mock.patch('vimhdl.vim_helpers._getVimGlobals',
-                                          _getVimGlobals)
-            it._local_patch = mock.patch('vimhdl.vim_helpers._getBufferVars',
-                                         _getBufferVars)
+            it._global_patch = mock.patch(
+                'vim.vars', {'vimhdl_conf_file' : it._global_prj_filename})
+            it._local_patch = mock.patch(
+                'vim.current.buffer.vars', {'vimhdl_conf_file' : it._local_prj_filename})
+
+            #  it._global_patch = mock.patch('vimhdl.vim_helpers._getVimGlobals',
+            #                                _getVimGlobals, autospec=True)
+            #  it._local_patch = mock.patch('vimhdl.vim_helpers._getBufferVars',
+            #                               _getBufferVars, autospec=True)
 
             it._global_patch.start()
             it._local_patch.start()
@@ -206,8 +212,11 @@ with such.A('vim_helpers module') as it:
                 assert var == 'vimhdl_conf_file'
                 return _vars[var]
 
-            it._global_patch = mock.patch('vimhdl.vim_helpers._getVimGlobals',
-                                          _getVimGlobals)
+            it._global_patch = mock.patch(
+                'vim.vars', {'vimhdl_conf_file' : it._global_prj_filename})
+
+            #  it._global_patch = mock.patch('vimhdl.vim_helpers._getVimGlobals',
+            #  #                                _getVimGlobals)
             it._global_patch.start()
 
         @it.has_teardown
@@ -254,8 +263,12 @@ with such.A('vim_helpers module') as it:
                 assert var == 'vimhdl_conf_file'
                 return _vars[var]
 
-            it._local_patch = mock.patch('vimhdl.vim_helpers._getBufferVars',
-                                         _getBufferVars)
+            #  it._local_patch = mock.patch('vimhdl.vim_helpers._getBufferVars',
+            #                               _getBufferVars)
+
+            it._local_patch = mock.patch(
+                'vim.current.buffer.vars', {'vimhdl_conf_file' : it._local_prj_filename})
+
             it._local_patch.start()
 
         @it.has_teardown
