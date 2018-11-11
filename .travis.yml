@@ -11,13 +11,15 @@ env:
     - GHDL_URL="${GHDL_HOST}/ghdl-0.33/ghdl-0.33-x86_64-linux.tgz"
     - COLUMNS=80
     - LINES=50
-    - NVIM_TUI_ENABLE_CURSOR_SHAPE=0
   matrix:
-    # - CI_TARGET=vim    VERSION=v7.4
-    # - CI_TARGET=vim    VERSION=v7.4.1593
-    # - CI_TARGET=vim    VERSION=v8.0.0001
+    - CI_TARGET=vim    VERSION=v7.4.052  # Ubuntu 14.04 LTS
+    - CI_TARGET=vim    VERSION=v7.4.1689 # Ubuntu 16.04 LTS
+    - CI_TARGET=vim    VERSION=v8.0.0197 # Ubuntu 17.10 LTS
+    - CI_TARGET=vim    VERSION=v8.0.1453 # Ubuntu 18.04 LTS
+    - CI_TARGET=neovim VERSION=0.3.1 # Ubuntu 18.10
+    - CI_TARGET=neovim VERSION=0.2.0 # Ubuntu 17.10
+    - CI_TARGET=neovim VERSION=0.2.2 # Ubuntu 18.04
     - CI_TARGET=vim    VERSION=master
-    # - CI_TARGET=neovim VERSION=0.1.7
     - CI_TARGET=neovim VERSION=master
 
 addons:
