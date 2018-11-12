@@ -42,6 +42,7 @@ addons:
 
 before_script:
   - pip install -U pip
+  - pip install -U urllib3 --user
   - git submodule update --init --recursive
   - mkdir -p ${CACHE}
   # Vroom's vim mode currently requires a running X server.

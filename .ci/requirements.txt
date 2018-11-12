@@ -16,3 +16,4 @@ rainbow-logging-handler
 six
 testfixtures
 trollius
+requests>=v2.20.0
