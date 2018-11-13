@@ -20,6 +20,7 @@ Wrapper for vim-hdl usage within Vim's Python interpreter
 
 import logging
 import threading
+
 import requests
 
 _logger = logging.getLogger(__name__)
@@ -85,8 +86,7 @@ class BaseRequest(object):
         # etc), Requests will raise a ConnectionError exception."
         # This issue is being discussed at the requests repo on GitHub
         # https://github.com/kennethreitz/requests/issues/2887
-        except (requests.RequestException, requests.ConnectionError,
-                requests.packages.urllib3.exceptions.HTTPError) as exc:
+        except Exception as exc:
             _logger.warning("Sending request '%s' raised exception: '%s'",
                             str(self), str(exc))
             return
@@ -172,4 +172,3 @@ class GetBuildSequence(BaseRequest):
     def __init__(self, host, port, project_file, path):
         super(GetBuildSequence, self).__init__(
             host, port, project_file=project_file, path=path)
-

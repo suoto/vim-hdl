@@ -113,7 +113,6 @@ function _install_packages {
 
   set +e
 
-  
   if [ "$(pip3 install neovim)" != "0" ]; then
     pip3 install neovim --user
   fi
@@ -195,6 +194,7 @@ if [ "${CI_TARGET}" == "neovim" ]; then nvim --version; fi
 
 echo "Terminal size is $COLUMNS x $LINES"
 
+# export PYTHONPATH=$PWD/dependencies/requests/:$PWD/python/
 set +xe
 python -m coverage run -m nose2 -s .ci/ "${RUNNER_ARGS[@]}"
 RESULT=$?

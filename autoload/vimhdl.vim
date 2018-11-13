@@ -61,7 +61,7 @@ if 'vimhdl' not in sys.modules:
 
     _logger = logging.getLogger(__name__)
     for path in (p.join(vim.eval('s:vimhdl_path'), 'python'),
-                 p.join(vim.eval('s:vimhdl_path'), 'dependencies', 'requests'),
+                 # p.join(vim.eval('s:vimhdl_path'), 'dependencies', 'requests'),
                  p.join(vim.eval('s:vimhdl_path'), 'dependencies', 'hdlcc')):
         if path not in sys.path:
             path = p.abspath(path)

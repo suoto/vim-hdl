@@ -60,7 +60,7 @@ before_script:
 
 script:
   - set +xe
-  - ./run_tests.sh --log-capture
+  - ./run_tests.sh --log-capture -F
 
 after_success:
   - export COVERALLS_PARALLEL=true
