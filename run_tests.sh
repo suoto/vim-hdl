@@ -85,8 +85,8 @@ function _setup_vroom {
   python3 setup.py build
 
   set +e
-  python3 setup.py install
-  if [ "$?" != "0" ]; then
+  
+  if [ "$(python3 setup.py install)" != "0" ]; then
     set -e
     python3 setup.py install --user
   fi
@@ -95,17 +95,14 @@ function _setup_vroom {
 }
 
 function _setup_ci_env {
-  if [ -d "${VIRTUAL_ENV_DEST}" ]; then
-    rm -rf ${VIRTUAL_ENV_DEST}
-  fi
-
-  cmd="virtualenv ${VIRTUAL_ENV_DEST}"
+  cmd="virtualenv --clear ${VIRTUAL_ENV_DEST}"
 
   if [ -n "${PYTHON}" ]; then
     cmd="$cmd --python=${PYTHON}"
   fi
 
   $cmd
+  # shellcheck disable=SC1090
   source ${VIRTUAL_ENV_DEST}/bin/activate
 }
 
@@ -116,13 +113,13 @@ function _install_packages {
 
   set +e
 
-  pip3 install neovim
-  if [ "$?" != "0" ]; then
+  
+  if [ "$(pip3 install neovim)" != "0" ]; then
     pip3 install neovim --user
   fi
 
-  pip install neovim
-  if [ "$?" != "0" ]; then
+  
+  if [ "$(pip install neovim)" != "0" ]; then
     pip install neovim --user
   fi
 
@@ -177,6 +174,11 @@ set -x
 # If we're not running on a CI server, create a virtual env to mimic its
 # behaviour
 if [ -z "${CI}" ]; then
+  if [ -n "${CLEAN}" ] && [ -d "${VIRTUAL_ENV_DEST}" ]; then
+    echo "Removing previous virtualenv"
+    rm -rf ${VIRTUAL_ENV_DEST}
+  fi
+
   _setup_ci_env
 fi
 

@@ -42,7 +42,6 @@ addons:
 
 before_script:
   - pip install -U pip
-  - pip install -U urllib3 --user
   - git submodule update --init --recursive
   - mkdir -p ${CACHE}
   # Vroom's vim mode currently requires a running X server.
@@ -64,7 +63,6 @@ script:
   - ./run_tests.sh --log-capture
 
 after_success:
-  - rm -f .ci/test_projects/hdl_lib/osvvm_lib/CoveragePkg.vhd
   - export COVERALLS_PARALLEL=true
   - coveralls
   - codecov
