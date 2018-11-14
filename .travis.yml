@@ -2,6 +2,7 @@
 language: python
 python:
   - "2.7"
+  - "3.5"
 
 env:
   global:
@@ -10,14 +11,19 @@ env:
     - GHDL_URL="${GHDL_HOST}/ghdl-0.33/ghdl-0.33-x86_64-linux.tgz"
     - COLUMNS=80
     - LINES=50
-    - NVIM_TUI_ENABLE_CURSOR_SHAPE=0
   matrix:
-    # - CI_TARGET=vim    VERSION=v7.4
-    - CI_TARGET=vim    VERSION=v7.4.1593
-    - CI_TARGET=vim    VERSION=v8.0.0001
+    - CI_TARGET=vim    VERSION=v7.4.052  # Ubuntu 14.04 LTS
+    - CI_TARGET=vim    VERSION=v7.4.1689 # Ubuntu 16.04 LTS
+    - CI_TARGET=vim    VERSION=v8.0.0197 # Ubuntu 17.10 LTS
+    - CI_TARGET=vim    VERSION=v8.0.1453 # Ubuntu 18.04 LTS
+    - CI_TARGET=neovim VERSION=0.3.1     # Ubuntu 18.10
     - CI_TARGET=vim    VERSION=master
-    - CI_TARGET=neovim VERSION=0.1.7
     - CI_TARGET=neovim VERSION=master
+    # FIXME: Neovim 0.2.0 and 0.2.2 are failing to compile, while 0.3.1 and
+    # master (which is 0.3.2-dev right now) are working just fine. Might be
+    # interesting to enable CI for them again at some point
+    # - CI_TARGET=neovim VERSION=0.2.0   # Ubuntu 17.10
+    # - CI_TARGET=neovim VERSION=0.2.2   # Ubuntu 18.04
 
 addons:
   apt:
@@ -31,6 +37,8 @@ addons:
       - g++
       - pkg-config
       - unzip
+      - python3
+      - python3-pip
 
 before_script:
   - pip install -U pip
@@ -52,10 +60,9 @@ before_script:
 
 script:
   - set +xe
-  - ./run_tests.sh --log-capture
+  - ./run_tests.sh --log-capture -F
 
 after_success:
-  - rm -f .ci/test_projects/hdl_lib/osvvm_lib/CoveragePkg.vhd
   - export COVERALLS_PARALLEL=true
   - coveralls
   - codecov

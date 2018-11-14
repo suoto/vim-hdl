@@ -39,8 +39,7 @@ function! s:pyEval( eval_string ) abort "{ Inspired on YCM
   return py3eval( a:eval_string )
 endfunction
 "}
-"{ function!
-function! s:postWarning(msg)
+function! s:postWarning(msg) abort "{ function!
     redraw | echohl WarningMsg | echom a:msg | echohl None"
 endfunction
 "}
@@ -61,7 +60,6 @@ if 'vimhdl' not in sys.modules:
 
     _logger = logging.getLogger(__name__)
     for path in (p.join(vim.eval('s:vimhdl_path'), 'python'),
-                 p.join(vim.eval('s:vimhdl_path'), 'dependencies', 'requests'),
                  p.join(vim.eval('s:vimhdl_path'), 'dependencies', 'hdlcc')):
         if path not in sys.path:
             path = p.abspath(path)
@@ -79,6 +77,7 @@ try:
 except NameError:
     vimhdl_client = vimhdl.VimhdlClient(python=vim.eval('l:python'))
 EOF
+
 endfunction
 " }
 " { s:setupCommands() Setup Vim commands to interact with vim-hdl
@@ -86,7 +85,7 @@ endfunction
 function! s:setupCommands() abort
     command! VimhdlInfo              call s:printInfo()
     command! VimhdlPrintDependencies call s:printDependencies()
-    command! VimhdlRebuildProject    call s:pyEval('vimhdl_client.rebuildProject()')
+    command! VimhdlRebuildProject    call s:pyEval('bool(vimhdl_client.rebuildProject())')
     command! VimhdlRestartServer     call s:restartServer()
     command! VimhdlViewBuildSequence call s:printBuildSequence()
 endfunction
@@ -191,7 +190,7 @@ function! vimhdl#setup() abort
     if count(['vhdl', 'verilog', 'systemverilog'], &filetype)
         if !(exists('g:vimhdl_server_started') && g:vimhdl_server_started)
             let g:vimhdl_server_started = 1
-            call s:pyEval('vimhdl_client.startServer()')
+            call s:pyEval('bool(vimhdl_client.startServer())')
         endif
     endif
 

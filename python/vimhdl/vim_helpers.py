@@ -59,9 +59,9 @@ def toVimDict(obj, vim_variable):
     """
     vim.command("let %s = { }" % vim_variable)
     for key, value in obj.items():
-        if isinstance(value, str) or isinstance(value, bytes):
+        if isinstance(value, (str, bytes)):
             value = _escapeForVim(value)
-        if isinstance(key, str) or isinstance(key, bytes):
+        if isinstance(key, (str, bytes)):
             key = _escapeForVim(key)
         vim.command("let {0}['{1}'] = '{2}'".format(vim_variable, key, value))
 

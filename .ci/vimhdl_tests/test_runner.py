@@ -47,7 +47,7 @@ def getTestCommand(test_name):
 
     args += [test_name]
 
-    _logger.info("$%s", " ".join(args))
+    _logger.info("$ %s", " ".join(args))
     return args
 
 with such.A('vim-hdl test') as it:

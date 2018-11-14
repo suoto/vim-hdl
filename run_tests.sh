@@ -43,12 +43,12 @@ if [ -z "${CI}" ]; then
   fi
 
   VIRTUAL_ENV_DEST=~/dev/vimhdl_venv
-  if [ -z "${TRAVIS_PYTHON_VERSION}" ]; then
-    TRAVIS_PYTHON_VERSION=3.5
-    PYTHON=python${TRAVIS_PYTHON_VERSION}
-  else
-    PYTHON=python
-  fi
+  # if [ -z "${TRAVIS_PYTHON_VERSION}" ]; then
+  #   TRAVIS_PYTHON_VERSION=3.5
+  #   PYTHON=python${TRAVIS_PYTHON_VERSION}
+  # else
+  #   PYTHON=python
+  # fi
 
   if [ -z "${VERSION}" ]; then
     if [ "${CI_TARGET}" == "neovim" ]; then
@@ -85,8 +85,8 @@ function _setup_vroom {
   python3 setup.py build
 
   set +e
-  python3 setup.py install
-  if [ "$?" != "0" ]; then
+  
+  if [ "$(python3 setup.py install)" != "0" ]; then
     set -e
     python3 setup.py install --user
   fi
@@ -95,11 +95,14 @@ function _setup_vroom {
 }
 
 function _setup_ci_env {
-  if [ -d "${VIRTUAL_ENV_DEST}" ]; then
-    rm -rf ${VIRTUAL_ENV_DEST}
+  cmd="virtualenv --clear ${VIRTUAL_ENV_DEST}"
+
+  if [ -n "${PYTHON}" ]; then
+    cmd="$cmd --python=${PYTHON}"
   fi
 
-  virtualenv ${VIRTUAL_ENV_DEST} --python="${PYTHON}"
+  $cmd
+  # shellcheck disable=SC1090
   source ${VIRTUAL_ENV_DEST}/bin/activate
 }
 
@@ -109,11 +112,18 @@ function _install_packages {
   pip install -e ./dependencies/hdlcc/
 
   set +e
-  pip3 install neovim==0.1.10
-  if [ "$?" != "0" ]; then
-    set -e
-    pip3 install neovim==0.1.10 --user
+
+  if [ "$(pip3 install neovim)" != "0" ]; then
+    pip3 install neovim --user
   fi
+
+  
+  if [ "$(pip install neovim)" != "0" ]; then
+    pip install neovim --user
+  fi
+
+  set -e
+
 }
 
 function _cleanup_if_needed {
@@ -163,6 +173,11 @@ set -x
 # If we're not running on a CI server, create a virtual env to mimic its
 # behaviour
 if [ -z "${CI}" ]; then
+  if [ -n "${CLEAN}" ] && [ -d "${VIRTUAL_ENV_DEST}" ]; then
+    echo "Removing previous virtualenv"
+    rm -rf ${VIRTUAL_ENV_DEST}
+  fi
+
   _setup_ci_env
 fi
 
