@@ -39,8 +39,7 @@ function! s:pyEval( eval_string ) abort "{ Inspired on YCM
   return py3eval( a:eval_string )
 endfunction
 "}
-"{ function!
-function! s:postWarning(msg)
+function! s:postWarning(msg) abort "{ function!
     redraw | echohl WarningMsg | echom a:msg | echohl None"
 endfunction
 "}
@@ -61,7 +60,6 @@ if 'vimhdl' not in sys.modules:
 
     _logger = logging.getLogger(__name__)
     for path in (p.join(vim.eval('s:vimhdl_path'), 'python'),
-                 # p.join(vim.eval('s:vimhdl_path'), 'dependencies', 'requests'),
                  p.join(vim.eval('s:vimhdl_path'), 'dependencies', 'hdlcc')):
         if path not in sys.path:
             path = p.abspath(path)

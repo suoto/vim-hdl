@@ -34,10 +34,10 @@ _logger = logging.getLogger(__name__)
 
 def _setupPaths():
     base_path = p.abspath(p.join(p.dirname(__file__), '..', '..'))
-    for path in (p.join(base_path, 'python'),):
-        print(path)
-        assert p.exists(path), "Path '%s' doesn't exists!" % path
-        sys.path.insert(0, path)
+    path = p.join(base_path, 'python')
+    print(path)
+    assert p.exists(path), "Path '%s' doesn't exists!" % path
+    sys.path.insert(0, path)
 
 _setupPaths()
 

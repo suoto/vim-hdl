@@ -78,14 +78,10 @@ class BaseRequest(object):
             if not response.ok: # pragma: no cover
                 _logger.warning("Server response error: '%s'", response.text)
                 response = None
-        # I'm not sure why the requests package would require digging
-        # down to urllib3 exceptions for a connection error. The docs
-        # at http://docs.python-requests.org/en/master/user/quickstart/
-        # Errors and Exceptions section cleary says that "In the event
-        # of a network problem (e.g. DNS failure, refused connection,
-        # etc), Requests will raise a ConnectionError exception."
-        # This issue is being discussed at the requests repo on GitHub
-        # https://github.com/kennethreitz/requests/issues/2887
+
+        # Both requests and urllib3 have different exceptions depending
+        # on their versions, so we'll catch any exceptions for now until
+        # we work out which ones actually happen
         except Exception as exc:
             _logger.warning("Sending request '%s' raised exception: '%s'",
                             str(self), str(exc))
