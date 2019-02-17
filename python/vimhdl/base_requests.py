@@ -119,6 +119,12 @@ class RequestHdlccInfo(BaseRequest):
         super(RequestHdlccInfo, self).__init__(
             host, port, project_file=project_file)
 
+class ListWorkingCheckers(BaseRequest):
+    """
+    Request a list of checkers that can be used
+    """
+    _meth = 'get_working_checkers'
+
 class RequestProjectRebuild(BaseRequest):
     """
     Request UI messages

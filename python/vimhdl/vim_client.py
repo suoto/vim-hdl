@@ -16,21 +16,23 @@
 # along with vim-hdl.  If not, see <http://www.gnu.org/licenses/>.
 "Wrapper for vim-hdl usage within Vim's Python interpreter"
 
+import logging
 import os
 import os.path as p
 import subprocess as subp
 import sys
-from multiprocessing import Queue
-import logging
 import time
+from multiprocessing import Queue
 
-import vim # pylint: disable=import-error
+import vim  # pylint: disable=import-error
 import vimhdl
 import vimhdl.vim_helpers as vim_helpers
-from vimhdl.base_requests import (RequestMessagesByPath, RequestQueuedMessages,
-                                  RequestHdlccInfo, RequestProjectRebuild,
-                                  OnBufferVisit, OnBufferLeave,
-                                  GetDependencies, GetBuildSequence)
+from vimhdl.project_file_helper import FindProjectFiles
+from vimhdl.base_requests import (GetBuildSequence, GetDependencies,
+                                  ListWorkingCheckers, OnBufferLeave,
+                                  OnBufferVisit, RequestHdlccInfo,
+                                  RequestMessagesByPath, RequestProjectRebuild,
+                                  RequestQueuedMessages)
 
 _ON_WINDOWS = sys.platform == 'win32'
 
@@ -58,7 +60,7 @@ def _sortBuildMessages(records):
     records.sort(key=_sortKey)
     return records
 
-class VimhdlClient(object):  #pylint: disable=too-many-instance-attributes
+class VimhdlClient:  #pylint: disable=too-many-instance-attributes
     """
     Point of entry of Vim commands
     """
@@ -157,16 +159,15 @@ class VimhdlClient(object):  #pylint: disable=too-many-instance-attributes
         """
         Wait for ~10s until the server is actually responding
         """
-        for _ in range(20):
-            time.sleep(0.5)
+        for _ in range(10):
+            time.sleep(0.2)
             request = RequestHdlccInfo(self._host, self._port)
             response = request.sendRequest()
             self._logger.debug(response)
             if response:
                 self._logger.info("Ok, server is really up")
                 return
-            else:
-                self._logger.info("Server is not responding yet")
+            self._logger.info("Server is not responding yet")
 
         self._postError("Unable to talk to server")
 
@@ -297,11 +298,11 @@ class VimhdlClient(object):  #pylint: disable=too-many-instance-attributes
                 ["- %s" % x for x in
                  ["vimhdl version: %s\n" % vimhdl.__version__] +
                  response.json()['info']])
-        else:
-            return "\n".join(
-                ["- %s" % x for x in
-                 ["vimhdl version: %s\n" % vimhdl.__version__,
-                  "hdlcc server is not running"]])
+
+        return "\n".join(
+            ["- %s" % x for x in
+             ["vimhdl version: %s\n" % vimhdl.__version__,
+              "hdlcc server is not running"]])
 
     def rebuildProject(self):
         """
@@ -384,8 +385,8 @@ class VimhdlClient(object):  #pylint: disable=too-many-instance-attributes
             return "\n".join(
                 ["Dependencies for %s" % vim.current.buffer.name] +
                 ["- %s" % x for x in response.json()['dependencies']])
-        else:
-            return "Source has no dependencies"
+
+        return "Source has no dependencies"
 
     def getBuildSequence(self):
         """
@@ -414,8 +415,42 @@ class VimhdlClient(object):  #pylint: disable=too-many-instance-attributes
                 for i in range(len(sequence)):  # pylint:disable=consider-using-enumerate
                     msg += ["%d: %s" % (i, sequence[i])]
                 return '\n'.join(msg)
-            else:
-                return "Build sequence is empty"
-        else:
-            return ""
 
+            return "Build sequence is empty"
+
+        return ""
+
+    def createProjectFile(self):
+        """
+        Creats or modifies the current project file
+        """
+
+        paths = vim.eval('b:local_arg')
+        self._logger.info("paths=%s", paths)
+
+        if not self._isServerAlive():
+            return
+
+        project_file = vim_helpers.getProjectFile()
+
+        if project_file is not None and p.exists(project_file):
+            try:
+                open(project_file, 'a').close()
+            except IOError:
+                self._logger.error("Can't open file %s for writing",
+                                   project_file)
+                return
+
+            self._logger.warning("Project file at %s exists!", project_file)
+
+        response = ListWorkingCheckers(self._host, self._port).sendRequest()
+
+        if response is None:
+            return None
+
+        self._logger.debug("Response: %s", str(response.json()['checkers']))
+        checkers = response.json()['checkers']
+        self._logger.debug("Available checkers: %s", ', '.join(checkers))
+
+        creator = FindProjectFiles(checkers, os.getcwd(), paths)
+        return creator.create()

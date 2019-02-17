@@ -46,6 +46,7 @@ Remove an important line so the builder must tell there's an error
   :lclose
   > u
   :write
+  ~ ".*".*\swritten (regex)
   @do (assert_qf_empty)
 
 
@@ -55,12 +56,16 @@ depends on, like the sr_delay
   :edit common_lib/sr_delay.vhd
 Again, this file has no errors
   :write
+  ~ ".*".*\swritten (regex)
+  :lclose
   @do (assert_qf_empty)
 
 Let's rename the 'clken' port to 'clk_en'
   :%s/\<clken\>/clk_en/g
 This won't cause errors for this file
   :write
+  ~ ".*".*\swritten (regex)
+  :lclose
   @do (assert_qf_empty)
 
 
@@ -79,12 +84,14 @@ Let's undo our changes
   :%s/\<clk_en\>/clken/g
   :write
   ~ ".*".*\swritten (regex)
+  :lclose
   @do (assert_qf_empty)
 
 Again, this should propagate
   :edit common_lib/edge_detector.vhd
   :write
   ~ ".*".*\swritten (regex)
+  :lclose
   @do (assert_qf_empty)
 
 
@@ -92,6 +99,7 @@ Again, this should propagate
 We'll edit a packge that both sr_delay and the edge_detector depend. Let's see
 what happens!
   :edit common_lib/common_pkg.vhd
+  :lclose
   @do (assert_qf_empty)
   :10
   > o constant SOME_CONSTANT : integer := 14<ESC>
@@ -105,6 +113,7 @@ what happens!
   > a;<ESC>
   :write
   ~ ".*".*\swritten (regex)
+  :lclose
   @do (assert_qf_empty)
 
 
@@ -112,16 +121,22 @@ The package has changed but neither the edge_detector or sr_delay have been
 rebuilt
   :edit common_lib/edge_detector.vhd
   :write
+  ~ ".*".*\swritten (regex)
+  :lclose
   @do (assert_qf_empty)
 
 Let's rebuild
   :edit common_lib/synchronizer.vhd
   :write
+  ~ ".*".*\swritten (regex)
+  :lclose
   @do (assert_qf_empty)
 
 Let's rebuild
   :edit common_lib/sr_delay.vhd
   :write
+  ~ ".*".*\swritten (regex)
+  :lclose
   @do (assert_qf_empty)
 
 
@@ -129,5 +144,7 @@ The package has changed but neither the edge_detector or sr_delay have been
 rebuilt
   :edit common_lib/edge_detector.vhd
   :write
+  ~ ".*".*\swritten (regex)
+  :lclose
   @do (assert_qf_empty)
 

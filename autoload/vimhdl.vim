@@ -88,6 +88,8 @@ function! s:setupCommands() abort
     command! VimhdlRebuildProject    call s:pyEval('bool(vimhdl_client.rebuildProject())')
     command! VimhdlRestartServer     call s:restartServer()
     command! VimhdlViewBuildSequence call s:printBuildSequence()
+    command! -nargs=* -complete=dir 
+                \ VimhdlCreateProjectFile call s:createProjectFile(<f-args>)
 endfunction
 " }
 " { s:setupHooks() Setup filetype hooks
@@ -175,6 +177,28 @@ function! s:printBuildSequence() abort
     for l:line in split(l:sequence, "\n")
         echom l:line
     endfor
+endfunction
+"}
+" { s:createProjectFile
+" ============================================================================
+function! s:createProjectFile(...) abort
+    if !(count(['vhdl', 'verilog', 'systemverilog'], &filetype))
+        call s:postWarning(
+                    \"Can't create vim-hdl project file for this file type")
+        return
+    endif
+
+    let b:local_arg = a:000
+    let l:result = split(s:pyEval('vimhdl_client.createProjectFile()'), '\n', 1)
+
+    let l:temp_file = tempname() 
+
+    call execute('call writefile(l:result, "' . l:temp_file . '", "b")')
+    call execute('edit ' . l:temp_file)
+    setlocal buftype=nofile
+    setlocal bufhidden=hide
+    setlocal noswapfile
+
 endfunction
 "}
 " { vimhdl#setup() Main vim-hdl setup

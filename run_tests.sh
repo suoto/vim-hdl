@@ -38,6 +38,9 @@ if [ -z "${CI}" ]; then
     CI_TARGET=vim
   fi
 
+  # Support for $NVIM_TUI_ENABLE_CURSOR_SHAPE was removed. Use the guicursor
+  # option to control cursor styling
+  # More info: https://github.com/neovim/neovim/wiki/Following-HEAD#20170402
   if [ -z "${NVIM_TUI_ENABLE_CURSOR_SHAPE}" ]; then
     export NVIM_TUI_ENABLE_CURSOR_SHAPE=0
   fi
