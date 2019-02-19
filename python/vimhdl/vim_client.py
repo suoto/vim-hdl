@@ -425,7 +425,7 @@ class VimhdlClient:  #pylint: disable=too-many-instance-attributes
         Creats or modifies the current project file
         """
 
-        paths = vim.eval('b:local_arg')
+        paths = vim.eval('b:local_arg') or [os.getcwd(), ]
         self._logger.info("paths=%s", paths)
 
         if not self._isServerAlive():

@@ -111,7 +111,6 @@ class ProjectFileCreator:
         checker = self._getPreferredChecker()
 
         contents = ['# Generated on %s' % time.ctime(),
-                    '',
                     '# Files found: %s' % len(self._sources),
                     '# Available checkers: %s' % ', '.join(self._checkers),
                     'builder = %s' % checker,
@@ -131,6 +130,9 @@ class ProjectFileCreator:
             file_type = getFileType(path)
             contents += ['{0} {1} {2} {3}'.format(file_type, library, path,
                                                   flags)]
+
+        if self._sources:
+            contents += ['', '']
 
         for line in contents:
             self._logger.debug(line)
@@ -164,6 +166,7 @@ class FindProjectFiles(ProjectFileCreator):
             return []
 
         flags = []
+        # Testbenches are usually more relaxed, so set VHDL 2008
         if (p.basename(path).split('.')[0].endswith('_tb') or
                 p.basename(path).startswith('tb_')):
             flags += ['-2008']
@@ -205,8 +208,5 @@ class FindProjectFiles(ProjectFileCreator):
 
     def _create(self):
         for path in self._findSources():
-
-            flags = self._getCompilerFlags(path)
-            library = self._getLibrary(path)
-
-            self._addSource(path, flags, library)
+            self._addSource(path, flags=self._getCompilerFlags(path),
+                            library=self._getLibrary(path))

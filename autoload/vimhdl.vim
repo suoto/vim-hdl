@@ -191,13 +191,70 @@ function! s:createProjectFile(...) abort
     let b:local_arg = a:000
     let l:result = split(s:pyEval('vimhdl_client.createProjectFile()'), '\n', 1)
 
-    let l:temp_file = tempname() 
+    let l:backup_file = ''
 
-    call execute('call writefile(l:result, "' . l:temp_file . '", "b")')
-    call execute('edit ' . l:temp_file)
-    setlocal buftype=nofile
-    setlocal bufhidden=hide
-    setlocal noswapfile
+    if filewritable(g:vimhdl_conf_file) == 1
+        let l:backup_file = g:vimhdl_conf_file . '.backup'
+
+        " Warn if the backup already exists in the text
+        if filereadable(l:backup_file)
+            echohl WarningMsg | 
+                        \ echom 'Overwriting existing backup file' | 
+                        \ echohl None"
+        end
+
+        call rename(g:vimhdl_conf_file, l:backup_file)
+
+    end
+
+    let l:info = [
+        \ '# This is the resulting project file, please review and save when done. The',
+        \ '# g:vimhdl_conf_file variable has been temporarily changed to point to this',
+        \ '# file should you wish to open HDL files and test the results. When finished,',
+        \ '# close this buffer; you''ll be prompted to either use this file or revert to',
+        \ '# the original one.',
+        \ '#',
+        \ '# ---- Everything up to this line will be automatically removed ----',
+        \ '',
+        \ ]
+
+    " Open the file
+    call execute('call writefile(l:info, "' . g:vimhdl_conf_file . '", "b")')
+    call execute('call writefile(l:result, "' . g:vimhdl_conf_file . '", "ba")')
+    call execute('new ' . g:vimhdl_conf_file)
+    set filetype=vimhdltemp
+
+endfunction
+"}
+" { vimhdl#onVimhdlTempQuit() Handles leaving the temporary config file edit
+" ============================================================================
+function! vimhdl#onVimhdlTempQuit()
+    " Query if user if the current buffer should be indeed used as the config
+    " file. If yes, remove the the backup, if not, rename the backup file back
+    " to what g:vimhdl_conf_file points
+    if &filetype != 'vimhdltemp'
+        return
+    end
+
+    let l:lnum = 0
+	let l:has_match = 0
+	for l:line in getline('1', '$')
+        let l:lnum += 1
+        if l:line ==? '# ---- Everything up to this line will be automatically removed ----'
+			let l:lnum += 1
+			let l:has_match = 1
+            echom 'Breaking at line ' . l:lnum
+            break
+        end
+    endfor
+
+	if l:has_match
+		let l:actual_content = getline(l:lnum, '$')
+	else
+		let l:actual_content = getline('1', '$')
+	end
+
+    call execute('call writefile(l:actual_content, "' . g:vimhdl_conf_file . '", "b")')
 
 endfunction
 "}
@@ -208,7 +265,9 @@ function! vimhdl#setup() abort
         let g:vimhdl_loaded = 1
         call s:setupPython()
         call s:setupCommands()
-        call s:setupHooks('*.vhd', '*.vhdl', '*.v', '*.sv')
+        augroup vimhdl
+            call s:setupHooks('*.vhd', '*.vhdl', '*.v', '*.sv')
+        augroup END
     endif
 
     if count(['vhdl', 'verilog', 'systemverilog'], &filetype)

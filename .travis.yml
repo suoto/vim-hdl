@@ -14,10 +14,10 @@ env:
   matrix:
     # - CI_TARGET=vim    VERSION=v7.4.052  # Ubuntu 14.04 LTS, EOL April 2019
     # - CI_TARGET=vim    VERSION=v7.4.1689 # Ubuntu 16.04 LTS, EOL April 2021
-    # - CI_TARGET=vim    VERSION=v8.0.1453 # Ubuntu 18.04 LTS, EOL April 2023
+    - CI_TARGET=vim    VERSION=v8.0.1453 # Ubuntu 18.04 LTS, EOL April 2023
     # - CI_TARGET=neovim VERSION=0.3.1     # Ubuntu 18.10, (EOL July 2019)
     - CI_TARGET=neovim VERSION=0.3.4     # (testing for now)
-    # - CI_TARGET=vim    VERSION=master
+    # - CI_TARGET=vim    VERSION=master # Not stable right now
     - CI_TARGET=neovim VERSION=master
     # FIXME: Neovim 0.2.0 and 0.2.2 are failing to compile, while 0.3.1 and
     # master (which is 0.3.2-dev right now) are working just fine. Might be
