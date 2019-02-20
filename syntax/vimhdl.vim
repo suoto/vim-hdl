@@ -17,7 +17,6 @@ syn match vimhdlProjectFileSrc       display '[\w./][^ ]\+\.\(svh\|vh\|sv\|v\|vh
 syn  keyword  vimhdlProjectFileKeywords builder global_build_flags batch_build_flags
 syn  keyword  vimhdlProjectFileKeywords single_build_flags 
 
-
 hi def link vimhdlProjectFileComment   Comment
 hi def link vimhdlProjectFileKeywords  Keyword
 hi def link vimhdlProjectFileLang      Identifier

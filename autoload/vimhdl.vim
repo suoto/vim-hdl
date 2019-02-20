@@ -41,8 +41,10 @@ endfunction
 "}
 function! s:postWarning(msg) abort "{ function!
     redraw | echohl WarningMsg | echom a:msg | echohl None"
-endfunction
-"}
+endfunction "}
+function! s:postInfo(msg) abort "{ function!
+    redraw | echom a:msg | echohl None
+endfunction "}
 " { s:setupPython() Setup Vim's Python environment to call vim-hdl within Vim
 " ============================================================================
 function! s:setupPython() abort
@@ -95,6 +97,7 @@ endfunction
 " { s:setupHooks() Setup filetype hooks
 " ============================================================================
 function! s:setupHooks(...) abort
+    augroup vimhdl
     for l:ext in a:000
         for l:event in ['BufWritePost', 'FocusGained', 'CursorMoved',
                     \'CursorMovedI', 'CursorHold', 'CursorHoldI',
@@ -109,6 +112,7 @@ function! s:setupHooks(...) abort
         execute('autocmd! BufLeave ' . l:ext . ' ' .
                \':' . s:python_command . ' vimhdl_client.onBufferLeave()')
     endfor
+    augroup END
 endfunction
 " }
 " { s:printInfo() Handle for VimHdlInfo command
@@ -193,18 +197,37 @@ function! s:createProjectFile(...) abort
 
     let l:backup_file = ''
 
-    if filewritable(g:vimhdl_conf_file) == 1
-        let l:backup_file = g:vimhdl_conf_file . '.backup'
+    " Prefer the local version of the config file
+    if exists('b:vimhdl_conf_file')
+        let l:config_file = b:vimhdl_conf_file
+    elseif exists('g:vimhdl_conf_file')
+        let l:config_file = g:vimhdl_conf_file
+    else
+        " If the configuration wasn't set, create a file and set
+        " vimhdl_conf_file to point to it. Main idea here is give a headstart
+        " to someone who just installed the plugin
+        let l:config_file = 'vimhdl.prj'
+        call s:postWarning('g:vimhdl_conf_file is not set. Will set it to '''.
+                    \ l:config_file . ''' and use it to write the resulting' .
+                    \ ' project file')
+        let g:vimhdl_conf_file = l:config_file
+        call writefile([''], g:vimhdl_conf_file, 'b')
+    end
+
+    if filewritable(l:config_file) == 1
+        let l:backup_file = l:config_file . '.backup'
 
         " Warn if the backup already exists in the text
         if filereadable(l:backup_file)
-            echohl WarningMsg | 
-                        \ echom 'Overwriting existing backup file' | 
-                        \ echohl None"
+            call s:postWarning('Overwriting existing backup file')
         end
 
-        call rename(g:vimhdl_conf_file, l:backup_file)
+        call rename(l:config_file, l:backup_file)
 
+    else
+        throw 'vim-hdl : Can''t create project file. Settings point to ''' .
+                    \ l:config_file . ''' but the file is not writable; ' .
+                    \ 'check file and/or directory permissions and try again.'
     end
 
     let l:info = [
@@ -219,22 +242,30 @@ function! s:createProjectFile(...) abort
         \ ]
 
     " Open the file
-    call execute('call writefile(l:info, "' . g:vimhdl_conf_file . '", "b")')
-    call execute('call writefile(l:result, "' . g:vimhdl_conf_file . '", "ba")')
-    call execute('new ' . g:vimhdl_conf_file)
-    set filetype=vimhdltemp
+    call execute('call writefile(l:info, "' . l:config_file . '", "b")')
+    call execute('call writefile(l:result, "' . l:config_file . '", "ba")')
+    call execute('new ' . l:config_file)
+    let b:config_file = l:config_file
+    let b:backup_file = l:backup_file
+
+    augroup vimhdl
+        call execute('autocmd QuitPre ' . l:config_file . ' :call s:onVimhdlTempQuit()')
+    augroup END
+
+    set filetype=vimhdl
 
 endfunction
 "}
-" { vimhdl#onVimhdlTempQuit() Handles leaving the temporary config file edit
+" { s:onVimhdlTempQuit() Handles leaving the temporary config file edit
 " ============================================================================
-function! vimhdl#onVimhdlTempQuit()
+function! s:onVimhdlTempQuit()
     " Query if user if the current buffer should be indeed used as the config
     " file. If yes, remove the the backup, if not, rename the backup file back
     " to what g:vimhdl_conf_file points
-    if &filetype != 'vimhdltemp'
-        return
-    end
+
+    " Disable autocmd, it's only set when we actually open the buffer for
+    " editing
+    autocmd! vimhdl QuitPre
 
     let l:lnum = 0
 	let l:has_match = 0
@@ -254,7 +285,18 @@ function! vimhdl#onVimhdlTempQuit()
 		let l:actual_content = getline('1', '$')
 	end
 
-    call execute('call writefile(l:actual_content, "' . g:vimhdl_conf_file . '", "b")')
+    if filereadable(b:backup_file)
+        let l:confirm_text = 'Replace the existing config file contents with' .
+                    \ ' the contents of the current buffer or restore backup?'
+        let choice = confirm(l:confirm_text, "&Update\n&Restore backup")
+    else
+        let l:confirm_text = 'Save current buffer as config file? (can''t '
+                    \ 'restore backup because no backup file was found)'
+        let choice = confirm(l:confirm_text, "&Yes\n&No")
+    end
+
+    call execute('call writefile(l:actual_content, "' . b:config_file . '", "b")')
+    call s:postInfo('Updated contents of g:vimhdl_conf_file (' . b:config_file  . ')')
 
 endfunction
 "}
@@ -265,9 +307,7 @@ function! vimhdl#setup() abort
         let g:vimhdl_loaded = 1
         call s:setupPython()
         call s:setupCommands()
-        augroup vimhdl
-            call s:setupHooks('*.vhd', '*.vhdl', '*.v', '*.sv')
-        augroup END
+        call s:setupHooks('*.vhd', '*.vhdl', '*.v', '*.sv')
     endif
 
     if count(['vhdl', 'verilog', 'systemverilog'], &filetype)

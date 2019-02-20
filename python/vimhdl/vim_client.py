@@ -29,7 +29,7 @@ import vimhdl
 import vimhdl.vim_helpers as vim_helpers
 from vimhdl.project_file_helper import FindProjectFiles
 from vimhdl.base_requests import (GetBuildSequence, GetDependencies,
-                                  ListWorkingCheckers, OnBufferLeave,
+                                  ListWorkingBuilders, OnBufferLeave,
                                   OnBufferVisit, RequestHdlccInfo,
                                   RequestMessagesByPath, RequestProjectRebuild,
                                   RequestQueuedMessages)
@@ -59,6 +59,8 @@ def _sortBuildMessages(records):
                 pass
     records.sort(key=_sortKey)
     return records
+
+# pylint:disable=inconsistent-return-statements
 
 class VimhdlClient:  #pylint: disable=too-many-instance-attributes
     """
@@ -426,31 +428,18 @@ class VimhdlClient:  #pylint: disable=too-many-instance-attributes
         """
 
         paths = vim.eval('b:local_arg') or [os.getcwd(), ]
-        self._logger.info("paths=%s", paths)
+        self._logger.debug("paths=%s", paths)
 
         if not self._isServerAlive():
+            self._postWarning("Server is not alive, resulting project file "
+                              "won't have builders set")
             return
 
-        project_file = vim_helpers.getProjectFile()
+        response = ListWorkingBuilders(self._host, self._port).sendRequest()
 
-        if project_file is not None and p.exists(project_file):
-            try:
-                open(project_file, 'a').close()
-            except IOError:
-                self._logger.error("Can't open file %s for writing",
-                                   project_file)
-                return
-
-            self._logger.warning("Project file at %s exists!", project_file)
-
-        response = ListWorkingCheckers(self._host, self._port).sendRequest()
-
-        if response is None:
+        if not response:
             return None
 
-        self._logger.debug("Response: %s", str(response.json()['checkers']))
-        checkers = response.json()['checkers']
-        self._logger.debug("Available checkers: %s", ', '.join(checkers))
-
-        creator = FindProjectFiles(checkers, os.getcwd(), paths)
+        builders = response.json()['builders']
+        creator = FindProjectFiles(builders, os.getcwd(), paths)
         return creator.create()

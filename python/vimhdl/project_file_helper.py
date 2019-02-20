@@ -41,15 +41,15 @@ class ProjectFileCreator:
 
     __metaclass__ = abc.ABCMeta
 
-    def __init__(self, checkers, cwd):
+    def __init__(self, builders, cwd):
         """
         Arguments:
-            - checkers: list of checker names that the server has reported as
+            - builders: list of builder names that the server has reported as
                         working
             - cwd: current working directory. This will influence where the
                    resulting file is saved
         """
-        self._checkers = checkers
+        self._builders = builders
         self._cwd = cwd
         self._logger = logging.getLogger(self.__class__.__name__)
         self._sources = set()
@@ -84,20 +84,20 @@ class ProjectFileCreator:
         """
 
     @abc.abstractmethod
-    def _getPreferredChecker(self):
+    def _getPreferredBuilder(self):
         """
         Method should be overridden by child classes to express the preferred
-        checker
+        builder
         """
 
     def _formatIncludePaths(self, paths):
         """
-        Format a list of paths to be used as flags by the checker. (Still needs
-        a bit of thought, ideally the builder itself would know how to do this)
+        Format a list of paths to be used as flags by the builder. (Still needs
+        a bit of thought, ideally only the builder know how to do this)
         """
-        checker = self._getPreferredChecker()
+        builder = self._getPreferredBuilder()
 
-        if checker == 'msim':
+        if builder == 'msim':
             return ' '.join(['+incdir+%s' % path for path in paths])
 
         return ''
@@ -108,12 +108,12 @@ class ProjectFileCreator:
         contents of the project file
         """
         self._create()
-        checker = self._getPreferredChecker()
+        builder = self._getPreferredBuilder()
 
         contents = ['# Generated on %s' % time.ctime(),
                     '# Files found: %s' % len(self._sources),
-                    '# Available checkers: %s' % ', '.join(self._checkers),
-                    'builder = %s' % checker,
+                    '# Available builders: %s' % ', '.join(self._builders),
+                    'builder = %s' % builder,
                     '']
 
         # Add include paths if any
@@ -144,17 +144,17 @@ class FindProjectFiles(ProjectFileCreator):
     Implementation of ProjectFileCreator that searches for paths on a given
     set of paths recursively
     """
-    def __init__(self, checkers, cwd, paths):
-        super(FindProjectFiles, self).__init__(checkers, cwd)
+    def __init__(self, builders, cwd, paths):
+        super(FindProjectFiles, self).__init__(builders, cwd)
         self._logger.info("Search paths: %s", paths)
         self._paths = (p.abspath(path) for path in paths)
         self._valid_extensions = tuple(list(_SOURCE_EXTENSIONS) +
                                        list(_HEADER_EXTENSIONS))
 
-    def _getPreferredChecker(self):
-        if 'msim' in self._checkers:
+    def _getPreferredBuilder(self):
+        if 'msim' in self._builders:
             return 'msim'
-        if 'ghdl' in self._checkers:
+        if 'ghdl' in self._builders:
             return 'ghdl'
         return 'xvhdl'
 
@@ -162,7 +162,7 @@ class FindProjectFiles(ProjectFileCreator):
         """
         Returns file specific compiler flags
         """
-        if self._getPreferredChecker() != 'msim':
+        if self._getPreferredBuilder() != 'msim':
             return []
 
         flags = []
