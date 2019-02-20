@@ -224,10 +224,13 @@ function! s:createProjectFile(...) abort
 
         call rename(l:config_file, l:backup_file)
 
-    else
+    elseif glob(l:config_file)
+        " If the file exists but it's not readable, error
         throw 'vim-hdl : Can''t create project file. Settings point to ''' .
                     \ l:config_file . ''' but the file is not writable; ' .
                     \ 'check file and/or directory permissions and try again.'
+    else
+        let l:backup_file = l:config_file . '.backup'
     end
 
     let l:info = [
