@@ -10,9 +10,9 @@ syn  match vimhdlProjectFileComment  "#.*"
 syn  match vimhdlProjectFileComment  "^\s*\zs#.*$"  
 syn  match vimhdlProjectFileComment  "\s\zs#.*$"    
 
-syn match vimhdlProjectFileLang      display '\<\(vhdl\|verilog\|systemverilog\)\>'
+syn match vimhdlProjectFileLang      display '\(^\|\[\)\<\(vhdl\|verilog\|systemverilog\)\>\(\s\|\]\)'
 syn match vimhdlProjectFileBuilders  display '\<\(msim\|xvhdl\|ghdl\|fallback\)\>'
-syn match vimhdlProjectFileSrc       display '[\w./][^ ]\+\.\(svh\|vh\|sv\|v\|vhd\)\>\s*' 
+syn match vimhdlProjectFileSrc       display ' [a-z./][^ ]\+\.\(svh\|vh\|sv\|v\|vhd\)\>\s*' 
 
 syn  keyword  vimhdlProjectFileKeywords builder global_build_flags batch_build_flags
 syn  keyword  vimhdlProjectFileKeywords single_build_flags 
