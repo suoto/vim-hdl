@@ -111,8 +111,22 @@ function! s:setupHooks(...) abort
         endfor
         execute('autocmd! BufLeave ' . l:ext . ' ' .
                \':' . s:python_command . ' vimhdl_client.onBufferLeave()')
+
     endfor
     augroup END
+endfunction
+" }
+" { s:setupSyntastic() Setup Syntastic to use vimhdl in the given filetypes
+" ============================================================================
+function! s:setupSyntastic(...) abort
+    for l:filetype in a:000
+        if !exists('g:syntastic_' . l:filetype . '_checkers')
+            execute('let g:syntastic_' . l:filetype . '_checkers = ["vimhdl"]')
+        else
+            execute('let g:syntastic_' . l:filetype . '_checkers += ["vimhdl"]')
+        end
+    endfor
+
 endfunction
 " }
 " { s:printInfo() Handle for VimHdlInfo command
@@ -311,6 +325,7 @@ function! vimhdl#setup() abort
         call s:setupPython()
         call s:setupCommands()
         call s:setupHooks('*.vhd', '*.vhdl', '*.v', '*.sv')
+        call s:setupSyntastic('vhdl', 'verilog', 'systemverilog')
     endif
 
     if count(['vhdl', 'verilog', 'systemverilog'], &filetype)
