@@ -16,12 +16,17 @@
 # along with vim-hdl.  If not, see <http://www.gnu.org/licenses/>.
 "Misc helpers for common vim-hdl operations"
 
-import os.path as p
 import logging
+import os
+import os.path as p
 import socket
-import vim                 # pylint: disable=import-error
+
+import vim  # pylint: disable=import-error
+from vimhdl.project_file_helper import FindProjectFiles
 
 _logger = logging.getLogger(__name__)
+
+_VIMHDL_DEFAULT_CONFIG_FILE_NAME = 'vimhdl.prj'
 
 def _toUnicode(value):
     """
@@ -136,8 +141,8 @@ def getProjectFile():
         conf_file = p.abspath(p.expanduser(
             _getBufferVars(var='vimhdl_conf_file')))
         if not p.exists(conf_file):
-            _logger.warning("Buffer config file '%s' is set but not " \
-                    "readable", conf_file)
+            _logger.warning("Buffer config file '%s' is set but not "
+                            "readable", conf_file)
             conf_file = None
 
     if conf_file is None:
@@ -145,8 +150,8 @@ def getProjectFile():
             conf_file = p.abspath(p.expanduser(
                 _getVimGlobals('vimhdl_conf_file')))
             if not p.exists(conf_file):
-                _logger.warning("Global config file '%s' is set but not " \
-                        "readable", conf_file)
+                _logger.warning("Global config file '%s' is set but not "
+                                "readable", conf_file)
                 conf_file = None
 
     if conf_file is None:
@@ -155,3 +160,5 @@ def getProjectFile():
 
     return conf_file
 
+def getBackupFileName(path):
+    return p.join(p.dirname(path), '.' + p.basename(path) + '.backup')

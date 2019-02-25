@@ -22,17 +22,17 @@ import os
 import os.path as p
 import time
 
+import vim  # pylint: disable=import-error
+import vimhdl
 from hdlcc.utils import UnknownTypeExtension, getFileType, isFileReadable
-
-_logger = logging.getLogger(__name__)
 
 _SOURCE_EXTENSIONS = 'vhdl', 'sv', 'v'
 _HEADER_EXTENSIONS = 'vh', 'svh'
 
 _DEFAULT_LIBRARY_NAME = {
-        'vhdl': 'default_library',
-        'verilog': 'default_library',
-        'systemverilog': 'default_library'}
+        'vhdl': 'lib',
+        'verilog': 'lib',
+        'systemverilog': 'lib'}
 
 class ProjectFileCreator:
     """
@@ -40,6 +40,17 @@ class ProjectFileCreator:
     """
 
     __metaclass__ = abc.ABCMeta
+    _default_conf_filename = 'vimhdl.prj'
+
+    _preface = """\
+# This is the resulting project file, please review and save when done. The
+# g:vimhdl_conf_file variable has been temporarily changed to point to this
+# file should you wish to open HDL files and test the results. When finished,
+# close this buffer; you''ll be prompted to either use this file or revert to
+# the original one.
+#
+# ---- Everything up to this line will be automatically removed ----
+""".splitlines()
 
     def __init__(self, builders, cwd):
         """
@@ -55,6 +66,13 @@ class ProjectFileCreator:
         self._sources = set()
         self._include_paths = {'verilog': set(),
                                'systemverilog': set()}
+
+        self._project_file = vimhdl.vim_helpers.getProjectFile() or \
+                ProjectFileCreator._default_conf_filename
+
+        self._backup_file = p.join(
+            p.dirname(self._project_file),
+            '.' + p.basename(self._project_file) + '.backup')
 
     open_after_running = property(lambda self: True, doc="""
         open_after_running enables or disables opening the resulting project
@@ -102,19 +120,57 @@ class ProjectFileCreator:
 
         return ''
 
-    def create(self):
+    def run(self):
+        #  return self._runCreationHelper()
+
+        # If this is being called from within an existing config file
+        # buffer, quit the existing buffer first
+        if vim.current.buffer.vars.get('is_vimhdl_conf_file'):
+            self._logger.info("is_vimhdl_conf_file is set, cleaning it up")
+            del vim.current.buffer.vars['is_vimhdl_conf_file']
+            #  open(vim.current.buffer.name, 'w').write('')
+            #  #  vim.command('%%d')
+            #  #  vim.command('write')
+            vim.command('quit')
+            #  self._logger.info("buffer now has %d lines", len(vim.current.buffer))
+
+        # In case no project file was set and we used the default one
+        if 'vimhdl_conf_file' not in vim.vars:
+            vim.vars['vimhdl_conf_file'] = self._project_file
+
+        # Backup
+        if p.exists(self._project_file):
+            self._logger.info("Backing up %s to %s", self._project_file,
+                              self._backup_file)
+            os.rename(self._project_file, self._backup_file)
+
+        open(self._project_file, 'w').write('')
+
+        self._runCreationHelper()
+        self._setupVimhdlProjectFileAutocmds()
+        self._openResultingFileForEdit()
+
+    def _runCreationHelper(self):
         """
         Runs the _create method in the child class and assemble the actual
         contents of the project file
         """
+        self._logger.info("Running creation helpers")
+
         self._create()
         builder = self._getPreferredBuilder()
 
-        contents = ['# Generated on %s' % time.ctime(),
-                    '# Files found: %s' % len(self._sources),
-                    '# Available builders: %s' % ', '.join(self._builders),
-                    'builder = %s' % builder,
-                    '']
+        contents = []
+        contents += ProjectFileCreator._preface
+
+        contents += ['# Generated on %s' % time.ctime(),
+                     '# Files found: %s' % len(self._sources),
+                     '# Available builders: %s' % ', '.join(self._builders)]
+
+        if builder in self._builders:
+            contents += ['builder = %s' % builder]
+
+        contents += ['']
 
         # Add include paths if any
         for lang, paths in self._include_paths.items():
@@ -126,18 +182,67 @@ class ProjectFileCreator:
             contents += ['']
 
         # Add sources
+        sources = []
+
         for path, flags, library in self._sources:
             file_type = getFileType(path)
+            sources.append((file_type, library, path, flags))
+
+        sources.sort(key=lambda x: x[2])
+
+        for file_type, library, path, flags in sources:
             contents += ['{0} {1} {2} {3}'.format(file_type, library, path,
                                                   flags)]
 
         if self._sources:
             contents += ['', '']
 
-        for line in contents:
-            self._logger.debug(line)
+        self._logger.info("Resulting file has %d lines", len(contents))
 
-        return '\n'.join(contents)
+        open(self._project_file, 'w').write('\n'.join(contents))
+
+    def _setupVimhdlProjectFileAutocmds(self):
+        self._logger.debug("Setting up auto cmds")
+        vim.command('autocmd! vimhdl QuitPre')
+        vim.command('augroup vimhdl')
+        vim.command('autocmd QuitPre %s :call s:onVimhdlTempQuit()' % self._project_file)
+        vim.command('augroup END')
+
+    def _openResultingFileForEdit(self):
+        self._logger.debug("Opening resulting file for edition")
+        vim.command('vs %s' % self._project_file)
+        vim.command('edit! %')
+        vim.current.buffer.vars['config_file'] = self._project_file
+        vim.current.buffer.vars['backup_file'] = self._backup_file
+        vim.current.buffer.vars['is_vimhdl_conf_file'] = True
+        vim.command('set filetype=vimhdl')
+
+    def onVimhdlTempQuit(self):
+        if vim.eval('&filetype') != 'vimhdl':
+            self._logger.debug("Nothing to do for filetype %s",
+                               vim.eval('&filetype'))
+            return
+
+        # Disable autocmds
+        vim.command('autocmd! vimhdl QuitPre')
+
+        modified = bool(vim.eval('&modified') == "1")
+
+        lnum = 0
+        for lnum, line in enumerate(vim.current.buffer):
+            if 'Everything up to this line will be automatically removed' in line:
+                self._logger.debug("Breaing at line %d", lnum)
+                break
+
+        if lnum:
+            vim.command('1,%dd' % (lnum + 1))
+            if not modified:
+                vim.command(':write')
+
+        #  actual_content = '\n'.join(actual_content)
+        #  self._logger.info("Actual content: %s", actual_content)
+        #  open(self._project_file, 'w').write(str(actual_content))
+        #  vim.command(':edit! %s' % vim.current.buffer.name)
 
 class FindProjectFiles(ProjectFileCreator):
     """
@@ -146,8 +251,8 @@ class FindProjectFiles(ProjectFileCreator):
     """
     def __init__(self, builders, cwd, paths):
         super(FindProjectFiles, self).__init__(builders, cwd)
-        self._logger.info("Search paths: %s", paths)
-        self._paths = (p.abspath(path) for path in paths)
+        self._logger.debug("Search paths: %s", paths)
+        self._paths = paths
         self._valid_extensions = tuple(list(_SOURCE_EXTENSIONS) +
                                        list(_HEADER_EXTENSIONS))
 

@@ -1,0 +1,29 @@
+Macro that checks if the quickfix is empty
+  @macro (assert_qf_empty)
+  :echom &ft
+  ~ vhdl
+  :silent! SyntasticCheck
+  :silent! lopen
+  :echom getline('.')
+  &
+  :quit
+  @endmacro
+
+Macro that checks if vimhdl is enabled
+  @macro (vimhdl_check)
+  :SyntasticInfo
+  ~ Syntastic version:.* (regex)
+  ~ Info for filetype: vhdl
+  ~ Global mode: active
+  ~ Filetype vhdl is active
+  ~ The current file will be checked automatically
+  ~ Available checker(s:|:)\s*.*\bvimhdl\b.* (regex)
+  ~ Currently enabled checker(s:|:)\s*.*\bvimhdl\b.* (regex)
+  @endmacro
+
+
+
+
+Edit different files under the same project
+  :if exists('g:vimhdl_conf_file') throw "vimhdl_conf_file shouldn't be set" end
+  :if !exists('g:vimhdl_conf_file') throw "vimhdl_conf_file shouldn't be set" end

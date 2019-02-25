@@ -27,12 +27,12 @@ from multiprocessing import Queue
 import vim  # pylint: disable=import-error
 import vimhdl
 import vimhdl.vim_helpers as vim_helpers
-from vimhdl.project_file_helper import FindProjectFiles
 from vimhdl.base_requests import (GetBuildSequence, GetDependencies,
                                   ListWorkingBuilders, OnBufferLeave,
                                   OnBufferVisit, RequestHdlccInfo,
                                   RequestMessagesByPath, RequestProjectRebuild,
                                   RequestQueuedMessages)
+from vimhdl.project_file_helper import FindProjectFiles
 
 _ON_WINDOWS = sys.platform == 'win32'
 
@@ -423,23 +423,11 @@ class VimhdlClient:  #pylint: disable=too-many-instance-attributes
         return ""
 
     def createProjectFile(self):
-        """
-        Creats or modifies the current project file
-        """
-
-        paths = vim.eval('b:local_arg') or [os.getcwd(), ]
-        self._logger.debug("paths=%s", paths)
-
-        if not self._isServerAlive():
-            self._postWarning("Server is not alive, resulting project file "
-                              "won't have builders set")
-            return
+        paths = vim.eval('b:local_arg') or ['.', ]
 
         response = ListWorkingBuilders(self._host, self._port).sendRequest()
 
-        if not response:
-            return None
-
+        assert response, "Got no response"
         builders = response.json()['builders']
-        creator = FindProjectFiles(builders, os.getcwd(), paths)
-        return creator.create()
+        self._logger.info("Builders: %s", builders)
+        return FindProjectFiles(builders, os.getcwd(), paths)
