@@ -272,6 +272,35 @@ with such.A('vim-hdl test') as it:
             _logger.exception("Excepion caught while testing")
             it.fail("Test failed: %s" % case)
 
+    @it.should("run config helper without g:vimhdl_conf_file set")
+    def test(case):
+        vroom_test = p.join(
+            PATH_TO_TESTS, "test_009_create_project_file_with_clear_setup.vroom")
+
+        # Remove all project files before running
+        for path in glob.glob(p.join(HDLCC_CI, '*.prj')):
+            _logger.info("Removing '%s'", path)
+            os.remove(path)
+        try:
+            subp.check_call(getTestCommand(vroom_test))
+        except subp.CalledProcessError:
+            _logger.exception("Excepion caught while testing")
+            it.fail("Test failed: %s" % case)
+
+    #  @it.should("run config helper g:vimhdl_conf_file previously set")
+    #  def test(case):
+    #      vroom_test = p.join(
+    #          PATH_TO_TESTS, "test_010_create_project_file_with_conf_file_set.vroom")
+
+    #      # Remove all project files before running
+    #      for path in glob.glob(p.join(HDLCC_CI, '*.prj')):
+    #          _logger.info("Removing '%s'", path)
+    #          os.remove(path)
+    #      try:
+    #          subp.check_call(getTestCommand(vroom_test))
+    #      except subp.CalledProcessError:
+    #          _logger.exception("Excepion caught while testing")
+    #          it.fail("Test failed: %s" % case)
+
 
 it.createTests(globals())
-

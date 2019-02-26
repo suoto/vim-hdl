@@ -95,7 +95,7 @@ class ProjectFileCreator:
                                library))
 
     @abc.abstractmethod
-    def _create(self):
+    def _populate(self):
         """
         Method that will be called for generating the project file contets and
         should be implemented by child classes
@@ -121,6 +121,14 @@ class ProjectFileCreator:
         return ''
 
     def run(self):
+        """
+        Generates the project file by running the child class' algorithm and
+        opens up
+        """
+        # Disable auto commands if any to avoid cleaning up a file we're not
+        # supposed to
+        vim.command('autocmd! vimhdl BufUnload')
+
         # In case no project file was set and we used the default one
         if 'vimhdl_conf_file' not in vim.vars:
             vim.vars['vimhdl_conf_file'] = self._project_file
@@ -131,33 +139,41 @@ class ProjectFileCreator:
                               self._backup_file)
             os.rename(self._project_file, self._backup_file)
 
-        open(self._project_file, 'w').write('')
+        try:
+            self._writeGeneratedFile()
+        except:
+            self._logger.exception("Error running auto project creation, "
+                                   "restoring backup")
+            os.rename(self._backup_file, self._project_file)
+            raise
 
-        self._runCreationHelper()
-        self._setupVimhdlProjectFileAutocmds()
-        self._openResultingFileForEdit()
+        if self.open_after_running:
+            # Need to open the resulting file and then setup auto commands to
+            # avoid triggering them when loading / unloading the new buffer
+            self._openResultingFileForEdit()
+            self._setupAutocmds()
 
-    def _runCreationHelper(self):
+    def _writeGeneratedFile(self):
         """
-        Runs the _create method in the child class and assemble the actual
-        contents of the project file
+        Runs the child class algorithm to populate the parent object with the
+        project info and writes the result to the project file
         """
         self._logger.info("Running creation helpers")
 
-        self._create()
-        builder = self._getPreferredBuilder()
-
+        self._populate()
         contents = []
-        contents += ProjectFileCreator._preface
+
+        # Don't include preface if not opening for edits later on
+        if self.open_after_running:
+            contents += ProjectFileCreator._preface
 
         contents += ['# Generated on %s' % time.ctime(),
                      '# Files found: %s' % len(self._sources),
                      '# Available builders: %s' % ', '.join(self._builders)]
 
+        builder = self._getPreferredBuilder()
         if builder in self._builders:
             contents += ['builder = %s' % builder]
-
-        contents += ['']
 
         # Add include paths if any
         for lang, paths in self._include_paths.items():
@@ -187,11 +203,15 @@ class ProjectFileCreator:
 
         open(self._project_file, 'w').write('\n'.join(contents))
 
-    def _setupVimhdlProjectFileAutocmds(self):
-        self._logger.debug("Setting up auto cmds")
+    def _setupAutocmds(self):
+        """
+        Creates an autocmd for the specified file only
+        """
+        self._logger.debug("Setting up auto cmds for %s", self._project_file)
         # Create hook to remove preface text when closing the file
         vim.command('augroup vimhdl')
-        vim.command('autocmd QuitPre %s :call s:onVimhdlTempQuit()' % self._project_file)
+        vim.command('autocmd BufUnload %s :call s:onVimhdlTempQuit()' %
+                    self._project_file)
         vim.command('augroup END')
 
     def _openResultingFileForEdit(self):
@@ -200,35 +220,44 @@ class ProjectFileCreator:
         test
         """
         self._logger.debug("Opening resulting file for edition")
-        vim.command('new %s' % self._project_file)
-        vim.command('edit! %')
-        vim.current.buffer.vars['config_file'] = self._project_file
-        vim.current.buffer.vars['backup_file'] = self._backup_file
+        # If the current buffer is already pointing to the project file, reuse
+        # it
+        if p.samefile(vim.current.buffer.name, self._project_file):
+            vim.command('edit! %s' % self._project_file)
+        else:
+            vim.command('vsplit %s' % self._project_file)
+
+        vim.current.buffer.vars['is_vimhdl_generated'] = True
         vim.command('set filetype=vimhdl')
 
     def onVimhdlTempQuit(self):
-        if vim.eval('&filetype') != 'vimhdl':
-            self._logger.debug("Nothing to do for filetype %s",
-                               vim.eval('&filetype'))
+        """
+        Callback for closing the generated project file to remove the preface
+        from the buffer contents
+        """
+        # Don't touch files created by the user of files where the preface has
+        # already been (presumably) taken out
+        if not vim.current.buffer.vars.get('is_vimhdl_generated', False):
             return
 
-        # Disable autocmds pointing to this
-        vim.command('autocmd! vimhdl QuitPre')
+        # No pop on Vim's RemoteMap dictionary
+        del vim.current.buffer.vars['is_vimhdl_generated']
+        # No need to call this again
+        vim.command('autocmd! vimhdl BufUnload')
 
-        modified = bool(vim.eval('&modified') == "1")
-
+        # Search for the last line we said we'd remove
         lnum = 0
         for lnum, line in enumerate(vim.current.buffer):
             if 'Everything up to this line will be automatically removed' in line:
                 self._logger.debug("Breaing at line %d", lnum)
                 break
 
-        content = list(vim.current.buffer)
+        # Remove line not found
+        if not lnum:
+            return
 
-        if lnum:
-            content = content[lnum + 1 : ]
-
-        vim.current.buffer[ : ] = content [:]
+        # Update and save
+        vim.current.buffer[ : ] = list(vim.current.buffer)[lnum + 1 : ]
         vim.command('write!')
 
 class FindProjectFiles(ProjectFileCreator):
@@ -298,7 +327,7 @@ class FindProjectFiles(ProjectFileCreator):
                     if isFileReadable(path):
                         yield path
 
-    def _create(self):
+    def _populate(self):
         for path in self._findSources():
             self._addSource(path, flags=self._getCompilerFlags(path),
                             library=self._getLibrary(path))
