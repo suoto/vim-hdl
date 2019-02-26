@@ -40,7 +40,7 @@ let g:syntastic_check_on_open = 0
 let g:syntastic_check_on_wq = 1
 
 let g:syntastic_vhdl_vimhdl_sort = 0
-let g:syntastic_vhdl_checkers = ['vimhdl']
+" let g:syntastic_vhdl_checkers = ['vimhdl']
 
 " To avoid Press "ENTER..." message
 set cmdheight=15

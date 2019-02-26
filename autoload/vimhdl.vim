@@ -208,60 +208,13 @@ vimhdl_project_helper.run()
 EOF
 endfunction
 "}
-" { s:createProjectFileVim (remove this
-" ============================================================================
-function! s:createProjectFileVim(...) abort
-
-    let b:local_arg = a:000
-    let l:content = s:pyEval('vimhdl_client.createProjectFile()')
-
-    " Default config file name
-    let l:conf_file = 'vimhdl.prj' 
-    let l:should_backup = 0
-
-    if exists('b:vimhdl_conf_file')
-        let l:conf_file = b:vimhdl_conf_file
-        let l:should_backup = 1
-    elseif exists('g:vimhdl_conf_file')
-        let l:conf_file = g:vimhdl_conf_file
-        let l:should_backup = 1
-    else
-        " Nothing was set, set to global to use the default file name
-        let g:vimhdl_conf_file = l:conf_file
-    endif
-
-    let l:backup_file = 
-                \ s:pyEval('vimhdl.vim_helpers.getBackupFileName(''' . l:conf_file . ''')')
-
-    if l:should_backup
-        call rename(l:conf_file, l:backup_file)
-    endif
-
-    " Now setup autocmds to handle when the user finishes editing
-    augroup vimhdl
-        execute('autocmd BufWritePre ' . l:conf_file . ' :call s:onVimhdlTempQuit()')
-    augroup END
-
-    call writefile(l:content, l:conf_file, 'b')
-
-    " Open the file for editing
-    execute('silent! bwipeout ' . l:conf_file)
-    execute(':vert new ' . l:conf_file)
-    edit! %
-
-    let b:conf_file = l:conf_file
-    let b:backup_file = l:backup_file
-    let b:is_vimhdl_cfg_file = 1
-    set filetype=vimhdl
-
-endfunction
-"}
 " { s:onVimhdlTempQuit() Handles leaving the temporary config file edit
 " ============================================================================
 function! s:onVimhdlTempQuit()
     let l:python = s:using_python2 ? 'python2' : 'python3'
     exec s:python_until_eof
 try:
+    vimhdl_project_helper
     vimhdl_project_helper.onVimhdlTempQuit()
     del vimhdl_project_helper
 except NameError:

@@ -121,19 +121,6 @@ class ProjectFileCreator:
         return ''
 
     def run(self):
-        #  return self._runCreationHelper()
-
-        # If this is being called from within an existing config file
-        # buffer, quit the existing buffer first
-        if vim.current.buffer.vars.get('is_vimhdl_conf_file'):
-            self._logger.info("is_vimhdl_conf_file is set, cleaning it up")
-            del vim.current.buffer.vars['is_vimhdl_conf_file']
-            #  open(vim.current.buffer.name, 'w').write('')
-            #  #  vim.command('%%d')
-            #  #  vim.command('write')
-            vim.command('quit')
-            #  self._logger.info("buffer now has %d lines", len(vim.current.buffer))
-
         # In case no project file was set and we used the default one
         if 'vimhdl_conf_file' not in vim.vars:
             vim.vars['vimhdl_conf_file'] = self._project_file
@@ -194,8 +181,7 @@ class ProjectFileCreator:
             contents += ['{0} {1} {2} {3}'.format(file_type, library, path,
                                                   flags)]
 
-        if self._sources:
-            contents += ['', '']
+        contents += ['', '# vim: filetype=vimhdl']
 
         self._logger.info("Resulting file has %d lines", len(contents))
 
@@ -203,18 +189,21 @@ class ProjectFileCreator:
 
     def _setupVimhdlProjectFileAutocmds(self):
         self._logger.debug("Setting up auto cmds")
-        vim.command('autocmd! vimhdl QuitPre')
+        # Create hook to remove preface text when closing the file
         vim.command('augroup vimhdl')
         vim.command('autocmd QuitPre %s :call s:onVimhdlTempQuit()' % self._project_file)
         vim.command('augroup END')
 
     def _openResultingFileForEdit(self):
+        """
+        Opens the resulting conf file for editing so the user can tweak and
+        test
+        """
         self._logger.debug("Opening resulting file for edition")
-        vim.command('vs %s' % self._project_file)
+        vim.command('new %s' % self._project_file)
         vim.command('edit! %')
         vim.current.buffer.vars['config_file'] = self._project_file
         vim.current.buffer.vars['backup_file'] = self._backup_file
-        vim.current.buffer.vars['is_vimhdl_conf_file'] = True
         vim.command('set filetype=vimhdl')
 
     def onVimhdlTempQuit(self):
@@ -223,7 +212,7 @@ class ProjectFileCreator:
                                vim.eval('&filetype'))
             return
 
-        # Disable autocmds
+        # Disable autocmds pointing to this
         vim.command('autocmd! vimhdl QuitPre')
 
         modified = bool(vim.eval('&modified') == "1")
@@ -234,15 +223,13 @@ class ProjectFileCreator:
                 self._logger.debug("Breaing at line %d", lnum)
                 break
 
-        if lnum:
-            vim.command('1,%dd' % (lnum + 1))
-            if not modified:
-                vim.command(':write')
+        content = list(vim.current.buffer)
 
-        #  actual_content = '\n'.join(actual_content)
-        #  self._logger.info("Actual content: %s", actual_content)
-        #  open(self._project_file, 'w').write(str(actual_content))
-        #  vim.command(':edit! %s' % vim.current.buffer.name)
+        if lnum:
+            content = content[lnum + 1 : ]
+
+        vim.current.buffer[ : ] = content [:]
+        vim.command('write!')
 
 class FindProjectFiles(ProjectFileCreator):
     """
