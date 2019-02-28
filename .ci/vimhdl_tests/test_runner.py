@@ -328,9 +328,16 @@ with such.A('vim-hdl test') as it:
             _logger.info("Removing '%s'", path)
             os.remove(path)
 
-        test_path = tempfile.mkdtemp()
+        # Needs to agree with vroom test file
+        dummy_test_path = p.expanduser('~/dummy_test_path')
 
-        with pushd(test_path):
+        # Create a dummy arrangement of sources
+        if p.exists(dummy_test_path):
+            shutil.rmtree(dummy_test_path)
+
+        os.mkdir(dummy_test_path)
+
+        with pushd(dummy_test_path):
             os.mkdir('path_a')
             os.mkdir('path_b')
             os.mkdir('v_includes')
@@ -352,12 +359,14 @@ with such.A('vim-hdl test') as it:
                 _logger.info("Writing to %s", path)
                 open(path, 'w').write('')
 
-            with mockMsim():
-                try:
-                    subp.check_call(getTestCommand(vroom_test))
-                except subp.CalledProcessError:
-                    _logger.exception("Excepion caught while testing")
-                    it.fail("Test failed: %s" % case)
+        # This shouldn't run under pushd context otherwise we won't get the
+        # coverage reports
+        with mockMsim():
+            try:
+                subp.check_call(getTestCommand(vroom_test))
+            except subp.CalledProcessError:
+                _logger.exception("Excepion caught while testing")
+                it.fail("Test failed: %s" % case)
 
 
 it.createTests(globals())
