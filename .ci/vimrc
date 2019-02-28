@@ -127,7 +127,7 @@ def setupVimLogging():
             index += 1
     logging.getLogger('requests').setLevel(logging.WARNING)
     logging.getLogger('nose2').setLevel(logging.INFO)
-    logging.getLogger('neovim').setLevel(logging.INFO)
+    logging.getLogger('pynvim').setLevel(logging.INFO)
     setupLogging(log_file, logging.DEBUG, True)
 
 setupVimLogging()
