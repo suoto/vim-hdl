@@ -1,3 +1,12 @@
+Macro that writes and waits for the save msg (seems needed in some cases)
+  @macro (write)
+  :write
+  ~ ".*".*\swritten (regex)
+  @endmacro
+
+
+
+
 Edit a VHD file without any project file. It is expected to run only the static checker
   :SyntasticInfo
 I don't want to type the file within vroom, so I'll copy another file :)
@@ -8,8 +17,7 @@ I don't want to type the file within vroom, so I'll copy another file :)
   :tabe source.vhd
   > P
   ~ 112 more lines
-  :write (2.0)
-  ~ "source.vhd" \[New\] \d+L, \d+C written (regex)
+  @do (write)
 
 This file has no errors, so the quickfix list must be empty
   :SyntasticCheck
@@ -21,8 +29,7 @@ Find where the architecture declaration begins and insert a signal declaration,
 which should result in the static checker saying it is not used
   > /^\s*architecture\s\+\w\+\s\+of\s\+\w\+<CR>
   > o signal unused : integer;<ESC>
-  :write
-  ~ "source.vhd" \d+L, \d+C written (regex)
+  @do (write)
   :lopen
   source.vhd|38 col \d+ warning| signal "unused" is never used (regex)
 

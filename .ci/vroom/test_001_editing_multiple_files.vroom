@@ -21,6 +21,12 @@ Macro that checks if vimhdl is enabled
   ~ Currently enabled checker(s:|:)\s*.*\bvimhdl\b.* (regex)
   @endmacro
 
+Macro that writes and waits for the save msg (seems needed in some cases)
+  @macro (write)
+  :write
+  ~ ".*".*\swritten (regex)
+  @endmacro
+
 
 
 
@@ -38,15 +44,13 @@ Remove an important line so the builder must tell there's an error
   > dd
   :echom getline('.')
   ~ end edge_detector;
-  :write
-  ~ ".*".*\swritten (regex)
+  @do (write)
   :silent! SyntasticCheck
   :silent! lopen
   common_lib/edge_detector.vhd|36 col 1 error| 'end' is expected instead of 'architecture'
   :lclose
   > u
-  :write
-  ~ ".*".*\swritten (regex)
+  @do (write)
   @do (assert_qf_empty)
 
 
@@ -55,16 +59,14 @@ Ok, so the previous file worked fine. Let's open another file that our edge_dete
 depends on, like the sr_delay
   :edit common_lib/sr_delay.vhd
 Again, this file has no errors
-  :write
-  ~ ".*".*\swritten (regex)
+  @do (write)
   :lclose
   @do (assert_qf_empty)
 
 Let's rename the 'clken' port to 'clk_en'
   :%s/\<clken\>/clk_en/g
 This won't cause errors for this file
-  :write
-  ~ ".*".*\swritten (regex)
+  @do (write)
   :lclose
   @do (assert_qf_empty)
 
@@ -73,8 +75,7 @@ This won't cause errors for this file
 But our edge detector should warn that a port named 'clken' doens't exist
 anymore
   :edit common_lib/edge_detector.vhd
-  :write
-  ~ ".*".*\swritten (regex)
+  @do (write)
   :silent! lopen
   common_lib/edge_detector.vhd|75 col 24 error| no interface for 'clken' in association
   :lclose
@@ -82,15 +83,13 @@ anymore
 Let's undo our changes
   :edit common_lib/sr_delay.vhd
   :%s/\<clk_en\>/clken/g
-  :write
-  ~ ".*".*\swritten (regex)
+  @do (write)
   :lclose
   @do (assert_qf_empty)
 
 Again, this should propagate
   :edit common_lib/edge_detector.vhd
-  :write
-  ~ ".*".*\swritten (regex)
+  @do (write)
   :lclose
   @do (assert_qf_empty)
 
@@ -103,16 +102,14 @@ what happens!
   @do (assert_qf_empty)
   :10
   > o constant SOME_CONSTANT : integer := 14<ESC>
-  :write
-  ~ ".*".*\swritten (regex)
+  @do (write)
   :silent! SyntasticCheck
   :silent! lopen
   common_lib/common_pkg.vhd|12 col 5 error| ';' is expected instead of 'function'
   :q
 
   > a;<ESC>
-  :write
-  ~ ".*".*\swritten (regex)
+  @do (write)
   :lclose
   @do (assert_qf_empty)
 
@@ -120,22 +117,19 @@ what happens!
 The package has changed but neither the edge_detector or sr_delay have been
 rebuilt
   :edit common_lib/edge_detector.vhd
-  :write
-  ~ ".*".*\swritten (regex)
+  @do (write)
   :lclose
   @do (assert_qf_empty)
 
 Let's rebuild
   :edit common_lib/synchronizer.vhd
-  :write
-  ~ ".*".*\swritten (regex)
+  @do (write)
   :lclose
   @do (assert_qf_empty)
 
 Let's rebuild
   :edit common_lib/sr_delay.vhd
-  :write
-  ~ ".*".*\swritten (regex)
+  @do (write)
   :lclose
   @do (assert_qf_empty)
 
@@ -143,8 +137,7 @@ Let's rebuild
 The package has changed but neither the edge_detector or sr_delay have been
 rebuilt
   :edit common_lib/edge_detector.vhd
-  :write
-  ~ ".*".*\swritten (regex)
+  @do (write)
   :lclose
   @do (assert_qf_empty)
 

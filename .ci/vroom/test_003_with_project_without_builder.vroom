@@ -9,6 +9,15 @@ Macro that checks if the quickfix is empty
   :quit
   @endmacro
 
+Macro that writes and waits for the save msg (seems needed in some cases)
+  @macro (write)
+  :write
+  ~ ".*".*\swritten (regex)
+  @endmacro
+
+
+
+
 We'll test what happens when we configure a project but the builder it specifies
 is not found, which should trigger using the fallback builder
   :let hdl_lib_path = getcwd() . '/../hdlcc_ci/hdl_lib'
@@ -23,7 +32,7 @@ is not found, which should trigger using the fallback builder
 
 Change the project filename to a builder we have configured
   :let g:vimhdl_conf_file = hdl_lib_path . '/ghdl.prj'
-  :write (2.0)
+  @do (write)
   @do (assert_qf_empty)
 
 Remove an important line so the builder must tell there's an error
@@ -31,13 +40,12 @@ Remove an important line so the builder must tell there's an error
   > dd
   :echom getline('.')
   ~ end edge_detector;
-  :write
-  ~ ".*".*\swritten (regex)
+  @do (write)
   :silent! SyntasticCheck
   :silent! lopen
   common_lib/edge_detector.vhd|36 col 1 error| 'end' is expected instead of 'architecture'
   :lclose
   > u
-  :write
+  @do (write)
   @do (assert_qf_empty)
 
