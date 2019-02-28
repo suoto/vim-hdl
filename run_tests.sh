@@ -202,6 +202,7 @@ python -m coverage run -m nose2 -s .ci/ "${RUNNER_ARGS[@]}"
 RESULT=$?
 
 python -m coverage combine
+python -m coverage report
 python -m coverage html
 
 [ -z "${CI}" ] && [ -n "${VIRTUAL_ENV}" ] && deactivate

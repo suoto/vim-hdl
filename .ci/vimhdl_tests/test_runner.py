@@ -84,44 +84,28 @@ def mockMsim():
 with such.A('vim-hdl test') as it:
 
     def gitClean(path=None):
-        if path is None:
-            path = "."
-        start_path = p.abspath(".")
-        dest_path = p.abspath(path)
-        if start_path != dest_path:
-            _logger.info("Changing from '%s' to '%s'", start_path, dest_path)
-            os.chdir(dest_path)
-
-        _logger.info("Cleaning up non-git files")
-        for line in subp.check_output(['git', 'clean', '-fdx']).splitlines():
-            _logger.info("> %s", line)
-
-        if start_path != dest_path:
-            _logger.info("Changing back to '%s'", start_path)
-            os.chdir(start_path)
+        with pushd(path or '.'):
+            _logger.info("Cleaning up non-git files")
+            for line in subp.check_output(['git', 'clean', '-fdx']).splitlines():
+                _logger.info("> %s", line)
 
     def cleanHdlLib():
         _logger.info("Resetting hdl_lib")
-        start_path = p.abspath(".")
-        dest_path = p.join(HDLCC_CI, "hdl_lib")
-        if start_path != dest_path:
-            _logger.info("Changing from '%s' to '%s'", start_path, dest_path)
-            os.chdir(dest_path)
 
-        for line in \
-            subp.check_output(['git', 'reset', 'HEAD', '--hard']).splitlines():
+        with pushd(p.join(HDLCC_CI, "hdl_lib")):
 
-            _logger.info("> %s", line)
+            for line in \
+                subp.check_output(['git', 'reset', 'HEAD', '--hard']).splitlines():
 
-        gitClean()
+                _logger.info("> %s", line)
 
-        _logger.info("git status")
-        for line in \
-            subp.check_output(['git', 'status', '--porcelain']).splitlines():
+            gitClean()
 
-            _logger.info("> %s", line)
+            _logger.info("git status")
+            for line in \
+                subp.check_output(['git', 'status', '--porcelain']).splitlines():
 
-        os.chdir(start_path)
+                _logger.info("> %s", line)
 
     def pipInstallHdlcc():
         cmd = ['pip', 'install', '-e', PATH_TO_HDLCC, '-U',]

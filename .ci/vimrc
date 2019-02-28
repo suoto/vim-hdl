@@ -128,32 +128,54 @@ def setupVimLogging():
     logging.getLogger('requests').setLevel(logging.WARNING)
     logging.getLogger('nose2').setLevel(logging.INFO)
     logging.getLogger('pynvim').setLevel(logging.INFO)
+    logging.getLogger('urllib3').setLevel(logging.INFO)
     setupLogging(log_file, logging.DEBUG, True)
 
 setupVimLogging()
 
 _logger = logging.getLogger(__name__)
 
+_logger.info("Set up vim python logger")
+
 import vim
 
 try:
     import coverage
-    _logger.info("Coverage module succesfully imported")
     cov = coverage.Coverage(config_file='.coveragerc')
     cov.start()
 
     def onVimLeave():
-        global cov
-        cov.stop()
-        cov.save()
+        try:
+            global cov
+        except NameError:
+            _logger.error("No coverage started, can't stop it")
+            return
+
+        try:
+            cov.stop()
+            cov.save()
+            _logger.info("Coverage data saved")
+        except:
+            _logger.exception("Unable to save coverage data")
 
 except:
-    _logger.fatal("Unable to import 'coverage'")
+    _logger.exception("Unable to import 'coverage'")
+
     def onVimLeave():
         _logger.warning("No coverage started, can't stop it")
 
 EOF
-    autocmd! VimLeavePre * :silent! call s:Pyeval('onVimLeave()')
+
+    if ! has('nvim')
+        exec s:python_until_eof
+import atexit
+_logger.info("Registering exit function")
+atexit.register(onVimLeave)
+EOF
+
+    else
+        autocmd! VimLeavePre * :silent! call s:Pyeval('onVimLeave()')
+    endif
 
 endfunction
 
