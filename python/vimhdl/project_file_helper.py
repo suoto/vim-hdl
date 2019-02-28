@@ -175,8 +175,10 @@ class ProjectFileCreator:
         if builder in self._builders:
             contents += ['builder = %s' % builder]
 
-        # Add include paths if any
-        for lang, paths in self._include_paths.items():
+        # Add include paths if they exists. Need to iterate sorted keys to
+        # generate results always in the same order
+        for lang in sorted(self._include_paths.keys()):
+            paths = sorted(self._include_paths[lang])
             include_paths = self._formatIncludePaths(paths)
             if include_paths:
                 contents += ['global_build_flags[%s] = %s' % (lang, include_paths)]

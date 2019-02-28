@@ -13,8 +13,8 @@ VHDL, Verilog, SystemVerilog files and headers correctly
   # Files found: 5
   # Available builders: msim, ghdl
   builder = msim
-  global_build_flags[verilog] = +incdir+./path_a +incdir+./v_includes
   global_build_flags[systemverilog] = +incdir+./sv_includes
+  global_build_flags[verilog] = +incdir+./path_a +incdir+./v_includes
   \s* (regex)
   vhdl lib ./path_a/some_source.vhd\s* (regex)
   vhdl lib ./path_a/source_tb.vhd -2008\s* (regex)
