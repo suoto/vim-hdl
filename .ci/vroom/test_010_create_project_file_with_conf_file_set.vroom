@@ -1,0 +1,25 @@
+Run the config file creation helper without any source and check if it finds
+VHDL, Verilog, SystemVerilog files and headers correctly
+  :VimhdlCreateProjectFile
+  # This is the resulting project file, please review and save when done. The
+  # g:vimhdl_conf_file variable has been temporarily changed to point to this
+  # file should you wish to open HDL files and test the results. When finished,
+  # close this buffer; you''ll be prompted to either use this file or revert to
+  # the original one.
+  #
+  # ---- Everything up to this line will be automatically removed ----
+  # Generated on .* (regex)
+  # Files found: 5
+  # Available builders: msim, ghdl
+  builder = msim
+  global_build_flags[verilog] = +incdir+./path_a +incdir+./v_includes
+  global_build_flags[systemverilog] = +incdir+./sv_includes
+  \s* (regex)
+  vhdl lib ./path_a/some_source.vhd\s* (regex)
+  vhdl lib ./path_a/source_tb.vhd -2008\s* (regex)
+  systemverilog lib ./path_b/a_systemverilog_source.sv\s* (regex)
+  verilog lib ./path_b/a_verilog_source.v\s* (regex)
+  vhdl lib ./path_b/some_source.vhd\s* (regex)
+  \s* (regex)
+  # vim: filetype=vimhdl\s* (regex)
+

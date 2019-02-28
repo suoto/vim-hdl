@@ -222,7 +222,8 @@ class ProjectFileCreator:
         self._logger.debug("Opening resulting file for edition")
         # If the current buffer is already pointing to the project file, reuse
         # it
-        if p.samefile(vim.current.buffer.name, self._project_file):
+        if not p.exists(vim.current.buffer.name) or \
+                p.samefile(vim.current.buffer.name, self._project_file):
             vim.command('edit! %s' % self._project_file)
         else:
             vim.command('vsplit %s' % self._project_file)

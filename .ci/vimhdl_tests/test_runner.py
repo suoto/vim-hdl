@@ -15,12 +15,18 @@
 
 # pylint: disable=function-redefined, missing-docstring, protected-access
 
-import os
-import os.path as p
 import glob
 import logging
+import os
+import os.path as p
 import re
+import shutil
 import subprocess as subp
+import tempfile
+from contextlib import contextmanager
+
+import mock
+
 from nose2.tools import such
 from nose2.tools.params import params
 
@@ -49,6 +55,31 @@ def getTestCommand(test_name):
 
     _logger.info("$ %s", " ".join(args))
     return args
+
+@contextmanager
+def pushd(path):
+    prev = os.getcwd()
+    os.chdir(path)
+    try:
+        yield
+    finally:
+        os.chdir(prev)
+
+def mockMsim():
+    """
+    Creates a temporary path and vcom/vlog empty executables just so that hdlcc
+    reports them as existing
+    """
+    temp_path = tempfile.mkdtemp()
+
+    for bin_name in 'vcom', 'vlog':
+        bin_path = p.join(temp_path, bin_name)
+        open(bin_path, 'w').write('#/usr/bin/env sh')
+        os.chmod(bin_path, int('755', 8))
+
+    # Add the builder path to the environment so we can call it
+    new_path = os.pathsep.join([temp_path + '/', os.environ['PATH']])
+    return mock.patch.dict('os.environ', {'PATH' : new_path})
 
 with such.A('vim-hdl test') as it:
 
@@ -287,20 +318,46 @@ with such.A('vim-hdl test') as it:
             _logger.exception("Excepion caught while testing")
             it.fail("Test failed: %s" % case)
 
-    #  @it.should("run config helper g:vimhdl_conf_file previously set")
-    #  def test(case):
-    #      vroom_test = p.join(
-    #          PATH_TO_TESTS, "test_010_create_project_file_with_conf_file_set.vroom")
+    @it.should("find include paths when running the config helper")
+    def test(case):
+        vroom_test = p.abspath(p.join(
+            PATH_TO_TESTS, "test_010_create_project_file_with_conf_file_set.vroom"))
 
-    #      # Remove all project files before running
-    #      for path in glob.glob(p.join(HDLCC_CI, '*.prj')):
-    #          _logger.info("Removing '%s'", path)
-    #          os.remove(path)
-    #      try:
-    #          subp.check_call(getTestCommand(vroom_test))
-    #      except subp.CalledProcessError:
-    #          _logger.exception("Excepion caught while testing")
-    #          it.fail("Test failed: %s" % case)
+        # Remove all project files before running
+        for path in glob.glob(p.join(HDLCC_CI, '*.prj')):
+            _logger.info("Removing '%s'", path)
+            os.remove(path)
+
+        test_path = tempfile.mkdtemp()
+
+        with pushd(test_path):
+            os.mkdir('path_a')
+            os.mkdir('path_b')
+            os.mkdir('v_includes')
+            os.mkdir('sv_includes')
+            # Create empty sources
+            for path in (p.join('path_a', 'some_source.vhd'),
+                         p.join('path_a', 'header_out_of_place.vh'),
+                         p.join('path_a', 'source_tb.vhd'),
+                         p.join('path_b', 'some_source.vhd'),
+                         p.join('path_b', 'a_verilog_source.v'),
+                         p.join('path_b', 'a_systemverilog_source.sv'),
+                         # Create headers for both extensions
+                         p.join('v_includes', 'verilog_header.vh'),
+                         p.join('sv_includes', 'systemverilog_header.svh'),
+                         # Make the tree 'dirty' with other source types
+                         p.join('path_a', 'not_hdl_source.log'),
+                         p.join('path_a', 'not_hdl_source.py'),
+                         ):
+                _logger.info("Writing to %s", path)
+                open(path, 'w').write('')
+
+            with mockMsim():
+                try:
+                    subp.check_call(getTestCommand(vroom_test))
+                except subp.CalledProcessError:
+                    _logger.exception("Excepion caught while testing")
+                    it.fail("Test failed: %s" % case)
 
 
 it.createTests(globals())

@@ -200,6 +200,8 @@ endfunction
 " { s:createProjectFile
 " ============================================================================
 function! s:createProjectFile(...) abort
+    call s:startServer()
+
     let b:local_arg = a:000
     let l:python = s:using_python2 ? 'python2' : 'python3'
 exec s:python_until_eof
@@ -234,13 +236,19 @@ function! vimhdl#setup() abort
     endif
 
     if count(['vhdl', 'verilog', 'systemverilog'], &filetype)
-        if !(exists('g:vimhdl_server_started') && g:vimhdl_server_started)
-            let g:vimhdl_server_started = 1
-            call s:pyEval('bool(vimhdl_client.startServer())')
-        endif
+        call s:startServer()
     endif
-
 endfunction
 " }
+" { s:startServer() Starts hdlcc server
+" ============================================================================
+function! s:startServer() abort
+    if (exists('g:vimhdl_server_started') && g:vimhdl_server_started)
+        return
+    endif
 
+    let g:vimhdl_server_started = 1
+    call s:pyEval('bool(vimhdl_client.startServer())')
+endfunction
+"}
 " vim: set foldmarker={,} foldlevel=0 foldmethod=marker :
