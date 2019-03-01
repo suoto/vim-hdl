@@ -352,5 +352,17 @@ with such.A('vim-hdl test') as it:
                 _logger.exception("Excepion caught while testing")
                 it.fail("Test failed: %s" % case)
 
+    @it.should("find files in specified paths")
+    def test(case):
+        vroom_test = p.abspath(p.join(
+            PATH_TO_TESTS, "test_011_create_project_file_with_args.vroom"))
+
+        with pushd(p.join(HDLCC_CI, "hdl_lib")):
+            try:
+                subp.check_call(getTestCommand(vroom_test))
+            except subp.CalledProcessError:
+                _logger.exception("Excepion caught while testing")
+                it.fail("Test failed: %s" % case)
+
 
 it.createTests(globals())
