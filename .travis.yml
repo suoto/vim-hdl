@@ -17,7 +17,7 @@ env:
     - CI_TARGET=vim    VERSION=v8.0.0197 # Ubuntu 17.10 LTS
     - CI_TARGET=vim    VERSION=v8.0.1453 # Ubuntu 18.04 LTS
     - CI_TARGET=neovim VERSION=0.3.1     # Ubuntu 18.10
-    - CI_TARGET=vim    VERSION=master
+    # - CI_TARGET=vim    VERSION=master  # Seems unstable atm
     - CI_TARGET=neovim VERSION=master
     # FIXME: Neovim 0.2.0 and 0.2.2 are failing to compile, while 0.3.1 and
     # master (which is 0.3.2-dev right now) are working just fine. Might be
