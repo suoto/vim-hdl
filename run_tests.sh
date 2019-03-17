@@ -105,11 +105,9 @@ function _setup_ci_env {
   fi
 
   $cmd
-  echo "Activating virtual environment"
   # shellcheck disable=SC1090
   source ${VIRTUAL_ENV_DEST}/bin/activate
   
-  _install_packages
 }
 
 function _install_packages {
@@ -143,9 +141,7 @@ function _cleanup_if_needed {
     git reset HEAD --hard
     popd
 
-    if [ -z "${VIRTUAL_ENV}" ] && [ -d "${VROOM_DIR}" ]; then
-      rm -rf "${VROOM_DIR}";
-    fi
+    if [ -d "${VROOM_DIR}" ]; then rm -rf "${VROOM_DIR}"; fi
 
     if [ -n "${CLEAN_AND_QUIT}" ]; then exit; fi
   fi
@@ -179,24 +175,19 @@ set -e
 set -x
 
 # If we're not running on a CI server, create a virtual env to mimic its
-# behaviour (unless we're already on a virtual env, like when running locally)
-if [ -z "${CI}" ] && [ -z "${VIRTUAL_ENV}" ] ; then
+# behaviour
+if [ -z "${CI}" ]; then
   if [ -n "${CLEAN}" ] && [ -d "${VIRTUAL_ENV_DEST}" ]; then
     echo "Removing previous virtualenv"
     rm -rf ${VIRTUAL_ENV_DEST}
   fi
-
   _setup_ci_env
 fi
 
 _cleanup_if_needed
 
-pip install -e ./dependencies/hdlcc/
-
-# Don't setup if running inside a virtual env already
-if [ -z "${VIRTUAL_ENV}" ]; then
-  _setup_vroom "${VROOM_DIR}"
-fi
+_install_packages
+_setup_vroom "${VROOM_DIR}"
 
 export PATH=${HOME}/builders/ghdl/bin/:${PATH}
 
