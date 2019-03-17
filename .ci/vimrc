@@ -47,6 +47,10 @@ set cmdheight=15
 
 function! s:SetupPythonEnv() abort
 
+  if exists('g:ci_setup_done') && g:ci_setup_done
+      return
+  endif
+
   exec s:python_until_eof
 from __future__ import print_function
 import logging
@@ -166,16 +170,7 @@ except:
 
 EOF
 
-    if ! has('nvim')
-        exec s:python_until_eof
-import atexit
-_logger.info("Registering exit function")
-atexit.register(onVimLeave)
-EOF
-
-    else
-        autocmd! VimLeavePre * :silent! call s:Pyeval('onVimLeave()')
-    endif
+    autocmd! VimLeavePre * :silent! call s:Pyeval('onVimLeave()')
 
 endfunction
 
