@@ -83,29 +83,30 @@ def mockMsim():
 
 with such.A('vim-hdl test') as it:
 
-    def gitClean(path=None):
-        with pushd(path or '.'):
-            _logger.info("Cleaning up non-git files")
-            for line in subp.check_output(['git', 'clean', '-fdx']).splitlines():
-                _logger.info("> %s", line)
+    def gitClean(path):
+        _logger.info("Cleaning up non-git files")
+        for line in subp.check_output(['git', 'clean', '-fdx'],
+                                      cwd=path or '.').splitlines():
+            _logger.info("> %s", line)
 
     def cleanHdlLib():
+        _logger.info("#######################################")
         _logger.info("Resetting hdl_lib")
 
-        with pushd(p.join(HDLCC_CI, "hdl_lib")):
+        for line in \
+            subp.check_output(['git', 'reset', 'HEAD', '--hard'],
+                              cwd=p.join(HDLCC_CI, "hdl_lib")).splitlines():
 
-            for line in \
-                subp.check_output(['git', 'reset', 'HEAD', '--hard']).splitlines():
+            _logger.info("> %s", line)
 
-                _logger.info("> %s", line)
+        gitClean(p.join(HDLCC_CI, 'hdl_lib'))
 
-            gitClean()
+        _logger.info("git status")
+        for line in \
+            subp.check_output(['git', 'status', '--porcelain'],
+                              cwd=p.join(HDLCC_CI, "hdl_lib")).splitlines():
 
-            _logger.info("git status")
-            for line in \
-                subp.check_output(['git', 'status', '--porcelain']).splitlines():
-
-                _logger.info("> %s", line)
+            _logger.info("> %s", line)
 
     def pipInstallHdlcc():
         cmd = ['pip', 'install', '-e', PATH_TO_HDLCC, '-U',]
@@ -121,14 +122,10 @@ with such.A('vim-hdl test') as it:
 
     @it.has_setup
     def setup():
-        #  gitClean()
-        cleanHdlLib()
         pipInstallHdlcc()
 
     @it.has_teardown
     def teardown():
-        #  gitClean()
-        cleanHdlLib()
         pipUninstallHdlcc()
 
         for vroom_test in glob.glob(p.join(PATH_TO_TESTS, '*.vroom')):
@@ -139,6 +136,14 @@ with such.A('vim-hdl test') as it:
 
         if p.exists('source.vhd'):
             os.remove('source.vhd')
+
+    @it.has_test_setup
+    def setup():
+        cleanHdlLib()
+
+    @it.has_test_teardown
+    def teardown():
+        cleanHdlLib()
 
     @it.should("handle session with multiple files to edit")
     def test(case):
@@ -162,7 +167,6 @@ with such.A('vim-hdl test') as it:
 
     @it.should("warn when unable to create the configured builder")
     def test(case):
-        #  gitClean('../hdlcc_ci/hdl_lib')
         gitClean(p.join(HDLCC_CI, "hdl_lib"))
         vroom_test = p.join(PATH_TO_TESTS,
                             'test_003_with_project_without_builder.vroom')
@@ -289,6 +293,7 @@ with such.A('vim-hdl test') as it:
 
     @it.should("run config helper without g:vimhdl_conf_file set")
     def test(case):
+        _logger.info("################## %s ##################", case)
         vroom_test = p.join(
             PATH_TO_TESTS, "test_009_create_project_file_with_clear_setup.vroom")
 
@@ -304,6 +309,7 @@ with such.A('vim-hdl test') as it:
 
     @it.should("find include paths when running the config helper")
     def test(case):
+        _logger.info("################## %s ##################", case)
         vroom_test = p.abspath(p.join(
             PATH_TO_TESTS, "test_010_create_project_file_with_conf_file_set.vroom"))
 
@@ -354,15 +360,17 @@ with such.A('vim-hdl test') as it:
 
     @it.should("find files in specified paths")
     def test(case):
+        _logger.info("################## %s ##################", case)
+
         vroom_test = p.abspath(p.join(
             PATH_TO_TESTS, "test_011_create_project_file_with_args.vroom"))
 
-        with pushd(p.join(HDLCC_CI, "hdl_lib")):
-            try:
-                subp.check_call(getTestCommand(vroom_test))
-            except subp.CalledProcessError:
-                _logger.exception("Excepion caught while testing")
-                it.fail("Test failed: %s" % case)
+        try:
+            subp.check_call(getTestCommand(vroom_test),
+                            cwd=p.join(HDLCC_CI, 'hdl_lib'))
+        except subp.CalledProcessError:
+            _logger.exception("Excepion caught while testing")
+            it.fail("Test failed: %s" % case)
 
 
 it.createTests(globals())
