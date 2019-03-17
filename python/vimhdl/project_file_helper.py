@@ -36,10 +36,12 @@ _DEFAULT_LIBRARY_NAME = {
 
 class ProjectFileCreator:
     """
-    Base class for creating project files semi automatically.
+    Base class implementing creation of config file semi automatically
     """
 
     __metaclass__ = abc.ABCMeta
+    # If the user hasn't already set vimhdl_conf_file in g: or b:, we'll use
+    # this instead
     _default_conf_filename = 'vimhdl.prj'
 
     _preface = """\
