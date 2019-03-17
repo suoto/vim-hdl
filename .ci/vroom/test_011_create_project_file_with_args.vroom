@@ -1,4 +1,6 @@
 Run the config file creation helper but specify directories
+  :pwd
+  ~ .*\/hdl_lib.* (regex)
   :VimhdlCreateProjectFile memory/
   # This is the resulting project file, please review and save when done. The
   # g:vimhdl_conf_file variable has been temporarily changed to point to this

@@ -60,12 +60,12 @@ before_script:
 
 script:
   - set +xe
-  - ./run_tests.sh --log-capture -F
+  - ./run_tests.sh --log-capture
 
 after_success:
   - export COVERALLS_PARALLEL=true
   - coveralls
-  - codecov
+  - bash <(curl -s https://codecov.io/bash)
 after_failure:
   - echo '##########################################################'
   - echo '##########################################################'
