@@ -90,8 +90,8 @@ function! s:setupCommands() abort
     command! VimhdlRebuildProject    call s:pyEval('bool(vimhdl_client.rebuildProject())')
     command! VimhdlRestartServer     call s:restartServer()
     command! VimhdlViewBuildSequence call s:printBuildSequence()
-    command! -nargs=* -complete=dir 
-                \ VimhdlCreateProjectFile call s:createProjectFile(<f-args>)
+    " command! -nargs=* -complete=dir 
+    "             \ VimhdlCreateProjectFile call s:createProjectFile(<f-args>)
 endfunction
 " }
 " { s:setupHooks() Setup filetype hooks

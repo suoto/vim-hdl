@@ -12,9 +12,6 @@ else
     set rtp+=~/dot_vim/vim-hdl
 endif
 
-" Disable cursor style changes
-set guicursor=
-
 if has('python')
     let s:using_python2 = 1
 elseif has('python3')
@@ -171,6 +168,8 @@ except:
 EOF
 
     autocmd! VimLeavePre * :silent! call s:Pyeval('onVimLeave()')
+
+    let g:ci_setup_done = 1
 
 endfunction
 

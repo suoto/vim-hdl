@@ -32,7 +32,6 @@ from vimhdl.base_requests import (GetBuildSequence, GetDependencies,
                                   OnBufferVisit, RequestHdlccInfo,
                                   RequestMessagesByPath, RequestProjectRebuild,
                                   RequestQueuedMessages)
-from vimhdl.project_file_helper import FindProjectFiles
 
 _ON_WINDOWS = sys.platform == 'win32'
 
@@ -425,9 +424,9 @@ class VimhdlClient:  #pylint: disable=too-many-instance-attributes
     def createProjectFile(self):
         paths = vim.eval('b:local_arg') or ['.', ]
 
-        response = ListWorkingBuilders(self._host, self._port).sendRequest()
+        #  response = ListWorkingBuilders(self._host, self._port).sendRequest()
 
         assert response, "Got no response"
         builders = response.json()['builders']
         self._logger.info("Builders: %s", builders)
-        return FindProjectFiles(builders, os.getcwd(), paths)
+        #  return FindProjectFiles(builders, os.getcwd(), paths)

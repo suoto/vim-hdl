@@ -20,9 +20,7 @@ import logging
 import os
 import os.path as p
 import socket
-
-import vim  # pylint: disable=import-error
-from vimhdl.project_file_helper import FindProjectFiles
+import vim                 # pylint: disable=import-error
 
 _logger = logging.getLogger(__name__)
 
