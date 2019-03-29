@@ -32,13 +32,9 @@ class BaseRequest(object):
     _meth = ''
     timeout = 10
     _lock = threading.Lock()
+    url = None
 
-    def __init__(self, host, port, **kwargs):
-        if host.startswith('http://'): # pragma: no cover
-            self.url = '%s:%s' % (host, port)
-        else:
-            self.url = 'http://%s:%s' % (host, port)
-
+    def __init__(self, **kwargs):
         self.payload = kwargs
         _logger.debug("Creating request for '%s' with payload '%s'",
                       self._meth, self.payload)
@@ -95,9 +91,9 @@ class RequestMessagesByPath(BaseRequest):
     """
     _meth = 'get_messages_by_path'
 
-    def __init__(self, host, port, project_file, path):
+    def __init__(self, project_file, path):
         super(RequestMessagesByPath, self).__init__(
-            host, port, project_file=project_file, path=path)
+            project_file=project_file, path=path)
 
 class RequestQueuedMessages(BaseRequest):
     """
@@ -105,9 +101,9 @@ class RequestQueuedMessages(BaseRequest):
     """
     _meth = 'get_ui_messages'
 
-    def __init__(self, host, port, project_file):
+    def __init__(self, project_file):
         super(RequestQueuedMessages, self).__init__(
-            host, port, project_file=project_file)
+            project_file=project_file)
 
 class RequestHdlccInfo(BaseRequest):
     """
@@ -115,9 +111,9 @@ class RequestHdlccInfo(BaseRequest):
     """
     _meth = 'get_diagnose_info'
 
-    def __init__(self, host, port, project_file=None):
+    def __init__(self, project_file=None):
         super(RequestHdlccInfo, self).__init__(
-            host, port, project_file=project_file)
+            project_file=project_file)
 
 class ListWorkingBuilders(BaseRequest):
     """
@@ -131,9 +127,9 @@ class RequestProjectRebuild(BaseRequest):
     """
     _meth = 'rebuild_project'
 
-    def __init__(self, host, port, project_file=None):
+    def __init__(self, project_file=None):
         super(RequestProjectRebuild, self).__init__(
-            host, port, project_file=project_file)
+            project_file=project_file)
 
 class OnBufferVisit(BaseRequest):
     """
@@ -141,9 +137,9 @@ class OnBufferVisit(BaseRequest):
     """
     _meth = 'on_buffer_visit'
 
-    def __init__(self, host, port, project_file, path):
+    def __init__(self, project_file, path):
         super(OnBufferVisit, self).__init__(
-            host, port, project_file=project_file, path=path)
+            project_file=project_file, path=path)
 
 class OnBufferLeave(BaseRequest):
     """
@@ -151,9 +147,9 @@ class OnBufferLeave(BaseRequest):
     """
     _meth = 'on_buffer_leave'
 
-    def __init__(self, host, port, project_file, path):
+    def __init__(self, project_file, path):
         super(OnBufferLeave, self).__init__(
-            host, port, project_file=project_file, path=path)
+            project_file=project_file, path=path)
 
 class GetDependencies(BaseRequest):
     """
@@ -161,9 +157,9 @@ class GetDependencies(BaseRequest):
     """
     _meth = 'get_dependencies'
 
-    def __init__(self, host, port, project_file, path):
+    def __init__(self, project_file, path):
         super(GetDependencies, self).__init__(
-            host, port, project_file=project_file, path=path)
+            project_file=project_file, path=path)
 
 class GetBuildSequence(BaseRequest):
     """

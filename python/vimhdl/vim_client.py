@@ -27,8 +27,8 @@ from multiprocessing import Queue
 import vim  # pylint: disable=import-error
 import vimhdl
 import vimhdl.vim_helpers as vim_helpers
-from vimhdl.base_requests import (GetBuildSequence, GetDependencies,
-                                  ListWorkingBuilders, OnBufferLeave,
+from vimhdl.base_requests import (BaseRequest, GetBuildSequence,
+                                  GetDependencies, OnBufferLeave,
                                   OnBufferVisit, RequestHdlccInfo,
                                   RequestMessagesByPath, RequestProjectRebuild,
                                   RequestQueuedMessages)
@@ -81,6 +81,9 @@ class VimhdlClient:  #pylint: disable=too-many-instance-attributes
         self._posted_notifications = []
 
         self._ui_queue = Queue()
+
+        # Set url on the BaseRequest class as well
+        BaseRequest.url = 'http://{}:{}'.format(self._host, self._port)
 
     def startServer(self):
         """
@@ -162,7 +165,7 @@ class VimhdlClient:  #pylint: disable=too-many-instance-attributes
         """
         for _ in range(10):
             time.sleep(0.2)
-            request = RequestHdlccInfo(self._host, self._port)
+            request = RequestHdlccInfo()
             response = request.sendRequest()
             self._logger.debug(response)
             if response:
@@ -227,8 +230,7 @@ class VimhdlClient:  #pylint: disable=too-many-instance-attributes
         project_file = vim_helpers.getProjectFile()
         path = p.abspath(vim_buffer.name)
 
-        request = RequestMessagesByPath(host=self._host, port=self._port,
-                                        project_file=project_file, path=path)
+        request = RequestMessagesByPath(project_file=project_file, path=path)
 
         response = request.sendRequest()
         if response is None:
@@ -276,8 +278,7 @@ class VimhdlClient:  #pylint: disable=too-many-instance-attributes
 
         project_file = vim_helpers.getProjectFile()
 
-        request = RequestQueuedMessages(self._host, self._port,
-                                        project_file=project_file)
+        request = RequestQueuedMessages(project_file=project_file)
 
         request.sendRequestAsync(self._handleAsyncRequest)
 
@@ -286,8 +287,7 @@ class VimhdlClient:  #pylint: disable=too-many-instance-attributes
         Gets info about the current project and hdlcc server
         """
         project_file = vim_helpers.getProjectFile()
-        request = RequestHdlccInfo(host=self._host, port=self._port,
-                                   project_file=project_file)
+        request = RequestHdlccInfo(project_file=project_file)
 
         response = request.sendRequest()
 
@@ -315,8 +315,7 @@ class VimhdlClient:  #pylint: disable=too-many-instance-attributes
 
         vim_helpers.postVimInfo("Rebuilding project...")
         project_file = vim_helpers.getProjectFile()
-        request = RequestProjectRebuild(host=self._host, port=self._port,
-                                        project_file=project_file)
+        request = RequestProjectRebuild(project_file=project_file)
 
         response = request.sendRequest()
 
@@ -337,9 +336,7 @@ class VimhdlClient:  #pylint: disable=too-many-instance-attributes
 
         project_file = vim_helpers.getProjectFile()
 
-        request = OnBufferVisit(self._host,
-                                self._port,
-                                project_file=project_file,
+        request = OnBufferVisit(project_file=project_file,
                                 path=vim.current.buffer.name)
 
         request.sendRequestAsync(self._handleAsyncRequest)
@@ -356,9 +353,7 @@ class VimhdlClient:  #pylint: disable=too-many-instance-attributes
 
         project_file = vim_helpers.getProjectFile()
 
-        request = OnBufferLeave(self._host,
-                                self._port,
-                                project_file=project_file,
+        request = OnBufferLeave(project_file=project_file,
                                 path=vim.current.buffer.name)
 
         request.sendRequestAsync(self._handleAsyncRequest)
@@ -374,9 +369,7 @@ class VimhdlClient:  #pylint: disable=too-many-instance-attributes
 
         project_file = vim_helpers.getProjectFile()
 
-        request = GetDependencies(self._host,
-                                  self._port,
-                                  project_file=project_file,
+        request = GetDependencies(project_file=project_file,
                                   path=vim.current.buffer.name)
 
         response = request.sendRequest()
@@ -400,9 +393,7 @@ class VimhdlClient:  #pylint: disable=too-many-instance-attributes
 
         project_file = vim_helpers.getProjectFile()
 
-        request = GetBuildSequence(self._host,
-                                   self._port,
-                                   project_file=project_file,
+        request = GetBuildSequence(project_file=project_file,
                                    path=vim.current.buffer.name)
 
         response = request.sendRequest()
