@@ -9,7 +9,6 @@ VHDL, Verilog, SystemVerilog files and headers correctly
   # the original one.
   #
   # ---- Everything up to this line will be automatically removed ----
-  # Generated on .* (regex)
   # Files found: 5
   # Available builders: msim, ghdl
   builder = msim

@@ -9,7 +9,6 @@ Run the config file creation helper but specify directories
   # the original one.
   #
   # ---- Everything up to this line will be automatically removed ----
-  # Generated on .* (regex)
   # Files found: 6\s* (regex)
   # Available builders: ghdl
   builder = ghdl
@@ -30,7 +29,6 @@ Run the config file creation helper but specify directories
   # the original one.
   #
   # ---- Everything up to this line will be automatically removed ----
-  # Generated on .* (regex)
   # Files found: 5\s* (regex)
   # Available builders: ghdl
   builder = ghdl

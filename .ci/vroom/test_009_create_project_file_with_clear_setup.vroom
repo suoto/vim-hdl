@@ -30,7 +30,6 @@ Run the config file creation helper when editing a HDL source
   # the original one.
   #
   # ---- Everything up to this line will be automatically removed ----
-  # Generated on .* (regex)
   # Files found: 5\s* (regex)
   # Available builders: ghdl
   builder = ghdl
@@ -45,7 +44,6 @@ Run the config file creation helper when editing a HDL source
 Close the file and open it to check lines were actually removed
   :quit
   :tabe vimhdl.prj
-  # Generated on .* (regex)
   # Files found: 5
   # Available builders: ghdl
   builder = ghdl
@@ -71,7 +69,6 @@ try to quit. Resulting file should not be changed
   # the original one.
   #
   # ---- Everything up to this line will be automatically removed ----
-  # Generated on .* (regex)
   # Files found: 5
   # Available builders: ghdl
   builder = ghdl
@@ -92,7 +89,6 @@ try to quit. Resulting file should not be changed
   # the original one.
   #
   # ---- Everything up to this line will be automatically removed ----
-  # Generated on .* (regex)
   # Files found: 5
   # Available builders: ghdl
   builder = ghdl
@@ -109,7 +105,6 @@ try to quit. Resulting file should not be changed
   # the original one.
   #
   # ---- Everything up to this line will be automatically removed ----
-  # Generated on .* (regex)
   # Files found: 5
   # Available builders: ghdl
   builder = ghdl
@@ -123,7 +118,6 @@ try to quit. Resulting file should not be changed
   # vim: filetype=vimhdl
   :quit
   :tabe vimhdl.prj
-  # Generated on .* (regex)
   # Files found: 5
   # Available builders: ghdl
   builder = ghdl
@@ -152,7 +146,6 @@ accessible via undo
   # the original one.
   #
   # ---- Everything up to this line will be automatically removed ----
-  # Generated on .* (regex)
   # Files found: 5
   # Available builders: ghdl
   builder = ghdl
@@ -176,7 +169,6 @@ accessible via undo
   # the original one.
   #
   # ---- Everything up to this line will be automatically removed ----
-  # Generated on .* (regex)
   # Files found: 6
   # Available builders: ghdl
   builder = ghdl
@@ -205,7 +197,6 @@ updating it
   # the original one.
   #
   # ---- Everything up to this line will be automatically removed ----
-  # Generated on .* (regex)
   # Files found: 7
   # Available builders: ghdl
   builder = ghdl
@@ -228,7 +219,6 @@ Make sure that running twice won't mess up and will give the same results
   # the original one.
   #
   # ---- Everything up to this line will be automatically removed ----
-  # Generated on .* (regex)
   # Files found: 7
   # Available builders: ghdl
   builder = ghdl
@@ -245,7 +235,6 @@ Make sure that running twice won't mess up and will give the same results
 Again, close the file and open it to check lines were actually removed
   :quit
   :tabe vimhdl.prj
-  # Generated on .* (regex)
   # Files found: 7
   # Available builders: ghdl
   builder = ghdl
