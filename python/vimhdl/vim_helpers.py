@@ -17,14 +17,11 @@
 "Misc helpers for common vim-hdl operations"
 
 import logging
-import os
 import os.path as p
 import socket
 import vim                 # pylint: disable=import-error
 
 _logger = logging.getLogger(__name__)
-
-_VIMHDL_DEFAULT_CONFIG_FILE_NAME = 'vimhdl.prj'
 
 def _toUnicode(value):
     """

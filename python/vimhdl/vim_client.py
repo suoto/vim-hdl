@@ -31,7 +31,8 @@ from vimhdl.base_requests import (BaseRequest, GetBuildSequence,
                                   GetDependencies, OnBufferLeave,
                                   OnBufferVisit, RequestHdlccInfo,
                                   RequestMessagesByPath, RequestProjectRebuild,
-                                  RequestQueuedMessages)
+                                  RequestQueuedMessages, RunConfigGenerator)
+from vimhdl.project_file_helper import ProjectFileHelper
 
 _ON_WINDOWS = sys.platform == 'win32'
 
@@ -66,6 +67,11 @@ class VimhdlClient:  #pylint: disable=too-many-instance-attributes
     Point of entry of Vim commands
     """
 
+    # If the user hasn't already set vimhdl_conf_file in g: or b:, we'll use
+    # this instead
+    _default_conf_filename = 'vimhdl.prj'
+
+
     def __init__(self, **options):
         self._logger = logging.getLogger(__name__ + '.' + self.__class__.__name__)
         self._logger.info("Creating vimhdl client object...")
@@ -81,6 +87,7 @@ class VimhdlClient:  #pylint: disable=too-many-instance-attributes
         self._posted_notifications = []
 
         self._ui_queue = Queue()
+        self.helper_wrapper = ProjectFileHelper()
 
         # Set url on the BaseRequest class as well
         BaseRequest.url = 'http://{}:{}'.format(self._host, self._port)
@@ -412,12 +419,16 @@ class VimhdlClient:  #pylint: disable=too-many-instance-attributes
 
         return ""
 
-    def createProjectFile(self):
+    def updateHelperWrapper(self):
+        """
+        Requests the config file content from the server and return the wrapper
+        class
+        """
         paths = vim.eval('b:local_arg') or ['.', ]
 
-        #  response = ListWorkingBuilders(self._host, self._port).sendRequest()
+        request = RunConfigGenerator(generator='SimpleFinder', paths=paths)
+        response = request.sendRequest()
+        if response is None:
+            return
 
-        assert response, "Got no response"
-        builders = response.json()['builders']
-        self._logger.info("Builders: %s", builders)
-        #  return FindProjectFiles(builders, os.getcwd(), paths)
+        self.helper_wrapper.run(response.json()['content'])

@@ -18,6 +18,7 @@
 Wrapper for vim-hdl usage within Vim's Python interpreter
 """
 
+import json
 import logging
 import threading
 
@@ -167,6 +168,17 @@ class GetBuildSequence(BaseRequest):
     """
     _meth = 'get_build_sequence'
 
-    def __init__(self, host, port, project_file, path):
+    def __init__(self, project_file, path):
         super(GetBuildSequence, self).__init__(
-            host, port, project_file=project_file, path=path)
+            project_file=project_file, path=path)
+
+class RunConfigGenerator(BaseRequest):
+    """
+    Notifies the server that a buffer has been left
+    """
+    _meth = 'run_config_generator'
+
+    def __init__(self, generator, *args, **kwargs):
+        super(RunConfigGenerator, self).__init__(
+            generator=generator, args=json.dumps(args),
+            kwargs=json.dumps(kwargs))

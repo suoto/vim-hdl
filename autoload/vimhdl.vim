@@ -90,8 +90,8 @@ function! s:setupCommands() abort
     command! VimhdlRebuildProject    call s:pyEval('bool(vimhdl_client.rebuildProject())')
     command! VimhdlRestartServer     call s:restartServer()
     command! VimhdlViewBuildSequence call s:printBuildSequence()
-    " command! -nargs=* -complete=dir 
-    "             \ VimhdlCreateProjectFile call s:createProjectFile(<f-args>)
+    command! -nargs=* -complete=dir 
+                \ VimhdlCreateProjectFile call s:createProjectFile(<f-args>)
 endfunction
 " }
 " { s:setupHooks() Setup filetype hooks
@@ -204,9 +204,8 @@ function! s:createProjectFile(...) abort
 
     let b:local_arg = a:000
     let l:python = s:using_python2 ? 'python2' : 'python3'
-exec s:python_until_eof
-vimhdl_project_helper = vimhdl_client.createProjectFile()
-vimhdl_project_helper.run()
+    exec s:python_until_eof
+vimhdl_client.updateHelperWrapper()
 EOF
 endfunction
 "}
@@ -215,12 +214,7 @@ endfunction
 function! s:onVimhdlTempQuit()
     let l:python = s:using_python2 ? 'python2' : 'python3'
     exec s:python_until_eof
-try:
-    vimhdl_project_helper
-    vimhdl_project_helper.onVimhdlTempQuit()
-    del vimhdl_project_helper
-except NameError:
-    _logger.warning("vimhdl_project_helper doesn't exist")
+vimhdl_client.helper_wrapper.onVimhdlTempQuit()
 EOF
 endfunction
 "}
