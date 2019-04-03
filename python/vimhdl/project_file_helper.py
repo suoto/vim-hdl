@@ -50,6 +50,9 @@ class ProjectFileHelper(object):
             '.' + p.basename(self._project_file) + '.backup')
 
     def run(self, text):
+        # Cleanup autogroups before doing anything
+        vim.command('autocmd! vimhdl BufUnload')
+
         # In case no project file was set and we used the default one
         if 'vimhdl_conf_file' not in vim.vars:
             vim.vars['vimhdl_conf_file'] = self._project_file
