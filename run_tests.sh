@@ -39,7 +39,13 @@ if [ -z "${CI}" ]; then
   fi
 
   VIRTUAL_ENV_DEST=~/dev/vimhdl_venv
+
+  if [ -z "${VERSION}" ]; then
+    VERSION=master
+  fi
+
   VROOM_DIR=~/dev/vroom/
+
 fi
 
 ##############################################################################
@@ -52,6 +58,28 @@ fi
 ##############################################################################
 # Functions ##################################################################
 ##############################################################################
+function _setup_vroom {
+  if [ -d "$1" ]; then
+    pushd "$1"
+    git pull
+  else
+    git clone https://github.com/google/vroom \
+      -b master --single-branch --depth 1 "$1"
+    pushd "$1"
+  fi
+
+  python3 setup.py build
+
+  set +e
+  
+  if [ "$(python3 setup.py install)" != "0" ]; then
+    set -e
+    python3 setup.py install --user
+  fi
+
+  popd
+}
+
 function _setup_ci_env {
   cmd="virtualenv --clear ${VIRTUAL_ENV_DEST}"
 
@@ -75,6 +103,7 @@ function _install_packages {
     pip3 install neovim --user
   fi
 
+  
   if [ "$(pip install neovim)" != "0" ]; then
     pip install neovim --user
   fi
@@ -140,6 +169,7 @@ fi
 _cleanup_if_needed
 
 _install_packages
+_setup_vroom "${VROOM_DIR}"
 
 export PATH=${HOME}/builders/ghdl/bin/:${PATH}
 

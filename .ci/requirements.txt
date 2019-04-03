@@ -4,7 +4,6 @@ colorama
 coverage
 coveralls
 futures
-git+https://github.com/google/vroom
 git+https://github.com/suoto/rainbow_logging_handler
 greenlet
 logutils
