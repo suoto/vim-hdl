@@ -4,6 +4,8 @@ colorama
 coverage
 coveralls
 futures
+git+https://github.com/google/vroom
+git+https://github.com/suoto/rainbow_logging_handler
 greenlet
 logutils
 mock
@@ -13,7 +15,7 @@ nose2
 nose2-cov
 prettytable
 rainbow-logging-handler
+requests>=v2.20.0
 six
 testfixtures
 trollius
-requests>=v2.20.0

@@ -38,31 +38,8 @@ if [ -z "${CI}" ]; then
     CI_TARGET=vim
   fi
 
-  # Support for $NVIM_TUI_ENABLE_CURSOR_SHAPE was removed. Use the guicursor
-  # option to control cursor styling
-  # More info: https://github.com/neovim/neovim/wiki/Following-HEAD#20170402
-  if [ -z "${NVIM_TUI_ENABLE_CURSOR_SHAPE}" ]; then
-    export NVIM_TUI_ENABLE_CURSOR_SHAPE=0
-  fi
-
   VIRTUAL_ENV_DEST=~/dev/vimhdl_venv
-  # if [ -z "${TRAVIS_PYTHON_VERSION}" ]; then
-  #   TRAVIS_PYTHON_VERSION=3.5
-  #   PYTHON=python${TRAVIS_PYTHON_VERSION}
-  # else
-  #   PYTHON=python
-  # fi
-
-  if [ -z "${VERSION}" ]; then
-    if [ "${CI_TARGET}" == "neovim" ]; then
-      VERSION=0.1.5
-    else
-      VERSION=master
-    fi
-  fi
-
   VROOM_DIR=~/dev/vroom/
-
 fi
 
 ##############################################################################
@@ -75,28 +52,6 @@ fi
 ##############################################################################
 # Functions ##################################################################
 ##############################################################################
-function _setup_vroom {
-  if [ -d "$1" ]; then
-    pushd "$1"
-    git pull
-  else
-    git clone https://github.com/google/vroom \
-      -b master --single-branch --depth 1 "$1"
-    pushd "$1"
-  fi
-
-  python3 setup.py build
-
-  set +e
-  
-  if [ "$(python3 setup.py install)" != "0" ]; then
-    set -e
-    python3 setup.py install --user
-  fi
-
-  popd
-}
-
 function _setup_ci_env {
   cmd="virtualenv --clear ${VIRTUAL_ENV_DEST}"
 
@@ -111,7 +66,6 @@ function _setup_ci_env {
 }
 
 function _install_packages {
-  pip install git+https://github.com/suoto/rainbow_logging_handler
   pip install -r ./.ci/requirements.txt
   pip install -e ./dependencies/hdlcc/
 
@@ -121,7 +75,6 @@ function _install_packages {
     pip3 install neovim --user
   fi
 
-  
   if [ "$(pip install neovim)" != "0" ]; then
     pip install neovim --user
   fi
@@ -187,7 +140,6 @@ fi
 _cleanup_if_needed
 
 _install_packages
-_setup_vroom "${VROOM_DIR}"
 
 export PATH=${HOME}/builders/ghdl/bin/:${PATH}
 
