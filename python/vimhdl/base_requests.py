@@ -20,19 +20,18 @@ Wrapper for vim-hdl usage within Vim's Python interpreter
 
 import json
 import logging
-import threading
+from threading import Thread
 
 import requests
 
 _logger = logging.getLogger(__name__)
 
-class BaseRequest(object):
+class BaseRequest(object):  # pylint: disable=useless-object-inheritance
     """
     Base request object
     """
     _meth = ''
     timeout = 10
-    _lock = threading.Lock()
     url = None
 
     def __init__(self, **kwargs):
@@ -45,21 +44,18 @@ class BaseRequest(object):
         Processes the request in a separate thread and puts the
         received request on queue Q
         """
-        if self._lock.locked():
-            return
         def asyncRequest():
             """
             Simple asynchronous request wrapper
             """
             try:
-                with self._lock:
-                    result = self.sendRequest()
+                result = self.sendRequest()
                 if func is not None:
                     func(result)
             except: # pragma: no cover
                 _logger.exception("Error sending request")
                 raise
-        threading.Thread(target=asyncRequest).start()
+        Thread(target=asyncRequest).start()
 
     def sendRequest(self):
         """
@@ -79,10 +75,10 @@ class BaseRequest(object):
         # Both requests and urllib3 have different exceptions depending
         # on their versions, so we'll catch any exceptions for now until
         # we work out which ones actually happen
-        except Exception as exc:
+        except BaseException as exc:
             _logger.warning("Sending request '%s' raised exception: '%s'",
                             str(self), str(exc))
-            return
+            return None
 
         return response
 

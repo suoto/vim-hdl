@@ -191,4 +191,3 @@ python -m coverage html
 [ -z "${CI}" ] && [ -n "${VIRTUAL_ENV}" ] && deactivate
 
 exit ${RESULT}
-

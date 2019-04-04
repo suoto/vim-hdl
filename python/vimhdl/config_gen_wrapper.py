@@ -14,6 +14,11 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with vim-hdl.  If not, see <http://www.gnu.org/licenses/>.
+"""
+Wraps a piece of text and handles inserting _preface before it and then
+removing it when the user closes the file. Also handles back up and restoring
+in case something goes wrong
+"""
 
 import logging
 import os
@@ -24,7 +29,12 @@ from vimhdl.vim_helpers import getProjectFile
 from hdlcc.utils import toBytes
 
 
-class ProjectFileHelper(object):
+class ConfigGenWrapper(object):
+    """
+    Wraps a piece of text and handles inserting _preface before it and then
+    removing it when the user closes the file. Also handles back up and
+    restoring in case something goes wrong
+    """
     _preface = """\
 # This is the resulting project file, please review and save when done. The
 # g:vimhdl_conf_file variable has been temporarily changed to point to this
@@ -50,6 +60,9 @@ class ProjectFileHelper(object):
             '.' + p.basename(self._project_file) + '.backup')
 
     def run(self, text):
+        """
+        Runs the wrapper using 'text' as content
+        """
         # Cleanup autogroups before doing anything
         vim.command('autocmd! vimhdl BufUnload')
 

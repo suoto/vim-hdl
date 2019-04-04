@@ -23,7 +23,7 @@ import vim                 # pylint: disable=import-error
 
 _logger = logging.getLogger(__name__)
 
-def _toUnicode(value):
+def _toUnicode(value):  # pragma: no cover
     """
     Returns a unicode type; either the new python-future str type or
     the real unicode type. The difference shouldn't matter.
@@ -112,8 +112,7 @@ def _getVimGlobals(var=None):
     """
     if var is None:
         return vim.vars
-    else:
-        return vim.vars[var]
+    return vim.vars[var]
 
 def _getBufferVars(vbuffer=None, var=None):
     """
@@ -123,37 +122,30 @@ def _getBufferVars(vbuffer=None, var=None):
         vbuffer = vim.current.buffer
     if var is None:
         return vbuffer.vars
-    else:
-        return vbuffer.vars[var]
+    return vbuffer.vars[var]
 
 def getProjectFile():
     """
     Searches for a valid hdlcc configuration file in buffer vars (i.e.,
     inside b:) then in global vars (i.e., inside g:)
     """
-    conf_file = None
     if 'vimhdl_conf_file' in _getBufferVars():
         conf_file = p.abspath(p.expanduser(
             _getBufferVars(var='vimhdl_conf_file')))
-        if not p.exists(conf_file):
-            _logger.warning("Buffer config file '%s' is set but not "
-                            "readable", conf_file)
-            conf_file = None
+        if p.exists(p.dirname(conf_file)) and p.exists(conf_file):
+            return conf_file
 
-    if conf_file is None:
-        if 'vimhdl_conf_file' in _getVimGlobals():
-            conf_file = p.abspath(p.expanduser(
-                _getVimGlobals('vimhdl_conf_file')))
-            if not p.exists(conf_file):
-                _logger.warning("Global config file '%s' is set but not "
-                                "readable", conf_file)
-                conf_file = None
+        _logger.debug("Buffer config file '%s' is set but not "
+                      "readable", conf_file)
 
-    if conf_file is None:
-        _logger.warning("Couldn't find a valid config file")
-        return
+    if 'vimhdl_conf_file' in _getVimGlobals():
+        conf_file = p.abspath(p.expanduser(
+            _getVimGlobals('vimhdl_conf_file')))
+        if p.exists(p.dirname(conf_file)) and p.exists(conf_file):
+            return conf_file
 
-    return conf_file
+        _logger.debug("Global config file '%s' is set but not "
+                      "readable", conf_file)
 
-def getBackupFileName(path):
-    return p.join(p.dirname(path), '.' + p.basename(path) + '.backup')
+    _logger.info("Couldn't find a valid config file")
+    return None

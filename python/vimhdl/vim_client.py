@@ -32,7 +32,7 @@ from vimhdl.base_requests import (BaseRequest, GetBuildSequence,
                                   OnBufferVisit, RequestHdlccInfo,
                                   RequestMessagesByPath, RequestProjectRebuild,
                                   RequestQueuedMessages, RunConfigGenerator)
-from vimhdl.project_file_helper import ProjectFileHelper
+from vimhdl.config_gen_wrapper import ConfigGenWrapper
 
 _ON_WINDOWS = sys.platform == 'win32'
 
@@ -87,7 +87,7 @@ class VimhdlClient:  #pylint: disable=too-many-instance-attributes
         self._posted_notifications = []
 
         self._ui_queue = Queue()
-        self.helper_wrapper = ProjectFileHelper()
+        self.helper_wrapper = ConfigGenWrapper()
 
         # Set url on the BaseRequest class as well
         BaseRequest.url = 'http://{}:{}'.format(self._host, self._port)
