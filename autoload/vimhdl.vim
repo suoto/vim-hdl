@@ -41,8 +41,10 @@ endfunction
 "}
 function! s:postWarning(msg) abort "{ function!
     redraw | echohl WarningMsg | echom a:msg | echohl None"
-endfunction
-"}
+endfunction "}
+function! s:postInfo(msg) abort "{ function!
+    redraw | echom a:msg | echohl None
+endfunction "}
 " { s:setupPython() Setup Vim's Python environment to call vim-hdl within Vim
 " ============================================================================
 function! s:setupPython() abort
@@ -84,15 +86,18 @@ endfunction
 " ============================================================================
 function! s:setupCommands() abort
     command! VimhdlInfo              call s:printInfo()
-    command! VimhdlPrintDependencies call s:printDependencies()
+    command! VimhdlViewDependencies  call s:viewDependencies()
     command! VimhdlRebuildProject    call s:pyEval('bool(vimhdl_client.rebuildProject())')
     command! VimhdlRestartServer     call s:restartServer()
-    command! VimhdlViewBuildSequence call s:printBuildSequence()
+    command! VimhdlViewBuildSequence call s:viewBuildSequence()
+    command! -nargs=* -complete=dir 
+                \ VimhdlCreateProjectFile call s:createProjectFile(<f-args>)
 endfunction
 " }
 " { s:setupHooks() Setup filetype hooks
 " ============================================================================
 function! s:setupHooks(...) abort
+    augroup vimhdl
     for l:ext in a:000
         for l:event in ['BufWritePost', 'FocusGained', 'CursorMoved',
                     \'CursorMovedI', 'CursorHold', 'CursorHoldI',
@@ -106,7 +111,22 @@ function! s:setupHooks(...) abort
         endfor
         execute('autocmd! BufLeave ' . l:ext . ' ' .
                \':' . s:python_command . ' vimhdl_client.onBufferLeave()')
+
     endfor
+    augroup END
+endfunction
+" }
+" { s:setupSyntastic() Setup Syntastic to use vimhdl in the given filetypes
+" ============================================================================
+function! s:setupSyntastic(...) abort
+    for l:filetype in a:000
+        if !exists('g:syntastic_' . l:filetype . '_checkers')
+            execute('let g:syntastic_' . l:filetype . '_checkers = ["vimhdl"]')
+        else
+            execute('let g:syntastic_' . l:filetype . '_checkers += ["vimhdl"]')
+        end
+    endfor
+
 endfunction
 " }
 " { s:printInfo() Handle for VimHdlInfo command
@@ -153,7 +173,7 @@ endfunction
 "}
 " { s:listDependencies()
 " ============================================================================
-function! s:printDependencies() abort
+function! s:viewDependencies() abort
     if !(count(['vhdl', 'verilog', 'systemverilog'], &filetype))
         call s:postWarning("Not a HDL file, can't restart server")
         return
@@ -166,7 +186,7 @@ endfunction
 "}
 " { s:listBuildSequence()
 " ============================================================================
-function! s:printBuildSequence() abort
+function! s:viewBuildSequence() abort
     if !(count(['vhdl', 'verilog', 'systemverilog'], &filetype))
         call s:postWarning("Not a HDL file, can't restart server")
         return
@@ -177,6 +197,27 @@ function! s:printBuildSequence() abort
     endfor
 endfunction
 "}
+" { s:createProjectFile
+" ============================================================================
+function! s:createProjectFile(...) abort
+    call s:startServer()
+
+    let b:local_arg = a:000
+    let l:python = s:using_python2 ? 'python2' : 'python3'
+    exec s:python_until_eof
+vimhdl_client.updateHelperWrapper()
+EOF
+endfunction
+"}
+" { s:onVimhdlTempQuit() Handles leaving the temporary config file edit
+" ============================================================================
+function! s:onVimhdlTempQuit()
+    let l:python = s:using_python2 ? 'python2' : 'python3'
+    exec s:python_until_eof
+vimhdl_client.helper_wrapper.onVimhdlTempQuit()
+EOF
+endfunction
+"}
 " { vimhdl#setup() Main vim-hdl setup
 " ============================================================================
 function! vimhdl#setup() abort
@@ -185,16 +226,23 @@ function! vimhdl#setup() abort
         call s:setupPython()
         call s:setupCommands()
         call s:setupHooks('*.vhd', '*.vhdl', '*.v', '*.sv')
+        call s:setupSyntastic('vhdl', 'verilog', 'systemverilog')
     endif
 
     if count(['vhdl', 'verilog', 'systemverilog'], &filetype)
-        if !(exists('g:vimhdl_server_started') && g:vimhdl_server_started)
-            let g:vimhdl_server_started = 1
-            call s:pyEval('bool(vimhdl_client.startServer())')
-        endif
+        call s:startServer()
     endif
-
 endfunction
 " }
+" { s:startServer() Starts hdlcc server
+" ============================================================================
+function! s:startServer() abort
+    if (exists('g:vimhdl_server_started') && g:vimhdl_server_started)
+        return
+    endif
 
+    let g:vimhdl_server_started = 1
+    call s:pyEval('bool(vimhdl_client.startServer())')
+endfunction
+"}
 " vim: set foldmarker={,} foldlevel=0 foldmethod=marker :

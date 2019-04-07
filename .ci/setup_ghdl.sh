@@ -3,16 +3,13 @@
 set -x
 
 # Save the folder travis expects us to start
-CURRENT=$(pwd)
-
 if [ ! -f "${CACHE}/ghdl/bin/ghdl" ]; then
   mkdir -p "${CACHE}/ghdl"
 
   # Setup GHDL
-  cd "${CACHE}/ghdl" || exit
-  wget "${GHDL_URL}" -O ghdl.tar.gz
+  pushd "${CACHE}/ghdl" || exit
+  wget --quiet "${GHDL_URL}" -O ghdl.tar.gz
   tar zxvf ghdl.tar.gz
+  popd || exit
+
 fi
-
-cd "$CURRENT"
-

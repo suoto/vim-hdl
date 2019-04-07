@@ -1,3 +1,11 @@
+if has('python3')
+    let s:using_python2 = 0
+elseif has('python')
+    let s:using_python2 = 1
+else
+    throw "Unable to identify Python version"
+endif
+
 syntax off
 filetype plugin indent on
 set nocompatible
@@ -10,14 +18,6 @@ if $CI == "true"
 else
     set rtp+=~/dot_vim/syntastic
     set rtp+=~/dot_vim/vim-hdl
-endif
-
-if has('python')
-    let s:using_python2 = 1
-elseif has('python3')
-    let s:using_python2 = 0
-else
-    throw "Unable to identify Python version"
 endif
 
 function! s:Pyeval( eval_string ) "{ Inspired on YCM
@@ -37,16 +37,20 @@ let g:syntastic_check_on_open = 0
 let g:syntastic_check_on_wq = 1
 
 let g:syntastic_vhdl_vimhdl_sort = 0
-let g:syntastic_vhdl_checkers = ['vimhdl']
+let g:vimhdl_auto_save_created_config_file = 1
 
 " To avoid Press "ENTER..." message
 set cmdheight=15
 
 function! s:SetupPythonEnv() abort
 
+  if exists('g:ci_setup_done') && g:ci_setup_done
+      return
+  endif
+
   exec s:python_until_eof
-from __future__ import print_function
 import logging
+import sys
 import os
 import os.path as p
 from threading import Lock
@@ -84,28 +88,15 @@ def setupLogging(stream, level, color=True): # pragma: no cover
     else:
         _stream = stream
 
-    try:
-        from rainbow_logging_handler import RainbowLoggingHandler
-        handler = RainbowLoggingHandler(
-            _stream,
-            #  Customizing each column's color
-            # pylint: disable=bad-whitespace
-            color_asctime          = ('dim white',  'black'),
-            color_name             = ('dim white',  'black'),
-            color_funcName         = ('green',      'black'),
-            color_lineno           = ('dim white',  'black'),
-            color_pathname         = ('black',      'red'),
-            color_module           = ('yellow',     None),
-            color_message_debug    = ('color_59',   None),
-            color_message_info     = (None,         None),
-            color_message_warning  = ('color_226',  None),
-            color_message_error    = ('red',        None),
-            color_message_critical = ('bold white', 'red'))
-            # pylint: enable=bad-whitespace
-    except ImportError: # pragma: no cover
-        handler = logging.StreamHandler(_stream)  # pylint: disable=redefined-variable-type
-        log_format = "%(levelname)-8s || %(name)-30s || %(message)s"
-        handler.formatter = logging.Formatter(log_format)
+    handler = logging.StreamHandler(_stream)
+    handler.formatter = logging.Formatter(
+        '%(levelname)-7s | %(asctime)s | ' +
+        '%(name)s @ %(funcName)s():%(lineno)d %(threadName)s ' +
+        '|\t%(message)s', datefmt='%H:%M:%S')
+
+
+    logging.getLogger('urllib3').setLevel(logging.WARNING)
+    logging.getLogger('pynvim').setLevel(logging.WARNING)
 
     logging.root.addHandler(handler)
     logging.root.setLevel(level)
@@ -124,12 +115,16 @@ def setupVimLogging():
             index += 1
     logging.getLogger('requests').setLevel(logging.WARNING)
     logging.getLogger('nose2').setLevel(logging.INFO)
-    logging.getLogger('neovim').setLevel(logging.INFO)
+    logging.getLogger('pynvim').setLevel(logging.INFO)
+    logging.getLogger('urllib3').setLevel(logging.INFO)
     setupLogging(log_file, logging.DEBUG, True)
 
 setupVimLogging()
 
 _logger = logging.getLogger(__name__)
+
+_logger.info("Set up vim python logger")
+_logger.info("Python path is: %s", sys.path)
 
 import vim
 
@@ -140,9 +135,13 @@ try:
     cov.start()
 
     def onVimLeave():
-        global cov
-        cov.stop()
-        cov.save()
+        try:
+            global cov
+            cov.stop()
+            cov.save()
+            _logger.info("Coverage data saved")
+        except:
+            _logger.exception("Unable to save coverage data")
 
 except:
     _logger.fatal("Unable to import 'coverage'")
@@ -151,6 +150,8 @@ except:
 
 EOF
     autocmd! VimLeavePre * :silent! call s:Pyeval('onVimLeave()')
+
+    let g:ci_setup_done = 1
 
 endfunction
 

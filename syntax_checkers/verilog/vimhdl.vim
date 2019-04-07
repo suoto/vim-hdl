@@ -19,7 +19,7 @@
 " For Syntastic license, check http://sam.zoy.org/wtfpl/COPYING
 "============================================================================
 
-" { Pre setup
+" {{ Pre setup
 if exists('g:loaded_syntastic_verilog_vimhdl_checker')
     finish
 endif
@@ -31,28 +31,27 @@ endif
 
 let s:save_cpo = &cpoptions
 set cpoptions&vim
-" }
-" { vimhdl availability checker
+" }}
+" {{ vimhdl availability checker
 function! SyntaxCheckers_verilog_vimhdl_IsAvailable() dict
     if has('python') || has('python3')
         return 1
     endif
     return 0
 endfunction
-
-" { vimhdl location list assembler
+" }}
+" {{ vimhdl location list assembler
 function! SyntaxCheckers_verilog_vimhdl_GetLocList() dict
     return vimhdl#getMessagesForCurrentBuffer()
 endfunction
-" }
-
-" { Register vimhdl within Syntastic
+" }}
+" {{ Register vimhdl within Syntastic
 call g:SyntasticRegistry.CreateAndRegisterChecker({
     \ 'filetype' : 'verilog',
     \ 'name'     : 'vimhdl'})
-" }
+" }}
 
 let &cpoptions = s:save_cpo
 unlet s:save_cpo
 
-" vim: set foldmarker={,} foldlevel=0 foldmethod=marker :
+" vim: set foldmarker={{,}} foldlevel=0 foldmethod=marker :

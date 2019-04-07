@@ -18,27 +18,23 @@
 Wrapper for vim-hdl usage within Vim's Python interpreter
 """
 
+import json
 import logging
-import threading
+from threading import Thread
 
 import requests
 
 _logger = logging.getLogger(__name__)
 
-class BaseRequest(object):
+class BaseRequest(object):  # pylint: disable=useless-object-inheritance
     """
     Base request object
     """
     _meth = ''
     timeout = 10
-    _lock = threading.Lock()
+    url = None
 
-    def __init__(self, host, port, **kwargs):
-        if host.startswith('http://'): # pragma: no cover
-            self.url = '%s:%s' % (host, port)
-        else:
-            self.url = 'http://%s:%s' % (host, port)
-
+    def __init__(self, **kwargs):
         self.payload = kwargs
         _logger.debug("Creating request for '%s' with payload '%s'",
                       self._meth, self.payload)
@@ -48,21 +44,18 @@ class BaseRequest(object):
         Processes the request in a separate thread and puts the
         received request on queue Q
         """
-        if self._lock.locked():
-            return
         def asyncRequest():
             """
             Simple asynchronous request wrapper
             """
             try:
-                with self._lock:
-                    result = self.sendRequest()
+                result = self.sendRequest()
                 if func is not None:
                     func(result)
             except: # pragma: no cover
                 _logger.exception("Error sending request")
                 raise
-        threading.Thread(target=asyncRequest).start()
+        Thread(target=asyncRequest).start()
 
     def sendRequest(self):
         """
@@ -82,10 +75,10 @@ class BaseRequest(object):
         # Both requests and urllib3 have different exceptions depending
         # on their versions, so we'll catch any exceptions for now until
         # we work out which ones actually happen
-        except Exception as exc:
+        except BaseException as exc:
             _logger.warning("Sending request '%s' raised exception: '%s'",
                             str(self), str(exc))
-            return
+            return None
 
         return response
 
@@ -95,9 +88,9 @@ class RequestMessagesByPath(BaseRequest):
     """
     _meth = 'get_messages_by_path'
 
-    def __init__(self, host, port, project_file, path):
+    def __init__(self, project_file, path):
         super(RequestMessagesByPath, self).__init__(
-            host, port, project_file=project_file, path=path)
+            project_file=project_file, path=path)
 
 class RequestQueuedMessages(BaseRequest):
     """
@@ -105,9 +98,9 @@ class RequestQueuedMessages(BaseRequest):
     """
     _meth = 'get_ui_messages'
 
-    def __init__(self, host, port, project_file):
+    def __init__(self, project_file):
         super(RequestQueuedMessages, self).__init__(
-            host, port, project_file=project_file)
+            project_file=project_file)
 
 class RequestHdlccInfo(BaseRequest):
     """
@@ -115,9 +108,15 @@ class RequestHdlccInfo(BaseRequest):
     """
     _meth = 'get_diagnose_info'
 
-    def __init__(self, host, port, project_file=None):
+    def __init__(self, project_file=None):
         super(RequestHdlccInfo, self).__init__(
-            host, port, project_file=project_file)
+            project_file=project_file)
+
+class ListWorkingBuilders(BaseRequest):
+    """
+    Request a list of checkers that can be used
+    """
+    _meth = 'get_working_builders'
 
 class RequestProjectRebuild(BaseRequest):
     """
@@ -125,9 +124,9 @@ class RequestProjectRebuild(BaseRequest):
     """
     _meth = 'rebuild_project'
 
-    def __init__(self, host, port, project_file=None):
+    def __init__(self, project_file=None):
         super(RequestProjectRebuild, self).__init__(
-            host, port, project_file=project_file)
+            project_file=project_file)
 
 class OnBufferVisit(BaseRequest):
     """
@@ -135,9 +134,9 @@ class OnBufferVisit(BaseRequest):
     """
     _meth = 'on_buffer_visit'
 
-    def __init__(self, host, port, project_file, path):
+    def __init__(self, project_file, path):
         super(OnBufferVisit, self).__init__(
-            host, port, project_file=project_file, path=path)
+            project_file=project_file, path=path)
 
 class OnBufferLeave(BaseRequest):
     """
@@ -145,9 +144,9 @@ class OnBufferLeave(BaseRequest):
     """
     _meth = 'on_buffer_leave'
 
-    def __init__(self, host, port, project_file, path):
+    def __init__(self, project_file, path):
         super(OnBufferLeave, self).__init__(
-            host, port, project_file=project_file, path=path)
+            project_file=project_file, path=path)
 
 class GetDependencies(BaseRequest):
     """
@@ -155,9 +154,9 @@ class GetDependencies(BaseRequest):
     """
     _meth = 'get_dependencies'
 
-    def __init__(self, host, port, project_file, path):
+    def __init__(self, project_file, path):
         super(GetDependencies, self).__init__(
-            host, port, project_file=project_file, path=path)
+            project_file=project_file, path=path)
 
 class GetBuildSequence(BaseRequest):
     """
@@ -165,6 +164,17 @@ class GetBuildSequence(BaseRequest):
     """
     _meth = 'get_build_sequence'
 
-    def __init__(self, host, port, project_file, path):
+    def __init__(self, project_file, path):
         super(GetBuildSequence, self).__init__(
-            host, port, project_file=project_file, path=path)
+            project_file=project_file, path=path)
+
+class RunConfigGenerator(BaseRequest):
+    """
+    Notifies the server that a buffer has been left
+    """
+    _meth = 'run_config_generator'
+
+    def __init__(self, generator, *args, **kwargs):
+        super(RunConfigGenerator, self).__init__(
+            generator=generator, args=json.dumps(args),
+            kwargs=json.dumps(kwargs))

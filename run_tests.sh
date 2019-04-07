@@ -38,91 +38,46 @@ if [ -z "${CI}" ]; then
     CI_TARGET=vim
   fi
 
-  if [ -z "${NVIM_TUI_ENABLE_CURSOR_SHAPE}" ]; then
-    export NVIM_TUI_ENABLE_CURSOR_SHAPE=0
-  fi
-
   VIRTUAL_ENV_DEST=~/dev/vimhdl_venv
-  # if [ -z "${TRAVIS_PYTHON_VERSION}" ]; then
-  #   TRAVIS_PYTHON_VERSION=3.5
-  #   PYTHON=python${TRAVIS_PYTHON_VERSION}
-  # else
-  #   PYTHON=python
-  # fi
 
   if [ -z "${VERSION}" ]; then
-    if [ "${CI_TARGET}" == "neovim" ]; then
-      VERSION=0.1.5
-    else
-      VERSION=master
-    fi
+    VERSION=master
   fi
 
-  VROOM_DIR=~/dev/vroom/
-
-fi
-
-##############################################################################
-# Common definitions for setting up the tests ################################
-##############################################################################
-if [ -n "${CI}" ]; then
-  VROOM_DIR=${HOME}/vroom/
 fi
 
 ##############################################################################
 # Functions ##################################################################
 ##############################################################################
-function _setup_vroom {
-  if [ -d "$1" ]; then
-    pushd "$1"
-    git pull
-  else
-    git clone https://github.com/google/vroom \
-      -b master --single-branch --depth 1 "$1"
-    pushd "$1"
-  fi
-
-  python3 setup.py build
-
-  set +e
-  
-  if [ "$(python3 setup.py install)" != "0" ]; then
-    set -e
-    python3 setup.py install --user
-  fi
-
-  popd
-}
-
 function _setup_ci_env {
   cmd="virtualenv --clear ${VIRTUAL_ENV_DEST}"
 
   if [ -n "${PYTHON}" ]; then
     cmd="$cmd --python=${PYTHON}"
+  else
+    cmd="$cmd --python=python3"
   fi
 
   $cmd
   # shellcheck disable=SC1090
   source ${VIRTUAL_ENV_DEST}/bin/activate
+  
 }
 
 function _install_packages {
-  pip install git+https://github.com/suoto/rainbow_logging_handler
+  pip install git+https://github.com/google/vroom
+  pip install neovim
+
   pip install -r ./.ci/requirements.txt
-  pip install -e ./dependencies/hdlcc/
 
-  set +e
-
-  if [ "$(pip3 install neovim)" != "0" ]; then
-    pip3 install neovim --user
+  # Default Vim on Travis is always Python 2, install stuff for that as well
+  if [ "${CI_TARGET}" == "vim" ]                  \
+    && [ -n "${CI}" ]                             \
+    && [[ ${TRAVIS_PYTHON_VERSION} == 3* ]]; then
+      echo "sudo pip2 installing .ci/requirements.txt with"
+      sudo -H pip2 install -r ./.ci/requirements.txt
+      pip2 install -r ./.ci/requirements.txt --user
   fi
-
-  
-  if [ "$(pip install neovim)" != "0" ]; then
-    pip install neovim --user
-  fi
-
-  set -e
 
 }
 
@@ -136,8 +91,6 @@ function _cleanup_if_needed {
     pushd ../hdlcc_ci/vim-hdl-examples
     git reset HEAD --hard
     popd
-
-    if [ -d "${VROOM_DIR}" ]; then rm -rf "${VROOM_DIR}"; fi
 
     if [ -n "${CLEAN_AND_QUIT}" ]; then exit; fi
   fi
@@ -168,7 +121,6 @@ function _setup_dotfiles {
 ##############################################################################
 
 set -e
-set -x
 
 # If we're not running on a CI server, create a virtual env to mimic its
 # behaviour
@@ -177,13 +129,11 @@ if [ -z "${CI}" ]; then
     echo "Removing previous virtualenv"
     rm -rf ${VIRTUAL_ENV_DEST}
   fi
-
   _setup_ci_env
 fi
 
 _cleanup_if_needed
 _install_packages
-_setup_vroom "${VROOM_DIR}"
 
 export PATH=${HOME}/builders/ghdl/bin/:${PATH}
 
@@ -194,14 +144,16 @@ if [ "${CI_TARGET}" == "neovim" ]; then nvim --version; fi
 
 echo "Terminal size is $COLUMNS x $LINES"
 
-set +xe
+set +e
+
 python -m coverage run -m nose2 -s .ci/ "${RUNNER_ARGS[@]}"
+
 RESULT=$?
 
 python -m coverage combine
+python -m coverage report
 python -m coverage html
 
 [ -z "${CI}" ] && [ -n "${VIRTUAL_ENV}" ] && deactivate
 
 exit ${RESULT}
-

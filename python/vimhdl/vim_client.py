@@ -16,21 +16,23 @@
 # along with vim-hdl.  If not, see <http://www.gnu.org/licenses/>.
 "Wrapper for vim-hdl usage within Vim's Python interpreter"
 
+import logging
 import os
 import os.path as p
 import subprocess as subp
 import sys
-from multiprocessing import Queue
-import logging
 import time
+from multiprocessing import Queue
 
-import vim # pylint: disable=import-error
+import vim  # pylint: disable=import-error
 import vimhdl
 import vimhdl.vim_helpers as vim_helpers
-from vimhdl.base_requests import (RequestMessagesByPath, RequestQueuedMessages,
-                                  RequestHdlccInfo, RequestProjectRebuild,
-                                  OnBufferVisit, OnBufferLeave,
-                                  GetDependencies, GetBuildSequence)
+from vimhdl.base_requests import (BaseRequest, GetBuildSequence,
+                                  GetDependencies, OnBufferLeave,
+                                  OnBufferVisit, RequestHdlccInfo,
+                                  RequestMessagesByPath, RequestProjectRebuild,
+                                  RequestQueuedMessages, RunConfigGenerator)
+from vimhdl.config_gen_wrapper import ConfigGenWrapper
 
 _ON_WINDOWS = sys.platform == 'win32'
 
@@ -58,10 +60,17 @@ def _sortBuildMessages(records):
     records.sort(key=_sortKey)
     return records
 
-class VimhdlClient(object):  #pylint: disable=too-many-instance-attributes
+# pylint:disable=inconsistent-return-statements
+
+class VimhdlClient:  #pylint: disable=too-many-instance-attributes
     """
     Point of entry of Vim commands
     """
+
+    # If the user hasn't already set vimhdl_conf_file in g: or b:, we'll use
+    # this instead
+    _default_conf_filename = 'vimhdl.prj'
+
 
     def __init__(self, **options):
         self._logger = logging.getLogger(__name__ + '.' + self.__class__.__name__)
@@ -78,6 +87,10 @@ class VimhdlClient(object):  #pylint: disable=too-many-instance-attributes
         self._posted_notifications = []
 
         self._ui_queue = Queue()
+        self.helper_wrapper = ConfigGenWrapper()
+
+        # Set url on the BaseRequest class as well
+        BaseRequest.url = 'http://{}:{}'.format(self._host, self._port)
 
     def startServer(self):
         """
@@ -157,16 +170,15 @@ class VimhdlClient(object):  #pylint: disable=too-many-instance-attributes
         """
         Wait for ~10s until the server is actually responding
         """
-        for _ in range(20):
-            time.sleep(0.5)
-            request = RequestHdlccInfo(self._host, self._port)
+        for _ in range(10):
+            time.sleep(0.2)
+            request = RequestHdlccInfo()
             response = request.sendRequest()
             self._logger.debug(response)
             if response:
                 self._logger.info("Ok, server is really up")
                 return
-            else:
-                self._logger.info("Server is not responding yet")
+            self._logger.info("Server is not responding yet")
 
         self._postError("Unable to talk to server")
 
@@ -225,8 +237,7 @@ class VimhdlClient(object):  #pylint: disable=too-many-instance-attributes
         project_file = vim_helpers.getProjectFile()
         path = p.abspath(vim_buffer.name)
 
-        request = RequestMessagesByPath(host=self._host, port=self._port,
-                                        project_file=project_file, path=path)
+        request = RequestMessagesByPath(project_file=project_file, path=path)
 
         response = request.sendRequest()
         if response is None:
@@ -274,8 +285,7 @@ class VimhdlClient(object):  #pylint: disable=too-many-instance-attributes
 
         project_file = vim_helpers.getProjectFile()
 
-        request = RequestQueuedMessages(self._host, self._port,
-                                        project_file=project_file)
+        request = RequestQueuedMessages(project_file=project_file)
 
         request.sendRequestAsync(self._handleAsyncRequest)
 
@@ -284,8 +294,7 @@ class VimhdlClient(object):  #pylint: disable=too-many-instance-attributes
         Gets info about the current project and hdlcc server
         """
         project_file = vim_helpers.getProjectFile()
-        request = RequestHdlccInfo(host=self._host, port=self._port,
-                                   project_file=project_file)
+        request = RequestHdlccInfo(project_file=project_file)
 
         response = request.sendRequest()
 
@@ -297,11 +306,11 @@ class VimhdlClient(object):  #pylint: disable=too-many-instance-attributes
                 ["- %s" % x for x in
                  ["vimhdl version: %s\n" % vimhdl.__version__] +
                  response.json()['info']])
-        else:
-            return "\n".join(
-                ["- %s" % x for x in
-                 ["vimhdl version: %s\n" % vimhdl.__version__,
-                  "hdlcc server is not running"]])
+
+        return "\n".join(
+            ["- %s" % x for x in
+             ["vimhdl version: %s\n" % vimhdl.__version__,
+              "hdlcc server is not running"]])
 
     def rebuildProject(self):
         """
@@ -313,8 +322,7 @@ class VimhdlClient(object):  #pylint: disable=too-many-instance-attributes
 
         vim_helpers.postVimInfo("Rebuilding project...")
         project_file = vim_helpers.getProjectFile()
-        request = RequestProjectRebuild(host=self._host, port=self._port,
-                                        project_file=project_file)
+        request = RequestProjectRebuild(project_file=project_file)
 
         response = request.sendRequest()
 
@@ -335,9 +343,7 @@ class VimhdlClient(object):  #pylint: disable=too-many-instance-attributes
 
         project_file = vim_helpers.getProjectFile()
 
-        request = OnBufferVisit(self._host,
-                                self._port,
-                                project_file=project_file,
+        request = OnBufferVisit(project_file=project_file,
                                 path=vim.current.buffer.name)
 
         request.sendRequestAsync(self._handleAsyncRequest)
@@ -354,9 +360,7 @@ class VimhdlClient(object):  #pylint: disable=too-many-instance-attributes
 
         project_file = vim_helpers.getProjectFile()
 
-        request = OnBufferLeave(self._host,
-                                self._port,
-                                project_file=project_file,
+        request = OnBufferLeave(project_file=project_file,
                                 path=vim.current.buffer.name)
 
         request.sendRequestAsync(self._handleAsyncRequest)
@@ -372,9 +376,7 @@ class VimhdlClient(object):  #pylint: disable=too-many-instance-attributes
 
         project_file = vim_helpers.getProjectFile()
 
-        request = GetDependencies(self._host,
-                                  self._port,
-                                  project_file=project_file,
+        request = GetDependencies(project_file=project_file,
                                   path=vim.current.buffer.name)
 
         response = request.sendRequest()
@@ -384,8 +386,8 @@ class VimhdlClient(object):  #pylint: disable=too-many-instance-attributes
             return "\n".join(
                 ["Dependencies for %s" % vim.current.buffer.name] +
                 ["- %s" % x for x in response.json()['dependencies']])
-        else:
-            return "Source has no dependencies"
+
+        return "Source has no dependencies"
 
     def getBuildSequence(self):
         """
@@ -398,9 +400,7 @@ class VimhdlClient(object):  #pylint: disable=too-many-instance-attributes
 
         project_file = vim_helpers.getProjectFile()
 
-        request = GetBuildSequence(self._host,
-                                   self._port,
-                                   project_file=project_file,
+        request = GetBuildSequence(project_file=project_file,
                                    path=vim.current.buffer.name)
 
         response = request.sendRequest()
@@ -414,8 +414,21 @@ class VimhdlClient(object):  #pylint: disable=too-many-instance-attributes
                 for i in range(len(sequence)):  # pylint:disable=consider-using-enumerate
                     msg += ["%d: %s" % (i, sequence[i])]
                 return '\n'.join(msg)
-            else:
-                return "Build sequence is empty"
-        else:
-            return ""
 
+            return "Build sequence is empty"
+
+        return ""
+
+    def updateHelperWrapper(self):
+        """
+        Requests the config file content from the server and return the wrapper
+        class
+        """
+        paths = vim.eval('b:local_arg') or ['.', ]
+
+        request = RunConfigGenerator(generator='SimpleFinder', paths=paths)
+        response = request.sendRequest()
+        if response is None:
+            return
+
+        self.helper_wrapper.run(response.json()['content'])

@@ -2,40 +2,38 @@
 
 set -x
 
-# Clone repo if the cached folder doesn't exists
-if [ ! -d "${CACHE}/vim-${VERSION}" ]; then
-  git clone https://github.com/vim/vim "${CACHE}/vim-${VERSION}"
-fi
-
-
-if [ ! -f "${CACHE}/vim-${VERSION}/src/vim" -o "${VERSION}" == "master" ]; then
-  cd "${CACHE}/vim-${VERSION}" || exit
-  if [ "${VERSION}" == "master" ]; then
-    # If we're testing the latest Vim version, we only pull the latest changes
-    git clean -fdx
-    git checkout master
-    git pull
-  else
-    git checkout "${VERSION}"
+if [ "${VERSION}" == "latest" ]; then
+  sudo bash -c 'apt-get update && apt-get upgrade vim-gnome'
+elif [ "${VERSION}" == "master" ]; then
+  # Clone repo if the cached folder doesn't exists
+  if [ ! -d "${CACHE}/vim-${VERSION}" ]; then
+    git clone --quiet https://github.com/vim/vim "${CACHE}/vim-${VERSION}"
   fi
-  ./configure --with-features=huge --enable-pythoninterp --enable-gui=auto --with-x
 
-  make all -j4
-fi
+  pushd "${CACHE}/vim-${VERSION}" || exit
+  git clean -fdx
+  git checkout "${VERSION}"
 
-export PATH=${CACHE}/vim-${VERSION}/src:$PATH
-export VIMRUNTIME=${CACHE}/vim-${VERSION}/runtime
+  if [[ ${TRAVIS_PYTHON_VERSION} == 3* ]]; then
+    ./configure --with-features=huge       \
+                --prefix="$HOME/.local"    \
+                --enable-python3interp=yes \
+                --enable-gui=auto          \
+                --with-x
+  else
+    ./configure --with-features=huge      \
+                --prefix="$HOME/.local"   \
+                --enable-pythoninterp=yes \
+                --enable-gui=auto         \
+                --with-x
+  fi
 
-cd "${TRAVIS_BUILD_DIR}" || exit
+  make -j
+  make install
+  popd || exit
 
-# Ensure the binary being selected is the one we want
-if [ ! "$(which vim)" -ef "${CACHE}/vim-${VERSION}/src/vim" ]; then
-  echo "Vim binary points to \"$(which vim)\" but it should point to \
-        \"${CACHE}/vim-${VERSION}/src/vim\""
-  exit -1
 fi
 
 set +x
 
 vim --version
-
