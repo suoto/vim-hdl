@@ -27,7 +27,7 @@ Edit different files under the same project
   :edit common_lib/edge_detector.vhd
   @do (vimhdl_check)
 
-  :VimhdlPrintDependencies
+  :VimhdlViewDependencies
   ~ Dependencies for .*/edge_detector.vhd (regex)
   ~ - ieee.std_logic_1164
   ~ - common_lib.common_pkg

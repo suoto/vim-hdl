@@ -86,10 +86,10 @@ endfunction
 " ============================================================================
 function! s:setupCommands() abort
     command! VimhdlInfo              call s:printInfo()
-    command! VimhdlPrintDependencies call s:printDependencies()
+    command! VimhdlViewDependencies  call s:viewDependencies()
     command! VimhdlRebuildProject    call s:pyEval('bool(vimhdl_client.rebuildProject())')
     command! VimhdlRestartServer     call s:restartServer()
-    command! VimhdlViewBuildSequence call s:printBuildSequence()
+    command! VimhdlViewBuildSequence call s:viewBuildSequence()
     command! -nargs=* -complete=dir 
                 \ VimhdlCreateProjectFile call s:createProjectFile(<f-args>)
 endfunction
@@ -173,7 +173,7 @@ endfunction
 "}
 " { s:listDependencies()
 " ============================================================================
-function! s:printDependencies() abort
+function! s:viewDependencies() abort
     if !(count(['vhdl', 'verilog', 'systemverilog'], &filetype))
         call s:postWarning("Not a HDL file, can't restart server")
         return
@@ -186,7 +186,7 @@ endfunction
 "}
 " { s:listBuildSequence()
 " ============================================================================
-function! s:printBuildSequence() abort
+function! s:viewBuildSequence() abort
     if !(count(['vhdl', 'verilog', 'systemverilog'], &filetype))
         call s:postWarning("Not a HDL file, can't restart server")
         return

@@ -16,9 +16,10 @@ Contents ~
 2.  User guide........................................|vimhdl-user-guide|
     2.1. Quickstart...................................|vimhdl-quickstart|
     2.2. Style check..................................|vimhdl-style-check|
-3.  Options...........................................|vimhdl-options|
-    3.1. Configuration file...........................|vimhdl-config-file|
-    3.2. Logging level................................|vimhdl-log-level|
+3.  Vim commands......................................|vimhdl-commands|
+4.  Options...........................................|vimhdl-options|
+    4.1. Configuration file...........................|vimhdl-config-file|
+    4.2. Logging level................................|vimhdl-log-level|
 
 ==============================================================================
 1. Intro                                                          *vimhdl-intro*
@@ -72,31 +73,66 @@ The basics:
     - Build flags passed when adding a source file will be applied only to
       this specific source file
 
+Use filetype=vimhdl to enable syntax highlighting.
+
 ------------------------------------------------------------------------------
 2.2. Style check                                            *vimhdl-style-check*
 
 TODO...
 
-------------------------------------------------------------------------------
-2.3. Vim commands                                              *vimhdl-commands*
+==============================================================================
+3. Vim commands                                              *vimhdl-commands*
 
-:VimhdlInfo                                    *vimhdl-commands-info* *VimhdlInfo*
+------------------------------------------------------------------------------
+                                               *vimhdl-commands-info* *VimhdlInfo*
+:VimhdlInfo
 
 Use this command to get the versions of both |vimhdl| and |hdlcc|, the builder
 currently in use and some |hdlcc| server info.
 
-:VimhdlRebuildProject             *vimhdl-commands-rebuild* *VimhdlRebuildProject*
+------------------------------------------------------------------------------
+                           *vimhdl-commands-rebuildproject* *VimhdlRebuildProject*
+:VimhdlRebuildProject
 
-Use this command if you feel either |vimhdl| or |hdlcc| seem to be
-misbehaving. This will cause |hdlcc| to clean up both the project cache and the
-target folder and restar building the project from scratch. Please note that
-on project with large numbers of files this can be lengthy.
-
-==============================================================================
-3. Options                                                      *vimhdl-options*
+Use this command if you feel either |vimhdl| or |hdlcc| seem to be misbehaving.
+This will cause |hdlcc| to clean up both the project cache and the target
+folder and restar building the project from scratch. Please note that on
+project with large numbers of files this can be lengthy.
 
 ------------------------------------------------------------------------------
-3.1. Configuration file                                     *vimhdl-config-file*
+                             *vimhdl-commands-restartserver* *VimhdlRestartServer*
+:VimhdlRestartServer 
+
+Restarts the |hdlcc| server manually.
+
+
+------------------------------------------------------------------------------
+                     *vimhdl-commands-createprojectfile* *VimhdlCreateProjectFile*
+:VimhdlCreateProjectFile [paths]
+
+Runs a simple file finder on [paths] and tries to populate the contents of the
+configuration file based on that. This can be used as a basis for writing your
+own configuration files.
+
+------------------------------------------------------------------------------
+                       *vimhdl-commands-viewdependencies* *VimhdlViewDependencies*
+:VimhdlViewDependencies 
+
+Prints the dependencies of the current file in the <library>.<design_unit>
+format.
+
+------------------------------------------------------------------------------
+                     *vimhdl-commands-viewbuildsequence* *VimhdlViewBuildSequence*
+:VimhdlViewBuildSequence
+
+Prints out the build sequence of the current file for debuggin purposes.
+
+
+==============================================================================
+4. Options                                                      *vimhdl-options*
+
+------------------------------------------------------------------------------
+4.1. Configuration file                                     *vimhdl-config-file*
 
                                      *'b:vimhdl_conf_file'* *'g:vimhdl_conf_file'*
 
@@ -113,7 +149,7 @@ or
 Note that b:vimhdl_conf_file have preference over g:vimhdl_conf_file.
 
 ------------------------------------------------------------------------------
-3.2. Logging level                                            *vimhdl-log-level*
+4.2. Logging level                                            *vimhdl-log-level*
 
                                                           *'g:vimhdl_log_level'*
 

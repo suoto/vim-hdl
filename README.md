@@ -1,8 +1,7 @@
 # vim-hdl
 
 [![Build Status](https://travis-ci.org/suoto/vim-hdl.svg?branch=master)](https://travis-ci.org/suoto/vim-hdl)
-[![Coverage Status](https://coveralls.io/repos/github/suoto/vim-hdl/badge.svg?branch=master)](https://coveralls.io/github/suoto/vim-hdl?branch=master)
-[![Code Health](https://landscape.io/github/suoto/vim-hdl/master/landscape.svg?style=flat)](https://landscape.io/github/suoto/vim-hdl/master)
+[![codecov](https://codecov.io/gh/suoto/vim-hdl/branch/master/graph/badge.svg)](https://codecov.io/gh/suoto/vim-hdl)
 [![Join the chat at https://gitter.im/suoto/vim-hdl](https://badges.gitter.im/suoto/vim-hdl.svg)](https://gitter.im/suoto/vim-hdl?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 [![Analytics](https://ga-beacon.appspot.com/UA-68153177-3/vim-hdl/README.md?pixel)](https://github.com/suoto/vim-hdl)
 
@@ -51,12 +50,17 @@ flags, etc. Select the configuration file via
 ```viml
 " Configure the project file
 let g:vimhdl_conf_file = '<config/file>'
-" Tell Syntastic to use vim-hdl
-let g:syntastic_vhdl_checkers = ['vimhdl']
 ```
 
-See the [wiki](https://github.com/suoto/vim-hdl/wiki#project-file-formats) for
-details on how to write it.
+You use the `VimhdlCreateProjectFile` command to search and help you setting up
+the configuration file
+
+```viml
+:VimhdlCreateProjectFile <optional/path/to/files>
+```
+
+See the [wiki](https://github.com/suoto/hdlcc/wiki) for details on how to write
+it.
 
 Any other [Syntastic][Syntastic] option should work as well.
 
