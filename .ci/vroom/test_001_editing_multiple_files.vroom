@@ -141,3 +141,25 @@ rebuilt
   :lclose
   @do (assert_qf_empty)
 
+
+
+Corrupt hdlcc database, check it actually fails and then ask it to rebuild to
+confirm it works again
+  :edit common_lib/edge_detector.vhd
+  @do (write)
+  :lclose
+  @do (assert_qf_empty)
+Delete some internals
+  @system (RELAXED)
+  :!rm .build/common_lib*
+  ! rm .build/common_lib.* (regex)
+  @system
+Checking right now should fail
+  :silent! SyntasticCheck
+  :silent! lopen
+  common_lib/edge_detector\.vhd|13 col 20 error| (primary)? unit "common_pkg" not found in library "common_lib" (regex)
+  :lclose
+Rebuild and check that there's no errors
+  :VimhdlRebuildProject
+  :silent! SyntasticCheck
+  @do (assert_qf_empty)

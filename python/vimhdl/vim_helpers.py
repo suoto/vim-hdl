@@ -149,3 +149,41 @@ def getProjectFile():
 
     _logger.info("Couldn't find a valid config file")
     return None
+
+# See YouCompleteMe/python/ycm/vimsupport.py
+def getIntValue(variable):
+    return int(vim.eval(variable))
+
+# See YouCompleteMe/python/ycm/vimsupport.py
+def presentDialog(message, choices, default_choice_index=0):
+    """Presents the user with a dialog where a choice can be made.
+    This will be a dialog for gvim users or a question in the message buffer
+    for vim users or if `set guioptions+=c` was used.
+
+    choices is list of alternatives.
+    default_choice_index is the 0-based index of the default element
+    that will get choosen if the user hits <CR>. Use -1 for no default.
+
+    PresentDialog will return a 0-based index into the list
+    or -1 if the dialog was dismissed by using <Esc>, Ctrl-C, etc.
+
+    If you are presenting a list of options for the user to choose from, such as
+    a list of imports, or lines to insert (etc.), SelectFromList is a better
+    option.
+
+    See also:
+      :help confirm() in vim (Note that vim uses 1-based indexes)
+
+    Example call:
+      PresentDialog("Is this a nice example?", ["Yes", "No", "May&be"])
+        Is this a nice example?
+        [Y]es, (N)o, May(b)e:"""
+
+    to_eval = "confirm('{0}', '{1}', {2})".format(
+        _escapeForVim(_toUnicode(message)),
+        _escapeForVim(_toUnicode("\n" .join(choices))),
+        default_choice_index + 1)
+    try:
+        return getIntValue(to_eval) - 1
+    except KeyboardInterrupt:
+        return -1

@@ -34,10 +34,12 @@ _logger = logging.getLogger(__name__)
 
 def _setupPaths():
     base_path = p.abspath(p.join(p.dirname(__file__), '..', '..'))
-    path = p.join(base_path, 'python')
-    print(path)
-    assert p.exists(path), "Path '%s' doesn't exists!" % path
-    sys.path.insert(0, path)
+    # Add vim-hdl own Python code and hdlcc also (needed by vimhdl)
+    for path in (p.join(base_path, 'python'),
+                 p.join(base_path, 'dependencies', 'hdlcc')):
+        print(path)
+        assert p.exists(path), "Path '%s' doesn't exists!" % path
+        sys.path.insert(0, path)
 
 _setupPaths()
 
