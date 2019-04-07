@@ -3,5 +3,6 @@
 *.swp
 tags
 .coverage
+.coverage.*
 .foo
 htmlcov/

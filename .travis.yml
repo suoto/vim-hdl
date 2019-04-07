@@ -1,8 +1,7 @@
 ---
 language: python
-python:
-  - "2.7" # EOL: 01/Jan/2020
-  - "3.5"
+
+dist: trusty
 
 env:
   global:
@@ -11,48 +10,61 @@ env:
     - GHDL_URL="${GHDL_HOST}/ghdl-0.33/ghdl-0.33-x86_64-linux.tgz"
     - COLUMNS=80
     - LINES=50
-  matrix:
-    # - CI_TARGET=vim    VERSION=v7.4.052  # Ubuntu 14.04 LTS, EOL April 2019
-    # - CI_TARGET=vim    VERSION=v7.4.1689 # Ubuntu 16.04 LTS, EOL April 2021
-    - CI_TARGET=vim    VERSION=v8.0.1453 # Ubuntu 18.04 LTS, EOL April 2023
-    # - CI_TARGET=neovim VERSION=0.3.1     # Ubuntu 18.10, (EOL July 2019)
-    - CI_TARGET=neovim VERSION=0.3.4     # (testing for now)
-    # - CI_TARGET=vim    VERSION=master # Not stable right now
-    - CI_TARGET=neovim VERSION=master
-    # FIXME: Neovim 0.2.0 and 0.2.2 are failing to compile, while 0.3.1 and
-    # master (which is 0.3.2-dev right now) are working just fine. Might be
-    # interesting to enable CI for them again at some point
-    # - CI_TARGET=neovim VERSION=0.2.0   # Ubuntu 17.10
-    # - CI_TARGET=neovim VERSION=0.2.2   # Ubuntu 18.04
+
+matrix:
+  include:
+      # Test Vim bundled with Ubuntu 14.04 LTS (Vim is using Python 2)
+    - dist: trusty
+      env:  CI_TARGET=vim DISTRO=trusty
+      python: 3.6
+
+      # Test Vim bundled with Ubuntu 16.04 LTS (Vim is using Python 2)
+    - dist: xenial
+      env:  CI_TARGET=vim DISTRO=xenial
+      python: 3.6
+
+      # Test Vim version from Ubuntu 18.04 (updating from apt-get to use Python
+      # 3)
+    - dist: xenial
+      env:  CI_TARGET=vim DISTRO=xenial VERSION=latest
+      python: 3.5
+    - dist: xenial
+      env:  CI_TARGET=vim DISTRO=xenial VERSION=latest
+      python: 3.6
+
+    - dist: xenial
+      env:  CI_TARGET=neovim DISTRO=xenial VERSION=master
+      python: 3.5
+    - dist: xenial
+      env:  CI_TARGET=neovim DISTRO=xenial VERSION=master
+      python: 3.6
 
 addons:
   apt:
     packages:
       - autoconf
-      - python-dev
-      - vim-gnome
-      - libtool
       - automake
       - cmake
       - g++
+      - gettext
+      - libgtk2.0-dev
+      - libgnome2-dev
+      - libtool
+      - ninja-build
       - pkg-config
       - unzip
-      - python3
-      - python3-pip
+      - vim-gnome
+      - xvfb
 
 before_script:
+  - if [ "${CI_TARGET}" == "neovim" ]; then
+      sudo apt-get install libtool-bin;
+    fi
   - pip install -U pip
   - git submodule update --init --recursive
   - mkdir -p ${CACHE}
-  # Vroom's vim mode currently requires a running X server.
-  - if [ "${CI_TARGET}" == "vim" ]; then
-      export DISPLAY=:99.0;
-      sh -e /etc/init.d/xvfb start;
-    fi
-
   - cd ${TRAVIS_BUILD_DIR}
-  - git clone https://github.com/suoto/hdlcc_ci --recursive --depth 1 ../hdlcc_ci
-
+  - git clone --quiet --recursive --depth 1 https://github.com/suoto/hdlcc_ci ../hdlcc_ci
   - ./dependencies/hdlcc/.ci/scripts/setup_ghdl.sh
   - ./.ci/setup_ghdl.sh
   - if [ "${CI_TARGET}" == "vim" ]; then source ./.ci/setup_vim.sh; fi
@@ -60,7 +72,8 @@ before_script:
 
 script:
   - set +xe
-  - ./run_tests.sh --log-capture
+  - xvfb-run --server-args='-screen 0, 1024x768x24' -e /dev/stdout 
+    ./run_tests.sh --log-capture -F
 
 after_success:
   - export COVERALLS_PARALLEL=true
@@ -81,13 +94,9 @@ after_failure:
   - cat /tmp/hdlcc.log
   - echo '##########################################################'
   - echo '##########################################################'
-  - if [ "${CI_TARGET}" == "neovim" ]; 
+  - if [ "${CI_TARGET}" == "neovim" ]; then
       nvim +checkhealth +"w health.log" +qa;
       cat health.log
     fi
   - echo '##########################################################'
   - echo '##########################################################'
-cache:
-  directories:
-    - ~/cache/
-
