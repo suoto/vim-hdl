@@ -123,6 +123,8 @@ class VimhdlClient:  #pylint: disable=too-many-instance-attributes
         """
         Checks if the the server is alive
         """
+        if self._server is None:
+            return False
         is_alive = self._server.poll() is None
         if not is_alive:
             self._postWarning("hdlcc server is not running")
