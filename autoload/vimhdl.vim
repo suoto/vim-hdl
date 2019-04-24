@@ -129,6 +129,35 @@ function! s:setupSyntastic(...) abort
 
 endfunction
 " }
+" { s:setupAle() Setup ALE to use vimhdl in the given filetypes
+" ============================================================================
+function! s:setupAle(...) abort
+    for l:filetype in a:000
+        try
+            call ale#linter#Define('vhdl', {
+            \   'name': 'vimhdl',
+            \   'executable': 'sh',
+            \   'command': 'true',
+            \   'callback': function('vimhdl#getMessagesForCurrentBuffer'),
+            \   'lint_file': 1
+            \ })
+
+
+            if exists('g:ale_linters')
+                let l:existing = get(g:ale_linters, l:filetype, [])
+                let g:ale_linters[l:filetype] = l:existing + ['vimhdl', ]
+            else
+                let g:ale_linters = { l:filetype : ['vimhdl', ] }
+            endif
+
+        catch /^Vim\%((\a\+)\)\=:E117/
+            " If setting up ALE didn't work, just bail
+            return
+        endtry
+    endfor
+
+endfunction
+"}
 " { s:printInfo() Handle for VimHdlInfo command
 " ============================================================================
 function! s:printInfo() abort
@@ -160,7 +189,7 @@ endfunction
 " }
 " { vimhdl#getMessagesForCurrentBuffer()
 " ============================================================================
-function! vimhdl#getMessagesForCurrentBuffer() abort
+function! vimhdl#getMessagesForCurrentBuffer(...) abort
     let l:loclist = []
 exec s:python_until_eof
 try:
@@ -227,6 +256,7 @@ function! vimhdl#setup() abort
         call s:setupCommands()
         call s:setupHooks('*.vhd', '*.vhdl', '*.v', '*.sv')
         call s:setupSyntastic('vhdl', 'verilog', 'systemverilog')
+        call s:setupAle('vhdl', 'verilog', 'systemverilog')
     endif
 
     if count(['vhdl', 'verilog', 'systemverilog'], &filetype)
