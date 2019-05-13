@@ -134,7 +134,7 @@ endfunction
 function! s:setupAle(...) abort
     for l:filetype in a:000
         try
-            call ale#linter#Define('vhdl', {
+            call ale#linter#Define(l:filetype, {
             \   'name': 'vimhdl',
             \   'executable': 'sh',
             \   'command': 'true',
@@ -142,7 +142,7 @@ function! s:setupAle(...) abort
             \   'lint_file': 1
             \ })
 
-
+            " Add vimhdl to the ALE linters
             if exists('g:ale_linters')
                 let l:existing = get(g:ale_linters, l:filetype, [])
                 let g:ale_linters[l:filetype] = l:existing + ['vimhdl', ]
