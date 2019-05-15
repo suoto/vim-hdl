@@ -124,6 +124,13 @@ def _getBufferVars(vbuffer=None, var=None):
         return vbuffer.vars
     return vbuffer.vars[var]
 
+def getBufferOfGlobalVar(name, alternative=None):
+    """
+    Gives precedence to <name> inside b: and if not found, try to get it from g:
+    """
+    return vim.current.buffer.vars.get(name,
+                                       vim.vars.get(name, alternative))
+
 def getProjectFile():
     """
     Searches for a valid hdlcc configuration file in buffer vars (i.e.,

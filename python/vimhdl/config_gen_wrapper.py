@@ -25,8 +25,8 @@ import os
 import os.path as p
 
 import vim  # pylint: disable=import-error
-from vimhdl.vim_helpers import getProjectFile, presentDialog
 from hdlcc.utils import toBytes
+from vimhdl.vim_helpers import getBufferOfGlobalVar, presentDialog
 
 
 class ConfigGenWrapper(object):
@@ -51,8 +51,9 @@ class ConfigGenWrapper(object):
     _logger = logging.getLogger(__name__)
 
     def __init__(self):
-        self._project_file = toBytes(getProjectFile() or
-                                     self._default_conf_filename).decode()
+        self._project_file = toBytes(
+            getBufferOfGlobalVar('vimhdl_conf_file',
+                                 self._default_conf_filename)).decode()
 
         self._backup_file = p.join(
             p.dirname(self._project_file),
@@ -129,9 +130,9 @@ class ConfigGenWrapper(object):
         # No need to call this again
         vim.command('autocmd! vimhdl BufUnload')
 
-        try:
-            should_save = vim.vars['vimhdl_auto_save_created_config_file'] == 1
-        except KeyError:
+        should_save = vim.vars.get('vimhdl_auto_save_created_config_file', None)
+
+        if should_save is None:
             # Ask if the user wants to use the resulting file or if the backup
             # should be restored
             should_save = presentDialog(
