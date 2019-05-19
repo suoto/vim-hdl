@@ -92,13 +92,18 @@ class VimhdlClient:  #pylint: disable=too-many-instance-attributes
         # Set url on the BaseRequest class as well
         BaseRequest.url = 'http://{}:{}'.format(self._host, self._port)
 
-    def startServer(self):
+    def getServerAddress(self):
+        "Returns address:port of the server this client has started"
+        return '%s:%s' % (self._host, self._port)
+
+    def startServer(self, lsp_support=False):
         """
         Starts the hdlcc server, waits until it responds and register
         server shutdown when exiting Vim's Python interpreter
         """
-        self._startServerProcess()
-        self._waitForServerSetup()
+        self._startServerProcess(lsp_support)
+        if not lsp_support:
+            self._waitForServerSetup()
 
         import atexit
         atexit.register(self.shutdown)
@@ -130,7 +135,7 @@ class VimhdlClient:  #pylint: disable=too-many-instance-attributes
             self._postWarning("hdlcc server is not running")
         return is_alive
 
-    def _startServerProcess(self):
+    def _startServerProcess(self, lsp_support=False):
         """
         Starts the hdlcc server
         """
@@ -150,6 +155,9 @@ class VimhdlClient:  #pylint: disable=too-many-instance-attributes
                '--attach-to-pid', str(os.getpid()),
                '--log-level', self._log_level,
                '--log-stream', self._log_stream]
+
+        if lsp_support:
+            cmd += ['--lsp']
 
         self._logger.info("Starting hdlcc server with '%s'", cmd)
 

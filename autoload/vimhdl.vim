@@ -16,6 +16,8 @@
 " along with vim-hdl.  If not, see <http://www.gnu.org/licenses/>.
 "
 let s:vimhdl_path = escape(expand('<sfile>:p:h'), '\') . '/../'
+" FIXME: Test with other LSP clients in the future
+let s:use_lsp_server = exists(':ALEInfo') != 0
 
 function! s:usingPython2() abort   abort "{ Inspired on YCM
     if has('python3')
@@ -49,7 +51,7 @@ endfunction "}
 " ============================================================================
 function! s:setupPython() abort
     let l:python = s:using_python2 ? 'python2' : 'python3'
-    exec s:python_until_eof
+    pythonx << EOF
 import sys
 if 'vimhdl' not in sys.modules:
     import sys, vim
@@ -119,6 +121,7 @@ endfunction
 " { s:setupSyntastic() Setup Syntastic to use vimhdl in the given filetypes
 " ============================================================================
 function! s:setupSyntastic(...) abort
+    pyx _logger.info("Setting up Syntastic support")
     for l:filetype in a:000
         if !exists('g:syntastic_' . l:filetype . '_checkers')
             execute('let g:syntastic_' . l:filetype . '_checkers = ["vimhdl"]')
@@ -129,20 +132,53 @@ function! s:setupSyntastic(...) abort
 
 endfunction
 " }
+function! s:GetProjectRoot(buffer) abort
+    let l:project_root = ''
+    " ale#Var(a:buffer, 'vhdl_sbtserver_project_root')
+
+    if l:project_root is? ''
+        let l:project_root = ale#path#FindNearestFile(a:buffer, 'msim.prj')
+
+        let l:project_root = !empty(l:project_root) ? fnamemodify(l:project_root, ':h') : ''
+    endif
+
+    echom 'Project root: ' . l:project_root
+    return l:project_root
+endfunction
+
+" { s:GetServerAddress Fetches address and port used by the server
+" ============================================================================
+function! s:GetServerAddress(buffer) abort
+    let l:address = ''
+
+    pythonx << EOF
+try:
+    vimhdl_client
+    vim.command("let l:address = '%s'" % vimhdl_client.getServerAddress())
+except NameError:
+    _logger.exception("Unable to get address")
+    pass
+EOF
+
+    return l:address
+endfunction
+
+"}
 " { s:setupAle() Setup ALE to use vimhdl in the given filetypes
 " ============================================================================
 function! s:setupAle(...) abort
     for l:filetype in a:000
+        pyx _logger.debug("Setting up ALE support for %s" % vim.eval('l:filetype'))
         try
-            call ale#linter#Define(l:filetype, {
-            \   'name': 'vimhdl',
-            \   'executable': 'sh',
-            \   'command': 'true',
-            \   'callback': function('vimhdl#getMessagesForCurrentBuffer'),
-            \   'lint_file': 1
-            \ })
 
-            " Add vimhdl to the ALE linters
+            call ale#linter#Define(l:filetype, {
+                \   'name': 'vimhdl',
+                \   'lsp': 'socket',
+                \   'address': function('s:GetServerAddress'),
+                \   'language': l:filetype,
+                \   'project_root': function('s:GetProjectRoot')
+                \ })
+
             if exists('g:ale_linters')
                 let l:existing = get(g:ale_linters, l:filetype, [])
                 let g:ale_linters[l:filetype] = l:existing + ['vimhdl', ]
