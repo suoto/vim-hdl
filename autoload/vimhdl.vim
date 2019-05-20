@@ -142,7 +142,6 @@ function! s:GetProjectRoot(buffer) abort
         let l:project_root = !empty(l:project_root) ? fnamemodify(l:project_root, ':h') : ''
     endif
 
-    echom 'Project root: ' . l:project_root
     return l:project_root
 endfunction
 
