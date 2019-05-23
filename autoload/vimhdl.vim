@@ -167,6 +167,9 @@ endfunction
 " { s:setupAle() Setup ALE to use vimhdl in the given filetypes
 " ============================================================================
 function! s:setupAle(...) abort
+
+    let g:ale_vimhdl_options = {'config_file': 'msim.prj'}
+
     for l:filetype in a:000
 
         pyx _logger.debug("Setting up ALE support for %s" % vim.eval('l:filetype'))
@@ -178,7 +181,8 @@ function! s:setupAle(...) abort
                 \   'lsp': 'socket',
                 \   'address': function('s:GetServerAddress'),
                 \   'language': l:filetype,
-                \   'project_root': function('s:GetProjectRoot')
+                \   'project_root': function('s:GetProjectRoot'),
+                \   'initialization_options': {b -> ale#Var(b, 'vimhdl_options')},
                 \ })
 
             if exists('g:ale_linters')
