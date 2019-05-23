@@ -163,11 +163,14 @@ EOF
 endfunction
 
 "}
+
 " { s:setupAle() Setup ALE to use vimhdl in the given filetypes
 " ============================================================================
 function! s:setupAle(...) abort
     for l:filetype in a:000
+
         pyx _logger.debug("Setting up ALE support for %s" % vim.eval('l:filetype'))
+
         try
 
             call ale#linter#Define(l:filetype, {
@@ -212,21 +215,19 @@ function! s:restartServer() abort
     endif
     echom 'Restarting hdlcc server'
     let l:python = s:using_python2 ? 'python2' : 'python3'
-    exec s:python_until_eof
-_logger.info("Restarting hdlcc server")
-vimhdl_client.shutdown()
-del vimhdl_client
-vimhdl_client = vimhdl.VimhdlClient(python=vim.eval('l:python'))
-vimhdl_client.startServer()
-_logger.info("hdlcc restart done")
-EOF
+    pythonx _logger.info("Restarting hdlcc server")
+    pythonx vimhdl_client.shutdown()
+    pythonx del vimhdl_client
+    pythonx vimhdl_client = vimhdl.VimhdlClient(python=vim.eval('l:python'))
+    pythonx vimhdl_client.startServer(vim.eval('s:use_lsp_server'))
+    pythonx _logger.info("hdlcc restart done")
 endfunction
 " }
 " { vimhdl#getMessagesForCurrentBuffer()
 " ============================================================================
 function! vimhdl#getMessagesForCurrentBuffer(...) abort
     let l:loclist = []
-exec s:python_until_eof
+    pythonx << EOF
 try:
     vimhdl_client.getMessages(vim.current.buffer, 'l:loclist')
 except:
@@ -267,19 +268,13 @@ function! s:createProjectFile(...) abort
     call s:startServer()
 
     let b:local_arg = a:000
-    let l:python = s:using_python2 ? 'python2' : 'python3'
-    exec s:python_until_eof
-vimhdl_client.updateHelperWrapper()
-EOF
+    pyx vimhdl_client.updateHelperWrapper()
 endfunction
 "}
 " { s:onVimhdlTempQuit() Handles leaving the temporary config file edit
 " ============================================================================
 function! s:onVimhdlTempQuit()
-    let l:python = s:using_python2 ? 'python2' : 'python3'
-    exec s:python_until_eof
-vimhdl_client.helper_wrapper.onVimhdlTempQuit()
-EOF
+    pyx vimhdl_client.helper_wrapper.onVimhdlTempQuit()
 endfunction
 "}
 " { vimhdl#setup() Main vim-hdl setup
@@ -289,14 +284,22 @@ function! vimhdl#setup() abort
         let g:vimhdl_loaded = 1
         call s:setupPython()
         call s:setupCommands()
-        call s:setupHooks('*.vhd', '*.vhdl', '*.v', '*.sv')
-        call s:setupSyntastic('vhdl', 'verilog', 'systemverilog')
-        call s:setupAle('vhdl', 'verilog', 'systemverilog')
+        if ! s:use_lsp_server
+            call s:setupHooks('*.vhd', '*.vhdl', '*.v', '*.sv')
+        endif
+
+        if count(['vhdl', 'verilog', 'systemverilog'], &filetype)
+            call s:startServer()
+        endif
+
+        if exists(':SyntasticInfo')
+            call s:setupSyntastic('vhdl', 'verilog', 'systemverilog')
+        end
+        if exists(':ALEInfo')
+            call s:setupAle('vhdl', 'verilog', 'systemverilog')
+        end
     endif
 
-    if count(['vhdl', 'verilog', 'systemverilog'], &filetype)
-        call s:startServer()
-    endif
 endfunction
 " }
 " { s:startServer() Starts hdlcc server
@@ -306,8 +309,9 @@ function! s:startServer() abort
         return
     endif
 
+    pythonx vimhdl_client.startServer(vim.eval('s:use_lsp_server'))
     let g:vimhdl_server_started = 1
-    call s:pyEval('bool(vimhdl_client.startServer())')
+
 endfunction
 "}
 " vim: set foldmarker={,} foldlevel=0 foldmethod=marker :
