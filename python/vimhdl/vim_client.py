@@ -21,6 +21,7 @@ import os
 import os.path as p
 import subprocess as subp
 import sys
+import tempfile
 import time
 from multiprocessing import Queue
 
@@ -77,6 +78,11 @@ class VimhdlClient:  #pylint: disable=too-many-instance-attributes
         self._logger.info("Creating vimhdl client object...")
 
         self._server = None
+        self._server_stdout = tempfile.mkstemp(suffix='.log',
+                                               prefix='hdlcc-stdout')[1]
+        self._server_stderr = tempfile.mkstemp(suffix='.log',
+                                               prefix='hdlcc-stderr')[1]
+
         # Store constructor args
         self._python = options.get('python', 'python')
         self._host = options.get('host', 'localhost')
@@ -150,8 +156,8 @@ class VimhdlClient:  #pylint: disable=too-many-instance-attributes
                hdlcc_server,
                '--host', self._host,
                '--port', str(self._port),
-               '--stdout', '/tmp/hdlcc-stdout.log',
-               '--stderr', '/tmp/hdlcc-stderr.log',
+               '--stdout', self._server_stdout,
+               '--stderr', self._server_stderr,
                '--attach-to-pid', str(os.getpid()),
                '--log-level', self._log_level,
                '--log-stream', self._log_stream]
