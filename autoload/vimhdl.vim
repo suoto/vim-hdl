@@ -24,11 +24,7 @@ endfunction
 " FIXME: Test with other LSP clients in the future
 let s:use_lsp_server = exists(':ALEInfo') != 0
 
-function! vimhdl#useLspServer ()
-  return s:use_lsp_server
-endfunction
-
-function! vimhdl#usingPython2() abort "{ Inspired on YCM
+function! vimhdl#usingPython2() abort "{{ Inspired on YCM
   if has('python3')
     return 0
   elseif has('python')
@@ -36,34 +32,33 @@ function! vimhdl#usingPython2() abort "{ Inspired on YCM
   endif
   throw 'Unable to identify Python version'
 endfunction
-"}
+"}}
 
 " Inspired on YCM
 let s:using_python2 = vimhdl#usingPython2()
 let s:python_until_eof = s:using_python2 ? 'python << EOF' : 'python3 << EOF'
 let s:python_command = s:using_python2 ? 'py ' : 'py3 '
 
-function! vimhdl#pyEval( eval_string ) abort "{ Inspired on YCM
+function! vimhdl#pyEval( eval_string ) abort "{{ Inspired on YCM
   if s:using_python2
     return pyeval( a:eval_string )
   endif
   return py3eval( a:eval_string )
 endfunction
-"}
+"}}
 
-function! vimhdl#postWarning(msg) abort "{
+function! vimhdl#postWarning(msg) abort "{{
   redraw | echohl WarningMsg | echom a:msg | echohl None"
-endfunction "}
+endfunction "}}
 
-function! vimhdl#postInfo(msg) abort "{ function!
+function! vimhdl#postInfo(msg) abort "{{ function!
   redraw | echom a:msg | echohl None
-endfunction "}
+endfunction "}}
 
-" { s:setupPython() Setup Vim's Python environment to call vim-hdl within Vim
+"{{ s:setupPython() Setup Vim's Python environment to call vim-hdl within Vim
 " ============================================================================
 function! s:setupPython() abort
-  let l:python = s:using_python2 ? 'python2' : 'python3'
-  exec s:python_until_eof
+    exec s:python_until_eof
 import sys
 if 'vimhdl' not in sys.modules:
   import sys, vim
@@ -85,7 +80,13 @@ if 'vimhdl' not in sys.modules:
         else:
           _logger.warning("Path '%s' doesn't exists!", path)
   import vimhdl
+EOF
+endfunction
+"}}
 
+function! s:createPythonClientIfNeeded()
+  let l:python = s:using_python2 ? 'python2' : 'python3'
+  exec s:python_until_eof
 # Create the client if it doesn't exists yet
 try:
   vimhdl_client
@@ -95,9 +96,8 @@ except NameError:
 EOF
 
 endfunction
-" }
 
-" { s:setupCommands() Setup Vim commands to interact with vim-hdl
+"{{ s:setupCommands() Setup Vim commands to interact with vim-hdl
 " ============================================================================
 function! s:setupCommands() abort
   command! VimhdlInfo              call vimhdl#printInfo()
@@ -108,9 +108,9 @@ function! s:setupCommands() abort
   command! -nargs=* -complete=dir 
         \ VimhdlCreateProjectFile call vimhdl#createProjectFile(<f-args>)
 endfunction
-" }
+"}}
 
-" { s:setupHooks() Setup filetype hooks
+"{{ s:setupHooks() Setup filetype hooks
 " ============================================================================
 function! s:setupHooks(...) abort
   augroup vimhdl
@@ -131,9 +131,9 @@ function! s:setupHooks(...) abort
     endfor
   augroup END
 endfunction
-" }
+"}}
 
-" { s:setupSyntastic() Setup Syntastic to use vimhdl in the given filetypes
+"{{ s:setupSyntastic() Setup Syntastic to use vimhdl in the given filetypes
 " ============================================================================
 function! s:setupSyntastic(...) abort
   call vimhdl#pyEval('_logger.info("Setting up Syntastic support")')
@@ -145,9 +145,9 @@ function! s:setupSyntastic(...) abort
     end
   endfor
 endfunction
-" }
+"}}
 
-" { s:printInfo() Handle for VimHdlInfo command
+"{{ s:printInfo() Handle for VimHdlInfo command
 " ============================================================================
 function! vimhdl#printInfo() abort
   echom 'vimhdl debug info'
@@ -156,9 +156,9 @@ function! vimhdl#printInfo() abort
     echom l:line
   endfor
 endfunction
-" }
+"}}
 
-" { s:restartServer() Handle for VimHdlRestartServer command
+"{{ s:restartServer() Handle for VimHdlRestartServer command
 " ============================================================================
 function! vimhdl#restartServer() abort
     if !(count(['vhdl', 'verilog', 'systemverilog'], &filetype))
@@ -172,13 +172,13 @@ _logger.info("Restarting hdlcc server")
 vimhdl_client.shutdown()
 del vimhdl_client
 vimhdl_client = vimhdl.VimhdlClient(python=vim.eval('l:python'))
-vimhdl_client.startServer(vim.eval('vimhdl#useLspServer()'))
+vimhdl_client.startServer(vim.eval('s:use_lsp_server'))
 _logger.info("hdlcc restart done")
 EOF
 endfunction
-" }
+"}}
 
-" { vimhdl#getMessagesForCurrentBuffer()
+"{{ vimhdl#getMessagesForCurrentBuffer()
 " ============================================================================
 function! vimhdl#getMessagesForCurrentBuffer(...) abort
     let l:loclist = []
@@ -190,9 +190,9 @@ except:
 EOF
     return l:loclist
 endfunction
-"}
+"}}
 
-" { vimhdl#listDependencies()
+"{{ vimhdl#listDependencies()
 " ============================================================================
 function! vimhdl#viewDependencies() abort
     if !(count(['vhdl', 'verilog', 'systemverilog'], &filetype))
@@ -204,8 +204,9 @@ function! vimhdl#viewDependencies() abort
         echom l:line
     endfor
 endfunction
-"}
-" { vimhdl#listBuildSequence()
+"}}
+
+"{{ vimhdl#listBuildSequence()
 " ============================================================================
 function! vimhdl#viewBuildSequence() abort
     if !(count(['vhdl', 'verilog', 'systemverilog'], &filetype))
@@ -217,38 +218,38 @@ function! vimhdl#viewBuildSequence() abort
         echom l:line
     endfor
 endfunction
-"}
+"}}
 
-" { vimhdl#createProjectFile
+"{{ vimhdl#createProjectFile
 " ============================================================================
 function! vimhdl#createProjectFile(...) abort
-  call vimhdl#startServer()
+  call vimhdl#startServer(s:use_lsp_server)
 
   let b:local_arg = a:000
   call vimhdl#pyEval('vimhdl_client.updateHelperWrapper()')
 endfunction
-"}
+"}}
 
-" { s:onVimhdlTempQuit() Handles leaving the temporary config file edit
+"{{ s:onVimhdlTempQuit() Handles leaving the temporary config file edit
 " ============================================================================
 function! s:onVimhdlTempQuit()
   call vimhdl#pyEval('vimhdl_client.helper_wrapper.onVimhdlTempQuit()')
 endfunction
-"}
+"}}
 
-" { vimhdl#setup() Main vim-hdl setup
+"{{ vimhdl#setup() Main vim-hdl setup
 " ============================================================================
 function! vimhdl#setup() abort
   if !(exists('g:vimhdl_loaded') && g:vimhdl_loaded)
     let g:vimhdl_loaded = 1
     call s:setupPython()
     call s:setupCommands()
-    if ! vimhdl#useLspServer()
+    if ! s:use_lsp_server
       call s:setupHooks('*.vhd', '*.vhdl', '*.v', '*.sv')
     endif
 
     if count(['vhdl', 'verilog', 'systemverilog'], &filetype)
-      call s:startServer()
+      call vimhdl#startServer()
     endif
 
     if exists(':SyntasticInfo')
@@ -278,18 +279,26 @@ EOF
     return l:address
 endfunction
 
-"}
+"}}
 
-" { s:startServer() Starts hdlcc server
+"{{ vimhdl#startServer() Starts hdlcc server
 " ============================================================================
-function! s:startServer() abort
+function! vimhdl#startServer() abort
+  call s:createPythonClientIfNeeded()
+
+  if s:use_lsp_server
+    return
+  endif
+
   if (exists('g:vimhdl_server_started') && g:vimhdl_server_started)
     return
   endif
 
-  call vimhdl#pyEval('vimhdl_client.startServer(vim.eval(''vimhdl#useLspServer()''))')
+  exec s:python_until_eof
+vimhdl_client.startServer()
+EOF
   let g:vimhdl_server_started = 1
 endfunction
-"}
+"}}
 
-" vim: set foldmarker={,} foldlevel=0 foldmethod=marker :
+" vim: set foldmarker={{,}} foldlevel=10 foldmethod=marker :
