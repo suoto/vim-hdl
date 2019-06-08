@@ -16,10 +16,7 @@
 " along with vim-hdl.  If not, see <http://www.gnu.org/licenses/>.
 "
 augroup vimhdl
-    autocmd! VimEnter *             :call vimhdl#setup()
-    autocmd! Filetype vhdl          :call vimhdl#setup()
-    autocmd! Filetype verilog       :call vimhdl#setup()
-    autocmd! Filetype systemverilog :call vimhdl#setup()
+  autocmd! VimEnter * :call vimhdl#setup()
 augroup END
 
 " vim: set foldmarker={,} foldlevel=0 foldmethod=marker :

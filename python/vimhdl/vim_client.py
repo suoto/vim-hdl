@@ -254,7 +254,7 @@ class VimhdlClient:  #pylint: disable=too-many-instance-attributes
 
         response = request.sendRequest()
         if response is None:
-            return
+            return []
 
         messages = []
         for msg in response.json().get('messages', []):

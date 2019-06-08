@@ -94,7 +94,7 @@ class ConfigGenWrapper(object):
         self._logger.debug("Setting up auto cmds for %s", self._project_file)
         # Create hook to remove preface text when closing the file
         vim.command('augroup vimhdl')
-        vim.command('autocmd BufUnload %s :call s:onVimhdlTempQuit()' %
+        vim.command('autocmd BufUnload %s :call vimhdl#onVimhdlTempQuit()' %
                     p.abspath(self._project_file))
         vim.command('augroup END')
 

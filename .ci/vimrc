@@ -84,7 +84,7 @@ def setupLogging(stream, level, color=True): # pragma: no cover
                 with self._lock:
                     self._fd.write(text.encode('utf-8', errors='replace'))
 
-        _stream = Stream(stream, 'ab', buffering=1)
+        _stream = Stream(stream, 'ab', buffering=0)
     else:
         _stream = stream
 

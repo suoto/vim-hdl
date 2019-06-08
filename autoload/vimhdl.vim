@@ -57,9 +57,9 @@ function! vimhdl#postInfo(msg) abort "{{ function!
   redraw | echom a:msg | echohl None
 endfunction "}}
 
-"{{ s:setupPython() Setup Vim's Python environment to call vim-hdl within Vim
+"{{ vimhdl#setupPython() Setup Vim's Python environment to call vim-hdl within Vim
 " ============================================================================
-function! s:setupPython() abort
+function! vimhdl#setupPython() abort
   let l:setup_script = join([s:vimhdl_path, 'python', 'setup.py'], '/')
 
   if s:using_python2
@@ -85,9 +85,9 @@ function! vimhdl#getLspCommand(...)
         \ ]
 endfunction "}}
 
-"{{ s:setupCommands() Setup Vim commands to interact with vim-hdl
+"{{ vimhdl#setupCommands() Setup Vim commands to interact with vim-hdl
 " ============================================================================
-function! s:setupCommands() abort
+function! vimhdl#setupCommands() abort
   command! VimhdlInfo              call vimhdl#printInfo()
 
   if ! s:using_lsp_server
@@ -112,32 +112,41 @@ function! s:setupCommands() abort
 endfunction
 "}}
 
-"{{ s:setupHooks() Setup filetype hooks
+"{{ vimhdl#setupHooks() Setup filetype hooks
 " ============================================================================
-function! s:setupHooks(...) abort
+function! vimhdl#setupHooks(...) abort
   augroup vimhdl
     for l:ext in a:000
+      " Setup hooks for retrieving UI messages. At some point this could be
+      " moved to used an async API and avoid this constant polling
       for l:event in ['BufWritePost', 'FocusGained', 'CursorMoved',
             \'CursorMovedI', 'CursorHold', 'CursorHoldI',
             \'InsertEnter']
         execute('autocmd! ' . l:event . ' ' . l:ext . ' ' .
-              \':' . s:python_command . ' vimhdl_client.requestUiMessages(''' . l:event . ''')')
+              \':' . s:python_command . ' ' . 
+              \'vimhdl_client.requestUiMessages(''' . l:event . ''')')
       endfor
+
+      " Setup hooks for onBufferVisit
       for l:event in ['BufEnter', 'FocusGained', 'InsertLeave']
         execute('autocmd! ' . l:event . ' ' . l:ext . ' ' .
-              \':' . s:python_command . ' vimhdl_client.onBufferVisit()')
+              \':call vimhdl#onBufferVisit()')
       endfor
-      execute('autocmd! BufLeave ' . l:ext . ' ' .
-            \':' . s:python_command . ' vimhdl_client.onBufferLeave()')
 
     endfor
   augroup END
 endfunction
 "}}
 
-"{{ s:setupSyntastic() Setup Syntastic to use vimhdl in the given filetypes
+"{{ vimhdl#onBufferVisit() Starts hdlcc server and calls vimhdl client method for the event
+function! vimhdl#onBufferVisit() 
+  call vimhdl#startServer()
+  return vimhdl#pyEval('bool(vimhdl_client.onBufferVisit())')
+endfunction " }}
+
+"{{ vimhdl#setupSyntastic() Setup Syntastic to use vimhdl in the given filetypes
 " ============================================================================
-function! s:setupSyntastic(...) abort
+function! vimhdl#setupSyntastic(...) abort
   call vimhdl#pyEval('_logger.info("Setting up Syntastic support")')
   for l:filetype in a:000
     if !exists('g:syntastic_' . l:filetype . '_checkers')
@@ -145,11 +154,14 @@ function! s:setupSyntastic(...) abort
     else
       execute('let g:syntastic_' . l:filetype . '_checkers += ["vimhdl"]')
     end
+    augroup vimhdl
+      execute('autocmd! Filetype ' . l:filetype . ' :call vimhdl#onBufferVisit()')
+    augroup END
   endfor
 endfunction
 "}}
 
-"{{ s:printInfo() Handle for VimHdlInfo command
+"{{ vimhdl#printInfo() Handle for VimHdlInfo command
 " ============================================================================
 function! vimhdl#printInfo() abort
   echom 'vimhdl debug info'
@@ -166,7 +178,7 @@ function! vimhdl#printInfo() abort
 endfunction
 "}}
 
-"{{ s:restartServer() Handle for VimHdlRestartServer command
+"{{ vimhdl#restartServer() Handle for VimHdlRestartServer command
 " ============================================================================
 function! vimhdl#restartServer() abort
 
@@ -176,16 +188,23 @@ function! vimhdl#restartServer() abort
   endif
 
   echom 'Restarting hdlcc server'
-  call vimhdl#pyEval('vimhdlRestartServer()')
+  call vimhdl#pyEval('bool(vimhdlRestartServer())')
 endfunction
 "}}
 
-"{{ vimhdl#getMessagesForCurrentBuffer()
+" { vimhdl#getMessagesForCurrentBuffer()
 " ============================================================================
-function! vimhdl#getMessagesForCurrentBuffer(...) abort
-  return vimhdl#pyEval('vimhdl_client.getMessages(vim.current.buffer)')
+function! vimhdl#getMessagesForCurrentBuffer() abort
+    let l:loclist = []
+exec s:python_until_eof
+try:
+    vimhdl_client.getMessages(vim.current.buffer, 'l:loclist')
+except:
+    _logger.exception("Error getting messages")
+EOF
+    return l:loclist
 endfunction
-"}}
+"}
 
 "{{ vimhdl#listDependencies()
 " ============================================================================
@@ -218,16 +237,16 @@ endfunction
 "{{ vimhdl#createProjectFile
 " ============================================================================
 function! vimhdl#createProjectFile(...) abort
-  call vimhdl#startServer(s:using_lsp_server)
+  call vimhdl#startServer()
 
   let b:local_arg = a:000
   call vimhdl#pyEval('vimhdl_client.updateHelperWrapper()')
 endfunction
 "}}
 
-"{{ s:onVimhdlTempQuit() Handles leaving the temporary config file edit
+"{{ vimhdl#onVimhdlTempQuit() Handles leaving the temporary config file edit
 " ============================================================================
-function! s:onVimhdlTempQuit()
+function! vimhdl#onVimhdlTempQuit()
   call vimhdl#pyEval('vimhdl_client.helper_wrapper.onVimhdlTempQuit()')
 endfunction
 "}}
@@ -237,28 +256,20 @@ endfunction
 function! vimhdl#setup() abort
   if !(exists('g:vimhdl_loaded') && g:vimhdl_loaded)
     let g:vimhdl_loaded = 1
-    call s:setupPython()
-    call s:setupCommands()
+    call vimhdl#setupPython()
+    call vimhdl#setupCommands()
 
     if ! s:using_lsp_server
-
-      if count(['vhdl', 'verilog', 'systemverilog'], &filetype)
-        echom 'Starting server'
-        call vimhdl#startServer()
-      endif
-
-      call s:setupHooks('*.vhd', '*.vhdl', '*.v', '*.sv')
-
+      call vimhdl#setupHooks('*.vhd', '*.vhdl', '*.v', '*.sv')
     endif
 
     if exists(':SyntasticInfo')
-      call s:setupSyntastic('vhdl', 'verilog', 'systemverilog')
+      call vimhdl#setupSyntastic('vhdl', 'verilog', 'systemverilog')
     end
     if exists(':ALEInfo')
       call vimhdl#ale#setup('vhdl', 'verilog', 'systemverilog')
     end
   endif
-
 endfunction
 " }
 
@@ -281,7 +292,7 @@ function! vimhdl#startServer() abort
     return
   endif
 
-  call vimhdl#pyEval('vimhdl_client.startServer()')
+  call vimhdl#pyEval('bool(vimhdl_client.startServer())')
   let g:vimhdl_server_started = 1
 endfunction
 "}}
