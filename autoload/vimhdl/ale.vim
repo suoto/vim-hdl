@@ -18,13 +18,17 @@
 " Inspired on YCM
 let s:using_python2 = vimhdl#usingPython2()
 let s:python_until_eof = s:using_python2 ? 'python << EOF' : 'python3 << EOF'
-let s:python_command = s:using_python2 ? 'py ' : 'py3 '
 
-function! s:GetProjectRoot(buffer) abort "{{
+let s:default_config_file = 'vimhdl.prj'
+
+" {{ s:GetProjectRoot(buffer) Gets the path to the nearest g:vimhdl_conf_file
+" ============================================================================
+function! s:GetProjectRoot(buffer) abort
   let l:project_root = ''
+  let l:config_file = ale#Var(a:buffer, 'vimhdl_config')['project_file']
 
   if l:project_root is? ''
-    let l:project_root = ale#path#FindNearestFile(a:buffer, 'msim.prj')
+    let l:project_root = ale#path#FindNearestFile(a:buffer, l:config_file)
 
     let l:project_root = !empty(l:project_root) ? fnamemodify(l:project_root, ':h') : ''
   endif
@@ -37,20 +41,21 @@ endfunction
 " ============================================================================
 function! vimhdl#ale#setup(...) abort
 
-  let g:ale_vimhdl_options = {'config_file': 'msim.prj'}
+  " Use the value set by g:vimhdl_conf_file if exists, otheriwise use the
+  " default
+  call ale#Set('vimhdl_config', 
+        \ {'project_file': get(g:, 'vimhdl_conf_file', s:default_config_file)})
 
   for l:filetype in a:000
-    call vimhdl#pyEval('_logger.debug("Setting up ALE support for %s" % "' . l:filetype . '")')
-
     try
       call ale#linter#Define(l:filetype, {
             \ 'name': 'vimhdl',
             \ 'lsp': 'stdio',
-            \ 'executable': 'python3',
-            \ 'command': function('vimhdl#ale#getLspCommand'),
             \ 'language': l:filetype,
+            \ 'executable': 'python3',
+            \ 'command': {b -> join(vimhdl#getLspCommand(), ' ')},
             \ 'project_root': function('s:GetProjectRoot'),
-            \ 'initialization_options': {b -> ale#Var(b, 'vimhdl_options')},
+            \ 'lsp_config': {b -> ale#Var(b, 'vimhdl_config')},
             \ })
 
       if exists('g:ale_linters')
@@ -67,21 +72,5 @@ function! vimhdl#ale#setup(...) abort
   endfor
 endfunction
 "}}
-"
-function! vimhdl#ale#getLspCommand(buffer) " {{
-  let l:python = s:using_python2 ? 'python2' : 'python3'
-  let l:hdlcc_server = vimhdl#basePath() 
-              \ . '/dependencies/hdlcc/hdlcc/hdlcc_server.py'
-
-  return join([
-              \ l:python,
-              \ l:hdlcc_server,
-              \ '--stderr', '/tmp/hdlcc-stderr.log',
-              \ '--log-level', 'DEBUG',
-              \ '--log-stream', '/tmp/hdlcc.log',
-              \ '--lsp'
-              \ ],
-              \ ' ')
-endfunction
 
 " vim: set foldmarker={{,}} foldlevel=10 foldmethod=marker :

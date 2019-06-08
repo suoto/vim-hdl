@@ -15,14 +15,16 @@
 " You should have received a copy of the GNU General Public License
 " along with vim-hdl.  If not, see <http://www.gnu.org/licenses/>.
 "
-let s:vimhdl_path = escape(expand('<sfile>:p:h'), '\') . '/../'
+let s:vimhdl_path = simplify(escape(expand('<sfile>:p:h'), '\') . '/../')
 
 function! vimhdl#basePath()
   return s:vimhdl_path
 endfunction
 
 " FIXME: Test with other LSP clients in the future
-let s:use_lsp_server = exists(':ALEInfo') != 0
+let s:has_ale = exists(':ALEInfo') != 0
+let s:has_vimlsp = exists(':LspStatus') != 0
+let s:using_lsp_server = s:has_ale || s:has_vimlsp
 
 function! vimhdl#usingPython2() abort "{{ Inspired on YCM
   if has('python3')
@@ -58,55 +60,55 @@ endfunction "}}
 "{{ s:setupPython() Setup Vim's Python environment to call vim-hdl within Vim
 " ============================================================================
 function! s:setupPython() abort
-    exec s:python_until_eof
-import sys
-if 'vimhdl' not in sys.modules:
-  import sys, vim
-  import os.path as p
-  import logging
-  _logger = logging.getLogger(__name__)
+  let l:setup_script = join([s:vimhdl_path, 'python', 'setup.py'], '/')
 
-  # Add a null handler for issue #19
-  logging.root.addHandler(logging.NullHandler())
-
-  _logger = logging.getLogger(__name__)
-  for path in (p.join(vim.eval('vimhdl#basePath()'), 'python'),
-               p.join(vim.eval('vimhdl#basePath()'), 'dependencies', 'hdlcc')):
-    if path not in sys.path:
-        path = p.abspath(path)
-        if p.exists(path):
-          sys.path.insert(0, path)
-          _logger.info("Adding %s", path)
-        else:
-          _logger.warning("Path '%s' doesn't exists!", path)
-  import vimhdl
-EOF
+  if s:using_python2
+    exec 'pyfile ' . l:setup_script
+  else
+    exec 'py3file ' . l:setup_script
+  end
 endfunction
 "}}
 
-function! s:createPythonClientIfNeeded()
+" {{ vimhdl#getLspCommand(...) Gets the command to start the LSP in a list
+function! vimhdl#getLspCommand(...) 
   let l:python = s:using_python2 ? 'python2' : 'python3'
-  exec s:python_until_eof
-# Create the client if it doesn't exists yet
-try:
-  vimhdl_client
-  _logger.warning("vimhdl client already exists, skiping")
-except NameError:
-  vimhdl_client = vimhdl.VimhdlClient(python=vim.eval('l:python'))
-EOF
+  let l:hdlcc_server = vimhdl#basePath() 
+              \ . '/dependencies/hdlcc/hdlcc/hdlcc_server.py'
 
-endfunction
+  return [l:python,
+        \ l:hdlcc_server,
+        \ '--stderr', '/tmp/hdlcc-stderr.log',
+        \ '--log-level', 'DEBUG',
+        \ '--log-stream', '/tmp/hdlcc.log',
+        \ '--lsp'
+        \ ]
+endfunction "}}
 
 "{{ s:setupCommands() Setup Vim commands to interact with vim-hdl
 " ============================================================================
 function! s:setupCommands() abort
   command! VimhdlInfo              call vimhdl#printInfo()
-  command! VimhdlViewDependencies  call vimhdl#viewDependencies()
-  command! VimhdlRebuildProject    call vimhdl#pyEval('bool(vimhdl_client.rebuildProject())')
-  command! VimhdlRestartServer     call vimhdl#restartServer()
-  command! VimhdlViewBuildSequence call vimhdl#viewBuildSequence()
-  command! -nargs=* -complete=dir 
-        \ VimhdlCreateProjectFile call vimhdl#createProjectFile(<f-args>)
+
+  if ! s:using_lsp_server
+    command! VimhdlViewDependencies  call vimhdl#viewDependencies()
+    command! VimhdlRebuildProject    call vimhdl#pyEval('bool(vimhdl_client.rebuildProject())')
+    command! VimhdlRestartServer     call vimhdl#restartServer()
+    command! VimhdlViewBuildSequence call vimhdl#viewBuildSequence()
+    command! -nargs=* -complete=dir 
+          \ VimhdlCreateProjectFile call vimhdl#createProjectFile(<f-args>)
+
+  else
+    command! VimHdlRestartServer   echoerr 'LSP does not (yet?) support ' .
+                                         \ 'restarting servers, restarting failed'
+
+    command! VimhdlViewDependencies  echoerr 'Command not support when in LSP mode'
+    command! VimhdlRebuildProject    echoerr 'Command not support when in LSP mode'
+    command! VimhdlRestartServer     echoerr 'Command not support when in LSP mode'
+    command! VimhdlViewBuildSequence echoerr 'Command not support when in LSP mode'
+    command! VimhdlCreateProjectFile echoerr 'Command not support when in LSP mode'
+  endif
+
 endfunction
 "}}
 
@@ -151,44 +153,37 @@ endfunction
 " ============================================================================
 function! vimhdl#printInfo() abort
   echom 'vimhdl debug info'
-  let l:debug_info = vimhdl#pyEval('vimhdl_client.getVimhdlInfo()')
-  for l:line in split( l:debug_info, '\n' )
-    echom l:line
-  endfor
+  if s:using_lsp_server
+    echom '- vimhdl version: ' . vimhdl#pyEval('vimhdl.__version__')
+    echom '- hdlcc version: ' . vimhdl#pyEval('hdlcc.__version__') .
+          \ ' (hdlcc running in LSP mode)'
+  else
+    let l:debug_info = vimhdl#pyEval('vimhdl_client.getVimhdlInfo()')
+    for l:line in split( l:debug_info, '\n' )
+      echom l:line
+    endfor
+  endif
 endfunction
 "}}
 
 "{{ s:restartServer() Handle for VimHdlRestartServer command
 " ============================================================================
 function! vimhdl#restartServer() abort
-    if !(count(['vhdl', 'verilog', 'systemverilog'], &filetype))
-        call vimhdl#postWarning("Not a HDL file, can't restart server")
-        return
-    endif
-    echom 'Restarting hdlcc server'
-    let l:python = s:using_python2 ? 'python2' : 'python3'
-    exec s:python_until_eof
-_logger.info("Restarting hdlcc server")
-vimhdl_client.shutdown()
-del vimhdl_client
-vimhdl_client = vimhdl.VimhdlClient(python=vim.eval('l:python'))
-vimhdl_client.startServer(vim.eval('s:use_lsp_server'))
-_logger.info("hdlcc restart done")
-EOF
+
+  if !(count(['vhdl', 'verilog', 'systemverilog'], &filetype))
+    call vimhdl#postWarning("Not a HDL file, can't restart server")
+    return
+  endif
+
+  echom 'Restarting hdlcc server'
+  call vimhdl#pyEval('vimhdlRestartServer()')
 endfunction
 "}}
 
 "{{ vimhdl#getMessagesForCurrentBuffer()
 " ============================================================================
 function! vimhdl#getMessagesForCurrentBuffer(...) abort
-    let l:loclist = []
-    exec s:python_until_eof
-try:
-    vimhdl_client.getMessages(vim.current.buffer, 'l:loclist')
-except:
-    _logger.exception("Error getting messages")
-EOF
-    return l:loclist
+  return vimhdl#pyEval('vimhdl_client.getMessages(vim.current.buffer)')
 endfunction
 "}}
 
@@ -223,7 +218,7 @@ endfunction
 "{{ vimhdl#createProjectFile
 " ============================================================================
 function! vimhdl#createProjectFile(...) abort
-  call vimhdl#startServer(s:use_lsp_server)
+  call vimhdl#startServer(s:using_lsp_server)
 
   let b:local_arg = a:000
   call vimhdl#pyEval('vimhdl_client.updateHelperWrapper()')
@@ -244,12 +239,16 @@ function! vimhdl#setup() abort
     let g:vimhdl_loaded = 1
     call s:setupPython()
     call s:setupCommands()
-    if ! s:use_lsp_server
-      call s:setupHooks('*.vhd', '*.vhdl', '*.v', '*.sv')
-    endif
 
-    if count(['vhdl', 'verilog', 'systemverilog'], &filetype)
-      call vimhdl#startServer()
+    if ! s:using_lsp_server
+
+      if count(['vhdl', 'verilog', 'systemverilog'], &filetype)
+        echom 'Starting server'
+        call vimhdl#startServer()
+      endif
+
+      call s:setupHooks('*.vhd', '*.vhdl', '*.v', '*.sv')
+
     endif
 
     if exists(':SyntasticInfo')
@@ -265,18 +264,8 @@ endfunction
 
 " { vimhdl#getServerAddress Fetches address and port used by the server
 " ============================================================================
-function! vimhdl#getServerAddress(buffer) abort
-  let l:address = ''
-
-  exec s:python_until_eof
-try:
-  vimhdl_client
-  vim.command("let l:address = '%s'" % vimhdl_client.getServerAddress())
-except NameError:
-  _logger.exception("Unable to get address")
-EOF
-
-    return l:address
+function! vimhdl#getServerAddress(...) abort
+  return vimhdl#pyEval('vimhdl_client.getServerAddress()')
 endfunction
 
 "}}
@@ -284,9 +273,7 @@ endfunction
 "{{ vimhdl#startServer() Starts hdlcc server
 " ============================================================================
 function! vimhdl#startServer() abort
-  call s:createPythonClientIfNeeded()
-
-  if s:use_lsp_server
+  if s:using_lsp_server
     return
   endif
 
@@ -294,9 +281,7 @@ function! vimhdl#startServer() abort
     return
   endif
 
-  exec s:python_until_eof
-vimhdl_client.startServer()
-EOF
+  call vimhdl#pyEval('vimhdl_client.startServer()')
   let g:vimhdl_server_started = 1
 endfunction
 "}}

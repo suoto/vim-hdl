@@ -34,6 +34,7 @@ from vimhdl.base_requests import (BaseRequest, GetBuildSequence,
                                   RequestMessagesByPath, RequestProjectRebuild,
                                   RequestQueuedMessages, RunConfigGenerator)
 from vimhdl.config_gen_wrapper import ConfigGenWrapper
+from hdlcc.diagnostics import DiagType
 
 _ON_WINDOWS = sys.platform == 'win32'
 
@@ -102,14 +103,13 @@ class VimhdlClient:  #pylint: disable=too-many-instance-attributes
         "Returns address:port of the server this client has started"
         return '%s:%s' % (self._host, self._port)
 
-    def startServer(self, lsp_support=False):
+    def startServer(self):
         """
         Starts the hdlcc server, waits until it responds and register
         server shutdown when exiting Vim's Python interpreter
         """
-        self._startServerProcess(lsp_support)
-        if not lsp_support:
-            self._waitForServerSetup()
+        self._startServerProcess()
+        self._waitForServerSetup()
 
         import atexit
         atexit.register(self.shutdown)
@@ -141,7 +141,7 @@ class VimhdlClient:  #pylint: disable=too-many-instance-attributes
             self._postWarning("hdlcc server is not running")
         return is_alive
 
-    def _startServerProcess(self, lsp_support=False):
+    def _startServerProcess(self):
         """
         Starts the hdlcc server
         """
@@ -161,9 +161,6 @@ class VimhdlClient:  #pylint: disable=too-many-instance-attributes
                '--attach-to-pid', str(os.getpid()),
                '--log-level', self._log_level,
                '--log-stream', self._log_stream]
-
-        if lsp_support:
-            cmd += ['--lsp']
 
         self._logger.info("Starting hdlcc server with '%s'", cmd)
 
@@ -261,23 +258,29 @@ class VimhdlClient:  #pylint: disable=too-many-instance-attributes
 
         messages = []
         for msg in response.json().get('messages', []):
-            text = str(msg['error_message']) if msg['error_message'] else ''
-            vim_fmt_dict = {
+            text = str(msg['text']) if msg['text'] else ''
+            diag = {
                 'lnum'     : str(msg['line_number']) or '-1',
                 'bufnr'    : str(vim_buffer.number),
                 'filename' : str(msg['filename']) or vim_buffer.name,
                 'valid'    : '1',
                 'text'     : text,
                 'nr'       : str(msg['error_number']) or '0',
-                'type'     : str(msg['error_type']) or 'E',
                 'col'      : str(msg['column']) or '0'}
-            try:
-                vim_fmt_dict['subtype'] = str(msg['error_subtype'])
-            except KeyError:
-                pass
 
-            _logger.info(vim_fmt_dict)
-            messages.append(vim_fmt_dict)
+            if msg['severity'] in (DiagType.STYLE_INFO, DiagType.STYLE_WARNING,
+                                   DiagType.STYLE_ERROR):
+                diag['subtype'] = 'Style'
+
+            if msg['severity'] in (DiagType.WARNING, DiagType.STYLE_WARNING):
+                diag['type'] = 'W'
+            elif msg['severity'] in (DiagType.ERROR, DiagType.STYLE_ERROR):
+                diag['type'] = 'E'
+            elif msg['severity'] in (DiagType.INFO, DiagType.STYLE_INFO):
+                diag['type'] = 'I'
+
+            _logger.info(diag)
+            messages.append(diag)
 
         self.requestUiMessages('getMessages')
 
