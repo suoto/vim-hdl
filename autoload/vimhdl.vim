@@ -109,12 +109,11 @@ function! vimhdl#setupCommands() abort
           \ VimhdlCreateProjectFile call vimhdl#createProjectFile(<f-args>)
 
   else
-    command! VimHdlRestartServer   echoerr 'LSP does not (yet?) support ' .
+    command! VimhdlRestartServer   echoerr 'LSP does not (yet?) support ' .
                                          \ 'restarting servers, restarting failed'
 
     command! VimhdlViewDependencies  echoerr 'Command not support when in LSP mode'
     command! VimhdlRebuildProject    echoerr 'Command not support when in LSP mode'
-    command! VimhdlRestartServer     echoerr 'Command not support when in LSP mode'
     command! VimhdlViewBuildSequence echoerr 'Command not support when in LSP mode'
     command! VimhdlCreateProjectFile echoerr 'Command not support when in LSP mode'
   endif
