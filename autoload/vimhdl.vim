@@ -22,9 +22,19 @@ function! vimhdl#basePath()
 endfunction
 
 " FIXME: Test with other LSP clients in the future
-let s:has_ale = exists(':ALEInfo') != 0
-let s:has_vimlsp = exists(':LspStatus') != 0
-let s:using_lsp_server = s:has_ale || s:has_vimlsp
+
+function! s:usingLspServer()
+  if exists(':ALEInfo') != 0
+    return 1
+  endif
+  if exists(':LspStatus') != 0
+    return 1
+  endif
+  if exists(':LanguageClientStart') != 0
+    return 1
+  endif
+  return 0
+endfunction
 
 function! vimhdl#usingPython2() abort "{{ Inspired on YCM
   if has('python3')
@@ -90,7 +100,7 @@ endfunction "}}
 function! vimhdl#setupCommands() abort
   command! VimhdlInfo              call vimhdl#printInfo()
 
-  if ! s:using_lsp_server
+  if ! s:usingLspServer()
     command! VimhdlViewDependencies  call vimhdl#viewDependencies()
     command! VimhdlRebuildProject    call vimhdl#pyEval('bool(vimhdl_client.rebuildProject())')
     command! VimhdlRestartServer     call vimhdl#restartServer()
@@ -165,7 +175,7 @@ endfunction
 " ============================================================================
 function! vimhdl#printInfo() abort
   echom 'vimhdl debug info'
-  if s:using_lsp_server
+  if s:usingLspServer()
     echom '- vimhdl version: ' . vimhdl#pyEval('vimhdl.__version__')
     echom '- hdlcc version: ' . vimhdl#pyEval('hdlcc.__version__') .
           \ ' (hdlcc running in LSP mode)'
@@ -252,7 +262,7 @@ function! vimhdl#setup() abort
     call vimhdl#setupPython()
     call vimhdl#setupCommands()
 
-    if ! s:using_lsp_server
+    if ! s:usingLspServer()
       call vimhdl#setupHooks('*.vhd', '*.vhdl', '*.v', '*.sv')
     endif
 
@@ -277,7 +287,7 @@ endfunction
 "{{ vimhdl#startServer() Starts hdlcc server
 " ============================================================================
 function! vimhdl#startServer() abort
-  if s:using_lsp_server
+  if s:usingLspServer()
     return
   endif
 
