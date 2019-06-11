@@ -16,6 +16,9 @@
 # along with vim-hdl.  If not, see <http://www.gnu.org/licenses/>.
 "Wrapper for vim-hdl usage within Vim's Python interpreter"
 
+# pylint: disable=subprocess-popen-preexec-fn
+# pylint:disable=inconsistent-return-statements
+
 import logging
 import os
 import os.path as p
@@ -24,6 +27,8 @@ import sys
 import tempfile
 import time
 from multiprocessing import Queue
+
+import six
 
 import vim  # pylint: disable=import-error
 import vimhdl
@@ -40,6 +45,7 @@ _ON_WINDOWS = sys.platform == 'win32'
 
 _logger = logging.getLogger(__name__)
 
+
 def _sortKey(record):
     """
     Key for sorting records
@@ -48,6 +54,7 @@ def _sortKey(record):
             record['lnum'] if isinstance(record['lnum'], int) else 0,
             record['col'] if isinstance(record['col'], int) else 0,
             record['nr'] if isinstance(record['nr'], int) else 0)
+
 
 def _sortBuildMessages(records):
     """
@@ -62,7 +69,6 @@ def _sortBuildMessages(records):
     records.sort(key=_sortKey)
     return records
 
-# pylint:disable=inconsistent-return-statements
 
 class VimhdlClient:  #pylint: disable=too-many-instance-attributes
     """
@@ -72,7 +78,6 @@ class VimhdlClient:  #pylint: disable=too-many-instance-attributes
     # If the user hasn't already set vimhdl_conf_file in g: or b:, we'll use
     # this instead
     _default_conf_filename = 'vimhdl.prj'
-
 
     def __init__(self, **options):
         self._logger = logging.getLogger(__name__ + '.' + self.__class__.__name__)
@@ -169,10 +174,14 @@ class VimhdlClient:  #pylint: disable=too-many-instance-attributes
                 self._server = subp.Popen(
                     cmd, stdout=subp.PIPE, stderr=subp.PIPE,
                     creationflags=subp.CREATE_NEW_PROCESS_GROUP)
-            else:
+            elif six.PY2:
                 self._server = subp.Popen(
                     cmd, stdout=subp.PIPE, stderr=subp.PIPE,
                     preexec_fn=os.setpgrp)
+            else:
+                self._server = subp.Popen(
+                    cmd, stdout=subp.PIPE, stderr=subp.PIPE,
+                    start_new_session=True)
 
             if not self._isServerAlive():
                 vim_helpers.postVimError("Failed to launch hdlcc server")

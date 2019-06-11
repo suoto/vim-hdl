@@ -195,14 +195,7 @@ endfunction
 " { vimhdl#getMessagesForCurrentBuffer()
 " ============================================================================
 function! vimhdl#getMessagesForCurrentBuffer() abort
-    let l:loclist = []
-exec s:python_until_eof
-try:
-    vimhdl_client.getMessages(vim.current.buffer, 'l:loclist')
-except:
-    _logger.exception("Error getting messages")
-EOF
-    return l:loclist
+  return vimhdl#pyEval('vimhdl_client.getMessages()')
 endfunction
 "}
 
