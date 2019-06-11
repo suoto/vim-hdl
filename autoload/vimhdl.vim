@@ -212,7 +212,8 @@ endfunction
 " ============================================================================
 function! vimhdl#viewDependencies() abort
     if !(count(['vhdl', 'verilog', 'systemverilog'], &filetype))
-        call vimhdl#postWarning("Not a HDL file, can't restart server")
+        call vimhdl#postWarning('Can''t retrieve dependencies of filetype '
+                            \ . &filetype)
         return
     endif
     let l:dependencies = vimhdl#pyEval('vimhdl_client.getDependencies()')
@@ -226,7 +227,8 @@ endfunction
 " ============================================================================
 function! vimhdl#viewBuildSequence() abort
     if !(count(['vhdl', 'verilog', 'systemverilog'], &filetype))
-        call vimhdl#postWarning("Not a HDL file, can't restart server")
+        call vimhdl#postWarning('Don''t know how to check build sequence of '
+                            \ . 'filetype ' . &filetype)
         return
     endif
     let l:sequence = vimhdl#pyEval('vimhdl_client.getBuildSequence()')
