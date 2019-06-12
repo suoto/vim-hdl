@@ -112,10 +112,10 @@ function! vimhdl#setupCommands() abort
     command! VimhdlRestartServer   echoerr 'LSP does not (yet?) support ' .
                                          \ 'restarting servers, restarting failed'
 
-    command! VimhdlViewDependencies  echoerr 'Command not support when in LSP mode'
-    command! VimhdlRebuildProject    echoerr 'Command not support when in LSP mode'
-    command! VimhdlViewBuildSequence echoerr 'Command not support when in LSP mode'
-    command! VimhdlCreateProjectFile echoerr 'Command not support when in LSP mode'
+    command! VimhdlViewDependencies  echoerr 'Command not supported when in LSP mode'
+    command! VimhdlRebuildProject    echoerr 'Command not supported when in LSP mode'
+    command! VimhdlViewBuildSequence echoerr 'Command not supported when in LSP mode'
+    command! VimhdlCreateProjectFile echoerr 'Command not supported when in LSP mode'
   endif
 
 endfunction
