@@ -87,7 +87,7 @@ class VimhdlClient:  #pylint: disable=too-many-instance-attributes
                                                prefix='hdlcc-stderr')[1]
 
         # Store constructor args
-        self._python = options.get('python', 'python')
+        self._python = options.get('python', 'python' if six.PY2 else 'python3')
         self._host = options.get('host', 'localhost')
         self._port = options.get('port', vim_helpers.getUnusedLocalhostPort())
         self._log_level = str(options.get('log_level', 'DEBUG'))
@@ -269,11 +269,11 @@ class VimhdlClient:  #pylint: disable=too-many-instance-attributes
             text = str(msg['text']) if msg['text'] else ''
             diag = {
                 'lnum'     : str(msg['line_number']) or '-1',
-                'bufnr'    : str(vim_buffer.number),
+                'bufnr'    : '0', # Won't use it; easier to reference other files
                 'filename' : str(msg['filename']) or vim_buffer.name,
                 'valid'    : '1',
                 'text'     : text,
-                'nr'       : str(msg['error_number']) or '0',
+                'nr'       : str(msg['error_code']) or '0',
                 'col'      : str(msg['column']) or '0'}
 
             if msg['severity'] in (DiagType.STYLE_INFO, DiagType.STYLE_WARNING,

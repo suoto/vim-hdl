@@ -16,8 +16,9 @@
 # along with vim-hdl.  If not, see <http://www.gnu.org/licenses/>.
 "Setup vimhdl Python paths"
 
-import sys
 import logging
+import sys
+
 _logger = logging.getLogger(__name__)
 
 def vimhdlcreateClientIfNeeded():
@@ -26,7 +27,8 @@ def vimhdlcreateClientIfNeeded():
         _logger.info("Creating client")
         globals()['vimhdl_client'] = vimhdl.VimhdlClient()
     else:
-        _logger.info("Client already existed")
+        _logger.debug("Client already existed")
+
 
 def vimhdlRestartServer(**server_args):
     _logger.info("Restarting hdlcc server")
