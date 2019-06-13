@@ -275,9 +275,9 @@ function! vimhdl#setup() abort
     end
   endif
 endfunction
-" }
+"}}
 
-" { vimhdl#getServerAddress Fetches address and port used by the server
+"{{ vimhdl#getServerAddress Fetches address and port used by the server
 " ============================================================================
 function! vimhdl#getServerAddress(...) abort
   return vimhdl#pyEval('vimhdl_client.getServerAddress()')
