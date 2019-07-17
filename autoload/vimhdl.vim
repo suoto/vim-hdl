@@ -253,7 +253,7 @@ endfunction
 "{{ vimhdl#onVimhdlTempQuit() Handles leaving the temporary config file edit
 " ============================================================================
 function! vimhdl#onVimhdlTempQuit() abort
-  call vimhdl#pyEval('vimhdl_client.helper_wrapper.onVimhdlTempQuit()')
+  call vimhdl#pyEval('bool(vimhdl_client.helper_wrapper.onVimhdlTempQuit())')
 endfunction
 "}}
 
