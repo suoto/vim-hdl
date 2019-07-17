@@ -23,7 +23,7 @@ endfunction
 
 " FIXME: Test with other LSP clients in the future
 
-function! s:usingLspServer()
+function! s:usingLspServer() abort
   if exists(':ALEInfo') != 0
     return 1
   endif
@@ -81,13 +81,13 @@ endfunction
 "}}
 
 " {{ vimhdl#getLspCommand(...) Gets the command to start the LSP in a list
-function! vimhdl#getLspCommand(...) 
+function! vimhdl#getLspCommand(...) abort
   let l:python = s:using_python2 ? 'python2' : 'python3'
-  let l:hdlcc_server = vimhdl#basePath() 
-              \ . '/dependencies/hdlcc/hdlcc/hdlcc_server.py'
+  let l:server = vimhdl#basePath() 
+              \ . '/dependencies/hdlcc/hdlcc/server.py'
 
   return [l:python,
-        \ l:hdlcc_server,
+        \ l:server,
         \ '--stderr', '/tmp/hdlcc-stderr.log',
         \ '--log-level', 'DEBUG',
         \ '--log-stream', '/tmp/hdlcc.log',
@@ -148,7 +148,7 @@ endfunction
 "}}
 
 "{{ vimhdl#onBufferVisit() Starts hdlcc server and calls vimhdl client method for the event
-function! vimhdl#onBufferVisit() 
+function! vimhdl#onBufferVisit() abort
   call vimhdl#startServer()
   return vimhdl#pyEval('bool(vimhdl_client.onBufferVisit())')
 endfunction " }}
@@ -250,7 +250,7 @@ endfunction
 
 "{{ vimhdl#onVimhdlTempQuit() Handles leaving the temporary config file edit
 " ============================================================================
-function! vimhdl#onVimhdlTempQuit()
+function! vimhdl#onVimhdlTempQuit() abort
   call vimhdl#pyEval('vimhdl_client.helper_wrapper.onVimhdlTempQuit()')
 endfunction
 "}}

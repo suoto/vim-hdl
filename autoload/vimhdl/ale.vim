@@ -18,11 +18,9 @@
 " Inspired on YCM
 let s:using_python2 = vimhdl#usingPython2()
 let s:python_until_eof = s:using_python2 ? 'python << EOF' : 'python3 << EOF'
-
 let s:default_config_file = 'vimhdl.prj'
 
-" {{ s:GetProjectRoot(buffer) Gets the path to the nearest g:vimhdl_conf_file
-" ============================================================================
+" Gets the path to the nearest g:vimhdl_conf_file
 function! s:GetProjectRoot(buffer) abort
   let l:project_root = ''
   let l:config_file = ale#Var(a:buffer, 'vimhdl_config')['project_file']
@@ -35,10 +33,8 @@ function! s:GetProjectRoot(buffer) abort
 
   return l:project_root
 endfunction
-"}}
 
-" {{ vimhdl#ale#setup() Setup ALE to use vimhdl in the given filetypes
-" ============================================================================
+" Setup ALE to use vimhdl in the given filetypes
 function! vimhdl#ale#setup(...) abort
 
   " Use the value set by g:vimhdl_conf_file if exists, otheriwise use the
@@ -52,7 +48,7 @@ function! vimhdl#ale#setup(...) abort
             \ 'name': 'vimhdl',
             \ 'lsp': 'stdio',
             \ 'language': l:filetype,
-            \ 'executable': 'python3',
+            \ 'executable': {b -> vimhdl#getLspCommand()[1]},
             \ 'command': {b -> join(vimhdl#getLspCommand(), ' ')},
             \ 'project_root': function('s:GetProjectRoot'),
             \ 'lsp_config': {b -> ale#Var(b, 'vimhdl_config')},
@@ -72,5 +68,3 @@ function! vimhdl#ale#setup(...) abort
   endfor
 endfunction
 "}}
-
-" vim: set foldmarker={{,}} foldlevel=10 foldmethod=marker :

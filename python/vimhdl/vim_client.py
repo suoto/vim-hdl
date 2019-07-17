@@ -151,11 +151,11 @@ class VimhdlClient:  #pylint: disable=too-many-instance-attributes
 
         vimhdl_path = p.abspath(p.join(p.dirname(__file__), '..', '..'))
 
-        hdlcc_server = p.join(vimhdl_path, 'dependencies', 'hdlcc', 'hdlcc',
-                              'hdlcc_server.py')
+        server = p.join(vimhdl_path, 'dependencies', 'hdlcc', 'hdlcc',
+                        'server.py')
 
         cmd = [self._python,
-               hdlcc_server,
+               server,
                '--host', self._host,
                '--port', str(self._port),
                '--stdout', self._server_stdout,
