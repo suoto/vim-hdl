@@ -51,6 +51,8 @@ let s:using_python2 = vimhdl#usingPython2()
 let s:python_until_eof = s:using_python2 ? 'python << EOF' : 'python3 << EOF'
 let s:python_command = s:using_python2 ? 'py ' : 'py3 '
 
+" Trusty version of Vim (7.4.52) can't convert None to a Vim object, so need
+" to wrap calls with bool()
 function! vimhdl#pyEval( eval_string ) abort "{{ Inspired on YCM
   if s:using_python2
     return pyeval( a:eval_string )
@@ -156,7 +158,7 @@ endfunction " }}
 "{{ vimhdl#setupSyntastic() Setup Syntastic to use vimhdl in the given filetypes
 " ============================================================================
 function! vimhdl#setupSyntastic(...) abort
-  call vimhdl#pyEval('_logger.info("Setting up Syntastic support")')
+  call vimhdl#pyEval('bool(_logger.info("Setting up Syntastic support"))')
   for l:filetype in a:000
     if !exists('g:syntastic_' . l:filetype . '_checkers')
       execute('let g:syntastic_' . l:filetype . '_checkers = ["vimhdl"]')
@@ -244,7 +246,7 @@ function! vimhdl#createProjectFile(...) abort
   call vimhdl#startServer()
 
   let b:local_arg = a:000
-  call vimhdl#pyEval('vimhdl_client.updateHelperWrapper()')
+  call vimhdl#pyEval('bool(vimhdl_client.updateHelperWrapper())')
 endfunction
 "}}
 
