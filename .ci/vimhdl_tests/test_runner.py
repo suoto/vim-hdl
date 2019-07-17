@@ -32,12 +32,15 @@ from nose2.tools.params import params
 
 _logger = logging.getLogger(__name__)
 
-PATH_TO_TESTS = p.abspath(p.join(".ci", "vroom"))
-HDLCC_CI = p.abspath(p.join("..", "hdlcc_ci"))
-PATH_TO_HDLCC = p.join("dependencies", "hdlcc")
-ON_CI = os.environ.get("CI", None) is not None
-NEOVIM_TARGET = os.environ.get("CI_TARGET", "vim") == "neovim"
-VROOM_EXTRA_ARGS = os.environ.get("VROOM_EXTRA_ARGS", None)
+VIMHDL_PATH = p.abspath(p.join(p.dirname(__file__), '..', '..'))
+PATH_TO_TESTS = p.join(VIMHDL_PATH, '.ci', 'vroom')
+HDLCC_CI = p.abspath(p.join(VIMHDL_PATH, '..', 'hdlcc_ci'))
+PATH_TO_HDLCC = p.join(VIMHDL_PATH, 'dependencies', 'hdlcc')
+PATH_TO_VIMRC = p.join(VIMHDL_PATH, '.ci', 'vimrc')
+
+ON_CI = os.environ.get('CI', None) is not None
+NEOVIM_TARGET = os.environ.get('CI_TARGET', 'vim') == 'neovim'
+VROOM_EXTRA_ARGS = os.environ.get('VROOM_EXTRA_ARGS', None)
 
 @contextmanager
 def pushd(path):
@@ -75,8 +78,7 @@ with such.A('vim-hdl test') as it:
                 yield vsim_mock
 
     def runVroom(test_name):
-        cmd = ['vroom',
-               '-u', p.expanduser('~/.vimrc' if ON_CI else '~/dot_vim/vimrc')]
+        cmd = ['vroom', '-u', PATH_TO_VIMRC]
 
         output = p.join('/tmp', 'vroom_%s.log' % p.basename(test_name))
 
@@ -97,7 +99,7 @@ with such.A('vim-hdl test') as it:
         cmd += [test_name]
 
         _logger.info("$ %s", " ".join(cmd))
-        if os.system(' '.join(cmd)) != 0:
+        if os.system(' '.join(cmd)):
             _logger.error("Test failed: %s", test_name)
             for line in open(output).readlines():
                 line = line[:-1]

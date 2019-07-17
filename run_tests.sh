@@ -99,10 +99,8 @@ function _cleanup_if_needed {
 function _setup_dotfiles {
   if [ "${CI}" == "true" ]; then
     DOT_VIM="$HOME/.vim"
-    DOT_VIMRC="$HOME/.vimrc"
   else
     DOT_VIM="$HOME/dot_vim"
-    DOT_VIMRC="$DOT_VIM/vimrc"
   fi
 
   mkdir -p "$DOT_VIM"
@@ -113,7 +111,6 @@ function _setup_dotfiles {
     ln -s "$PWD" "$DOT_VIM/vim-hdl"
   fi
 
-  cp ./.ci/vimrc "$DOT_VIMRC"
 }
 
 ##############################################################################
