@@ -1,6 +1,5 @@
 ---
 language: python
-dist: trusty
 
 env:
   global:
@@ -9,6 +8,15 @@ env:
     - GHDL_URL="${GHDL_HOST}/ghdl-0.33/ghdl-0.33-x86_64-linux.tgz"
     - COLUMNS=80
     - LINES=50
+
+# Ubuntu releases: https://wiki.ubuntu.com/Releases
+# | Version            | Code name         | Docs          | Release           | End of Standard Support | End of Life   |
+# | Ubuntu 19.04       | Disco Dingo       | Release Notes | April 18, 2019    | January, 2020           | January, 2020 |
+# | Ubuntu 18.10       | Cosmic Cuttlefish | Release Notes | October 18, 2018  | July 2019               | July 2019     |
+# | Ubuntu 18.04 LTS   | Bionic Beaver     | Release Notes | April 26, 2018    | April 2023              | April 2028    |
+# | Ubuntu 16.04 LTS   | Xenial Xerus      | Release Notes | April 21, 2016    | April 2021              | April 2024    |
+# | Ubuntu 14.04 LTS   | Trusty Tahr       | Release Notes | April 17, 2014    | April 2019              | April 2022    |
+
 matrix:
   include:
       # Test Vim bundled with Ubuntu 14.04 LTS (Vim is using Python 2)
@@ -19,23 +27,17 @@ matrix:
       # Test Vim bundled with Ubuntu 16.04 LTS (Vim is using Python 2)
     - dist: xenial
       env:  CI_TARGET=vim DISTRO=xenial
-      python: 3.6
+      python: 3.7
 
       # Test Vim version from Ubuntu 18.04 (updating from apt-get to use Python
       # 3)
     - dist: xenial
       env:  CI_TARGET=vim DISTRO=xenial VERSION=latest
-      python: 3.5
-    - dist: xenial
-      env:  CI_TARGET=vim DISTRO=xenial VERSION=latest
-      python: 3.6
+      python: 3.7
 
     - dist: xenial
       env:  CI_TARGET=neovim DISTRO=xenial VERSION=master
-      python: 3.5
-    - dist: xenial
-      env:  CI_TARGET=neovim DISTRO=xenial VERSION=master
-      python: 3.6
+      python: 3.7
 
 addons:
   apt:
@@ -72,7 +74,7 @@ before_script:
 
 script:
   - set +xe
-  - xvfb-run --server-args='-screen 0, 1024x768x24' -e /dev/stdout 
+  - xvfb-run --server-args='-screen 0, 1024x768x24' -e /dev/stdout
     ./run_tests.sh --log-capture -F
 
 after_success:
