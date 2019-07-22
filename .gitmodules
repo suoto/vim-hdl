@@ -1,3 +1,0 @@
-[submodule "dependencies/hdlcc"]
-	path = dependencies/hdlcc
-	url = https://github.com/suoto/hdlcc

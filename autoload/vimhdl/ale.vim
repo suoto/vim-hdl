@@ -48,7 +48,7 @@ function! vimhdl#ale#setup(...) abort
             \ 'name': 'vimhdl',
             \ 'lsp': 'stdio',
             \ 'language': l:filetype,
-            \ 'executable': {b -> vimhdl#getLspCommand()[1]},
+            \ 'executable': {b -> vimhdl#getLspCommand()[0]},
             \ 'command': {b -> join(vimhdl#getLspCommand(), ' ')},
             \ 'project_root': function('s:GetProjectRoot'),
             \ 'lsp_config': {b -> ale#Var(b, 'vimhdl_config')},

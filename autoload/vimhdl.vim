@@ -84,11 +84,10 @@ endfunction
 
 " {{ vimhdl#getLspCommand(...) Gets the command to start the LSP in a list
 function! vimhdl#getLspCommand(...) abort
-  let l:python = s:using_python2 ? 'python2' : 'python3'
-  let l:server = vimhdl#basePath() 
-              \ . '/dependencies/hdlcc/hdlcc/server.py'
+  " let l:python = s:using_python2 ? 'python2' : 'python3'
+  let l:server = 'hdlcc'
 
-  return [l:python,
+  return [
         \ l:server,
         \ '--stderr', '/tmp/hdlcc-stderr.log',
         \ '--log-level', 'DEBUG',
