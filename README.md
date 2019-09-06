@@ -39,6 +39,7 @@ Plugin 'suoto/vim-hdl'
 * Requires Vim compiled with Python support, plus features needed by
   [Syntastic][Syntastic] itself
 * Only tested on Linux with recent Vim versions (7.4+)
+* You may need to install [`requests`](//pypi.org/project/requests/)
 
 ---
 
