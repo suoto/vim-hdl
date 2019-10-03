@@ -1,14 +1,14 @@
-Right after opening Vim, the hdlcc server should not be running. We'll call 
+Right after opening Vim, the hdl_checker server should not be running. We'll call 
 VimhdlInfo twice to ensure it doesn't starts
   :VimhdlInfo
   ~ vimhdl debug info
   ~ - vimhdl version: .* (regex)
-  ~ - hdlcc server is not running
+  ~ - hdl_checker server is not running
 Setting the filetype to __filetype__ should trigger the server start
   :set filetype=__filetype__
 Now the server should be running
   :VimhdlInfo
   ~ vimhdl debug info
   ~ - vimhdl version: __vimhdl__version__
-  ~ - hdlcc version: __hdlcc__version__
+  ~ - hdl_checker version: __hdl_checker__version__
   ~ - Server PID: .* (regex)

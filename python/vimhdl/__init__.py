@@ -21,8 +21,8 @@ tools.  See https://github.com/suoto/vim-hdl for more information
 
 from __future__ import print_function
 
+from ._version import get_versions
 from .vim_client import VimhdlClient
 
-from ._version import get_versions
-__version__ = get_versions()['version']
+__version__ = get_versions()["version"]
 del get_versions

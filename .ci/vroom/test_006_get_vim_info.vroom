@@ -1,10 +1,13 @@
 Open a buffer and set filetype to VHDL. This should allow us to get VimhdlInfo
 This file will be modified before it runs to replace __vimhdl__version__ and
-__hdlcc__version__ with their real values
-  :set filetype=vhdl (2.0)
+__hdl_checker__version__ with their real values
+  :edit dummy.vhd
+  :write (0.5)
+  :set filetype=vhdl (0.5)
+  :write (0.5)
   :VimhdlInfo
   ~ vimhdl debug info
   ~ - vimhdl version: __vimhdl__version__
-  ~ - hdlcc version: __hdlcc__version__
+  ~ - hdl_checker version: __hdl_checker__version__
   ~ - Server PID: .* (regex)
 

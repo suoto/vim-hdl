@@ -128,26 +128,6 @@ class RequestProjectRebuild(BaseRequest):
         super(RequestProjectRebuild, self).__init__(
             project_file=project_file)
 
-class OnBufferVisit(BaseRequest):
-    """
-    Notifies the server that a buffer has been visited
-    """
-    _meth = 'on_buffer_visit'
-
-    def __init__(self, project_file, path):
-        super(OnBufferVisit, self).__init__(
-            project_file=project_file, path=path)
-
-class OnBufferLeave(BaseRequest):
-    """
-    Notifies the server that a buffer has been left
-    """
-    _meth = 'on_buffer_leave'
-
-    def __init__(self, project_file, path):
-        super(OnBufferLeave, self).__init__(
-            project_file=project_file, path=path)
-
 class GetDependencies(BaseRequest):
     """
     Notifies the server that a buffer has been left

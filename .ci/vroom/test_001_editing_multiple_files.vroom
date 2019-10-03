@@ -47,7 +47,7 @@ Remove an important line so the builder must tell there's an error
   @do (write)
   :silent! SyntasticCheck
   :silent! lopen
-  common_lib/edge_detector.vhd|36 col 1 error| 'end' is expected instead of 'architecture'
+  common_lib/edge_detector.vhd|35 col 1 error| 'end' is expected instead of 'architecture'
   :lclose
   > u
   @do (write)
@@ -77,7 +77,7 @@ anymore
   :edit common_lib/edge_detector.vhd
   @do (write)
   :silent! lopen
-  common_lib/edge_detector.vhd|75 col 24 error| no interface for 'clken' in association
+  common_lib/edge_detector.vhd|74 col 24 error| no interface for 'clken' in association
   :lclose
 
 Let's undo our changes
@@ -151,8 +151,8 @@ confirm it works again
   @do (assert_qf_empty)
 Delete some internals
   @system (RELAXED)
-  :!rm .build/common_lib*
-  ! rm .build/common_lib.* (regex)
+  :!rm -rf .hdl_checker/
+  ! rm -rf .hdl_checker/
   @system
 Checking right now should fail
   :silent! SyntasticCheck

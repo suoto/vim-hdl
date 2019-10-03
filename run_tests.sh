@@ -137,6 +137,8 @@ _install_packages
 
 export PATH=${HOME}/builders/ghdl/bin/:${PATH}
 
+ghdl --version
+
 _setup_dotfiles
 
 if [ "${CI_TARGET}" == "vim" ]; then vim --version; fi

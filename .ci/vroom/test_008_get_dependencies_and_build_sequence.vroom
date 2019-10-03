@@ -29,15 +29,15 @@ Edit different files under the same project
 
   :VimhdlViewDependencies
   ~ Dependencies for .*/edge_detector.vhd (regex)
-  ~ - ieee.std_logic_1164
   ~ - common_lib.common_pkg
-  ~ - common_lib.synchronizer
   ~ - common_lib.sr_delay
+  ~ - common_lib.synchronizer
+  ~ - ieee.std_logic_1164
 
   :VimhdlViewBuildSequence
   ~ Build sequence for .*/edge_detector.vhd (regex)
-  ~ 0: .*/hdl_lib/common_lib/common_pkg.vhd (regex)
-  ~ 1: .*/hdl_lib/common_lib/synchronizer.vhd (regex)
-  ~ 2: .*/hdl_lib/common_lib/sr_delay.vhd (regex)
+  ~ 0: .*/hdl_lib/common_lib/common_pkg.vhd \(library: common_lib\) (regex)
+  ~ 1: .*/hdl_lib/common_lib/synchronizer.vhd \(library: common_lib\) (regex)
+  ~ 2: .*/hdl_lib/common_lib/sr_delay.vhd \(library: common_lib\) (regex)
 
 

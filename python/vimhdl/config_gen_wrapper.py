@@ -24,9 +24,58 @@ import logging
 import os
 import os.path as p
 
+import six
+
 import vim  # pylint: disable=import-error
 from vimhdl.vim_helpers import getProjectFile, presentDialog
-from hdlcc.utils import toBytes
+
+
+# Copied from ycmd
+def toBytes(value):  # pragma: no cover
+    """
+    Consistently returns the new bytes() type from python-future.
+    Assumes incoming strings are either UTF-8 or unicode (which is
+    converted to UTF-8).
+    """
+
+    if not value:
+        return bytes()
+
+    # This is tricky. On py2, the bytes type from builtins (from python-future) is
+    # a subclass of str. So all of the following are true:
+    #   isinstance(str(), bytes)
+    #   isinstance(bytes(), str)
+    # But they don't behave the same in one important aspect: iterating over a
+    # bytes instance yields ints, while iterating over a (raw, py2) str yields
+    # chars. We want consistent behavior so we force the use of bytes().
+
+    if isinstance(value, bytes):
+        return value
+
+    # This is meant to catch Python 2's native str type.
+
+    if isinstance(value, bytes):
+        return bytes(value, encoding="utf8")
+
+    if isinstance(value, str):
+        # On py2, with `from builtins import *` imported, the following is true:
+        #
+        #   bytes(str(u'abc'), 'utf8') == b"b'abc'"
+        #
+        # Obviously this is a bug in python-future. So we work around it. Also filed
+        # upstream at: https://github.com/PythonCharmers/python-future/issues/193
+        # We can't just return value.encode('utf8') on both py2 & py3 because on
+        # py2 that *sometimes* returns the built-in str type instead of the newbytes
+        # type from python-future.
+
+        if six.PY2:
+            return bytes(value.encode("utf8"), encoding="utf8")
+
+        return bytes(value, encoding="utf8")
+
+    # This is meant to catch `int` and similar non-string/bytes types.
+
+    return toBytes(str(value))
 
 
 class ConfigGenWrapper(object):
@@ -35,6 +84,7 @@ class ConfigGenWrapper(object):
     removing it when the user closes the file. Also handles back up and
     restoring in case something goes wrong
     """
+
     _preface = """\
 # This is the resulting project file, please review and save when done. The
 # g:vimhdl_conf_file variable has been temporarily changed to point to this
@@ -46,40 +96,42 @@ class ConfigGenWrapper(object):
 
     # If the user hasn't already set vimhdl_conf_file in g: or b:, we'll use
     # this instead
-    _default_conf_filename = 'vimhdl.prj'
+    _default_conf_filename = "vimhdl.prj"
 
     _logger = logging.getLogger(__name__)
 
     def __init__(self):
-        self._project_file = toBytes(getProjectFile() or
-                                     self._default_conf_filename).decode()
+        self._project_file = toBytes(
+            getProjectFile() or self._default_conf_filename
+        ).decode()
 
         self._backup_file = p.join(
             p.dirname(self._project_file),
-            '.' + p.basename(self._project_file) + '.backup')
+            "." + p.basename(self._project_file) + ".backup",
+        )
 
     def run(self, text):
         """
         Runs the wrapper using 'text' as content
         """
         # Cleanup autogroups before doing anything
-        vim.command('autocmd! vimhdl BufUnload')
+        vim.command("autocmd! vimhdl BufUnload")
 
         # In case no project file was set and we used the default one
-        if 'vimhdl_conf_file' not in vim.vars:
-            vim.vars['vimhdl_conf_file'] = self._project_file
+        if "vimhdl_conf_file" not in vim.vars:
+            vim.vars["vimhdl_conf_file"] = self._project_file
 
         # Backup
         if p.exists(self._project_file):
-            self._logger.info("Backing up %s to %s", self._project_file,
-                              self._backup_file)
+            self._logger.info(
+                "Backing up %s to %s", self._project_file, self._backup_file
+            )
             os.rename(self._project_file, self._backup_file)
 
-        contents = '\n'.join([str(self._preface), text,
-                              '', '# vim: filetype=vimhdl'])
+        contents = "\n".join([str(self._preface), text, "", "# vim: filetype=vimhdl"])
 
         self._logger.info("Writing contents to %s", self._project_file)
-        open(self._project_file, 'w').write(contents)
+        open(self._project_file, "w").write(contents)
 
         # Need to open the resulting file and then setup auto commands to avoid
         # triggering them when loading / unloading the new buffer
@@ -92,10 +144,12 @@ class ConfigGenWrapper(object):
         """
         self._logger.debug("Setting up auto cmds for %s", self._project_file)
         # Create hook to remove preface text when closing the file
-        vim.command('augroup vimhdl')
-        vim.command('autocmd BufUnload %s :call s:onVimhdlTempQuit()' %
-                    p.abspath(self._project_file))
-        vim.command('augroup END')
+        vim.command("augroup vimhdl")
+        vim.command(
+            "autocmd BufUnload %s :call s:onVimhdlTempQuit()"
+            % p.abspath(self._project_file)
+        )
+        vim.command("augroup END")
 
     def _openResultingFileForEdit(self):
         """
@@ -105,14 +159,15 @@ class ConfigGenWrapper(object):
         self._logger.debug("Opening resulting file for edition")
         # If the current buffer is already pointing to the project file, reuse
         # it
-        if not p.exists(vim.current.buffer.name) or \
-                p.samefile(vim.current.buffer.name, self._project_file):
-            vim.command('edit! %s' % self._project_file)
+        if not p.exists(vim.current.buffer.name) or p.samefile(
+            vim.current.buffer.name, self._project_file
+        ):
+            vim.command("edit! %s" % self._project_file)
         else:
-            vim.command('vsplit %s' % self._project_file)
+            vim.command("vsplit %s" % self._project_file)
 
-        vim.current.buffer.vars['is_vimhdl_generated'] = True
-        vim.command('set filetype=vimhdl')
+        vim.current.buffer.vars["is_vimhdl_generated"] = True
+        vim.command("set filetype=vimhdl")
 
     def onVimhdlTempQuit(self):
         """
@@ -121,23 +176,27 @@ class ConfigGenWrapper(object):
         """
         # Don't touch files created by the user of files where the preface has
         # already been (presumably) taken out
-        if not vim.current.buffer.vars.get('is_vimhdl_generated', False):
+        if not vim.current.buffer.vars.get("is_vimhdl_generated", False):
             return
 
         # No pop on Vim's RemoteMap dictionary
-        del vim.current.buffer.vars['is_vimhdl_generated']
+        del vim.current.buffer.vars["is_vimhdl_generated"]
         # No need to call this again
-        vim.command('autocmd! vimhdl BufUnload')
+        vim.command("autocmd! vimhdl BufUnload")
 
         try:
-            should_save = vim.vars['vimhdl_auto_save_created_config_file'] == 1
+            should_save = vim.vars["vimhdl_auto_save_created_config_file"] == 1
         except KeyError:
             # Ask if the user wants to use the resulting file or if the backup
             # should be restored
-            should_save = presentDialog(
-                "Project file contents were modified, should save changes or "
-                "restore backup?",
-                ["Save changes", "Restore backup"]) == 0
+            should_save = (
+                presentDialog(
+                    "Project file contents were modified, should save changes or "
+                    "restore backup?",
+                    ["Save changes", "Restore backup"],
+                )
+                == 0
+            )
 
         if should_save:
             self._removePrefaceAndSave()
@@ -160,7 +219,7 @@ class ConfigGenWrapper(object):
         # Search for the last line we said we'd remove
         lnum = 0
         for lnum, line in enumerate(vim.current.buffer):
-            if 'Everything up to this line will be automatically removed' in line:
+            if "Everything up to this line will be automatically removed" in line:
                 self._logger.debug("Breaing at line %d", lnum)
                 break
 
@@ -169,5 +228,5 @@ class ConfigGenWrapper(object):
             return
 
         # Update and save
-        vim.current.buffer[ : ] = list(vim.current.buffer)[lnum + 1 : ]
-        vim.command('write!')
+        vim.current.buffer[:] = list(vim.current.buffer)[lnum + 1 :]
+        vim.command("write!")

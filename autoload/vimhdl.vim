@@ -105,13 +105,6 @@ function! s:setupHooks(...) abort
             execute('autocmd! ' . l:event . ' ' . l:ext . ' ' .
                    \':' . s:python_command . ' vimhdl_client.requestUiMessages(''' . l:event . ''')')
         endfor
-        for l:event in ['BufEnter', 'FocusGained', 'InsertLeave']
-            execute('autocmd! ' . l:event . ' ' . l:ext . ' ' .
-                   \':' . s:python_command . ' vimhdl_client.onBufferVisit()')
-        endfor
-        execute('autocmd! BufLeave ' . l:ext . ' ' .
-               \':' . s:python_command . ' vimhdl_client.onBufferLeave()')
-
     endfor
     augroup END
 endfunction

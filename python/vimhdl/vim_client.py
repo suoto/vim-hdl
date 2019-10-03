@@ -23,36 +23,40 @@ import subprocess as subp
 import sys
 import time
 from multiprocessing import Queue
+from pprint import pformat
 
 import vim  # pylint: disable=import-error
 import vimhdl
 import vimhdl.vim_helpers as vim_helpers
 from vimhdl.base_requests import (BaseRequest, GetBuildSequence,
-                                  GetDependencies, OnBufferLeave,
-                                  OnBufferVisit, RequestHdlccInfo,
+                                  GetDependencies, RequestHdlccInfo,
                                   RequestMessagesByPath, RequestProjectRebuild,
                                   RequestQueuedMessages, RunConfigGenerator)
 from vimhdl.config_gen_wrapper import ConfigGenWrapper
 
-_ON_WINDOWS = sys.platform == 'win32'
+_ON_WINDOWS = sys.platform == "win32"
 
 _logger = logging.getLogger(__name__)
+
 
 def _sortKey(record):
     """
     Key for sorting records
     """
-    return (ord(record['type']),
-            record['lnum'] if isinstance(record['lnum'], int) else 0,
-            record['col'] if isinstance(record['col'], int) else 0,
-            record['nr'] if isinstance(record['nr'], int) else 0)
+    return (
+        1 if "Error" in record["type"] else 2,
+        record["lnum"] if isinstance(record["lnum"], int) else 0,
+        record["col"] if isinstance(record["col"], int) else 0,
+        record["nr"] if isinstance(record["nr"], int) else 0,
+    )
+
 
 def _sortBuildMessages(records):
     """
     Sorts the build messages using Vim's terminology
     """
     for record in records:
-        for key in ('lnum', 'nr', 'col'):
+        for key in ("lnum", "nr", "col"):
             try:
                 record[key] = int(record[key])
             except ValueError:
@@ -60,29 +64,30 @@ def _sortBuildMessages(records):
     records.sort(key=_sortKey)
     return records
 
+
 # pylint:disable=inconsistent-return-statements
 
-class VimhdlClient:  #pylint: disable=too-many-instance-attributes
+
+class VimhdlClient:  # pylint: disable=too-many-instance-attributes
     """
     Point of entry of Vim commands
     """
 
     # If the user hasn't already set vimhdl_conf_file in g: or b:, we'll use
     # this instead
-    _default_conf_filename = 'vimhdl.prj'
-
+    _default_conf_filename = "vimhdl.prj"
 
     def __init__(self, **options):
-        self._logger = logging.getLogger(__name__ + '.' + self.__class__.__name__)
+        self._logger = logging.getLogger(__name__ + "." + self.__class__.__name__)
         self._logger.info("Creating vimhdl client object...")
 
         self._server = None
         # Store constructor args
-        self._python = options.get('python', 'python')
-        self._host = options.get('host', 'localhost')
-        self._port = options.get('port', vim_helpers.getUnusedLocalhostPort())
-        self._log_level = str(options.get('log_level', 'DEBUG'))
-        self._log_stream = options.get('log_target', '/tmp/hdlcc.log')
+        self._python = options.get("python", "python")
+        self._host = options.get("host", "localhost")
+        self._port = options.get("port", vim_helpers.getUnusedLocalhostPort())
+        self._log_level = str(options.get("log_level", "DEBUG"))
+        self._log_stream = options.get("log_target", "/tmp/hdlcc.log")
 
         self._posted_notifications = []
 
@@ -90,33 +95,34 @@ class VimhdlClient:  #pylint: disable=too-many-instance-attributes
         self.helper_wrapper = ConfigGenWrapper()
 
         # Set url on the BaseRequest class as well
-        BaseRequest.url = 'http://{}:{}'.format(self._host, self._port)
+        BaseRequest.url = "http://{}:{}".format(self._host, self._port)
 
     def startServer(self):
         """
-        Starts the hdlcc server, waits until it responds and register
+        Starts the hdl_checker server, waits until it responds and register
         server shutdown when exiting Vim's Python interpreter
         """
         self._startServerProcess()
         self._waitForServerSetup()
 
         import atexit
+
         atexit.register(self.shutdown)
 
     def _postError(self, msg):
         """
         Post errors to the user once
         """
-        if ('error', msg) not in self._posted_notifications:
-            self._posted_notifications += [('error', msg)]
+        if ("error", msg) not in self._posted_notifications:
+            self._posted_notifications += [("error", msg)]
             vim_helpers.postVimError(msg)
 
     def _postWarning(self, msg):
         """
         Post warnings to the user once
         """
-        if ('warn', msg) not in self._posted_notifications:
-            self._posted_notifications += [('warn', msg)]
+        if ("warn", msg) not in self._posted_notifications:
+            self._posted_notifications += [("warn", msg)]
             vim_helpers.postVimWarning(msg)
 
     def _isServerAlive(self):
@@ -125,44 +131,85 @@ class VimhdlClient:  #pylint: disable=too-many-instance-attributes
         """
         is_alive = self._server.poll() is None
         if not is_alive:
-            self._postWarning("hdlcc server is not running")
+            self._postWarning("hdl_checker server is not running")
         return is_alive
 
     def _startServerProcess(self):
         """
-        Starts the hdlcc server
+        Starts the hdl_checker server
         """
         self._logger.info("Running vim_hdl client setup")
 
-        vimhdl_path = p.abspath(p.join(p.dirname(__file__), '..', '..'))
+        vimhdl_path = p.abspath(p.join(p.dirname(__file__), "..", ".."))
 
-        hdlcc_server = p.join(vimhdl_path, 'dependencies', 'hdlcc', 'hdlcc',
-                              'hdlcc_server.py')
+        hdl_checker_path = p.join(vimhdl_path, "dependencies", "hdlcc")
 
-        cmd = [self._python,
-               hdlcc_server,
-               '--host', self._host,
-               '--port', str(self._port),
-               '--stdout', '/tmp/hdlcc-stdout.log',
-               '--stderr', '/tmp/hdlcc-stderr.log',
-               '--attach-to-pid', str(os.getpid()),
-               '--log-level', self._log_level,
-               '--log-stream', self._log_stream]
+        env = os.environ.copy()
+        env["PYTHONPATH"] = hdl_checker_path
 
-        self._logger.info("Starting hdlcc server with '%s'", cmd)
+        #  hdlcc_server = p.join(hdl_checker_path, "hdl_checker", "server.py")
+        hdlcc_server = "hdl_checker"
+
+        # Try to get the version before to catch potential issues
+        try:
+            _cmd = [
+                #  "PYTHONPATH=%s" % hdl_checker_path,
+                #  self._python,
+                #  "-c",
+                #  '"import sys; print(sys.path)"'
+                hdlcc_server,
+                "--version",
+            ]
+            self._logger.debug("Will run %s", " ".join(map(str, _cmd)))
+            self._logger.info(
+                "version: %s", subp.check_output(_cmd, env=env, stderr=subp.STDOUT)
+            )
+        except subp.CalledProcessError as exc:
+            self._logger.exception("Failed to run: %s", exc.output)
+            raise
+
+        cmd = [
+            #  self._python,
+            hdlcc_server,
+            "--host",
+            self._host,
+            "--port",
+            str(self._port),
+            "--stdout",
+            "/tmp/hdlcc-stdout.log",
+            "--stderr",
+            "/tmp/hdlcc-stderr.log",
+            "--attach-to-pid",
+            str(os.getpid()),
+            "--log-level",
+            self._log_level,
+            "--log-stream",
+            self._log_stream,
+        ]
+
+        self._logger.info(
+            "Starting hdl_checker server with '%s'", " ".join(map(str, cmd))
+        )
 
         try:
             if _ON_WINDOWS:
                 self._server = subp.Popen(
-                    cmd, stdout=subp.PIPE, stderr=subp.PIPE,
-                    creationflags=subp.CREATE_NEW_PROCESS_GROUP)
+                    cmd,
+                    stdout=subp.PIPE,
+                    stderr=subp.PIPE,
+                    creationflags=subp.CREATE_NEW_PROCESS_GROUP,
+                )
             else:
                 self._server = subp.Popen(
-                    cmd, stdout=subp.PIPE, stderr=subp.PIPE,
-                    preexec_fn=os.setpgrp)
+                    cmd,
+                    stdout=subp.PIPE,
+                    stderr=subp.PIPE,
+                    preexec_fn=os.setpgrp,
+                    env=env,
+                )
 
             if not self._isServerAlive():
-                vim_helpers.postVimError("Failed to launch hdlcc server")
+                vim_helpers.postVimError("Failed to launch hdl_checker server")
         except subp.CalledProcessError:
             self._logger.exception("Error calling '%s'", " ".join(cmd))
 
@@ -184,7 +231,7 @@ class VimhdlClient:  #pylint: disable=too-many-instance-attributes
 
     def shutdown(self):
         """
-        Kills the hdlcc server
+        Kills the hdl_checker server
         """
         if not self._isServerAlive():
             self._logger.warning("Server is not running")
@@ -207,17 +254,17 @@ class VimhdlClient:  #pylint: disable=too-many-instance-attributes
         """
         while not self._ui_queue.empty():
             messages = self._ui_queue.get()
-            for severity, message in messages.json().get('ui_messages', []):
-                if severity == 'info':
+            for severity, message in messages.json().get("ui_messages", []):
+                if severity == "info":
                     vim_helpers.postVimInfo(message)
-                elif severity == 'warning':
+                elif severity == "warning":
                     self._postWarning(message)
-                elif severity == 'error':
+                elif severity == "error":
                     self._postError(message)
                 else:
                     vim_helpers.postVimError(
-                        "Unknown severity '%s' for message '%s'" %
-                        (severity, message))
+                        "Unknown severity '%s' for message '%s'" % (severity, message)
+                    )
 
     def getMessages(self, vim_buffer=None, vim_var=None):
         """
@@ -244,40 +291,43 @@ class VimhdlClient:  #pylint: disable=too-many-instance-attributes
             return
 
         messages = []
-        for msg in response.json().get('messages', []):
-            text = str(msg['error_message']) if msg['error_message'] else ''
+        for msg in response.json().get("messages", []):
+            _logger.info("msg:\n%s", pformat(msg))
+            text = str(msg["text"]) if msg["text"] else ""
             vim_fmt_dict = {
-                'lnum'     : str(msg['line_number']) or '-1',
-                'bufnr'    : str(vim_buffer.number),
-                'filename' : str(msg['filename']) or vim_buffer.name,
-                'valid'    : '1',
-                'text'     : text,
-                'nr'       : str(msg['error_number']) or '0',
-                'type'     : str(msg['error_type']) or 'E',
-                'col'      : str(msg['column']) or '0'}
+                "lnum": str(msg["line_number"]) or "-1",
+                "bufnr": str(vim_buffer.number),
+                "filename": str(msg["filename"]) or vim_buffer.name,
+                "valid": "1",
+                "text": text,
+                "nr": str(msg["error_code"]) or "0",
+                "type": str(msg["severity"]) or "E",
+                "col": str(msg["column_number"]) or "0",
+            }
             try:
-                vim_fmt_dict['subtype'] = str(msg['error_subtype'])
+                vim_fmt_dict["subtype"] = str(msg["error_subtype"])
             except KeyError:
                 pass
 
             _logger.info(vim_fmt_dict)
             messages.append(vim_fmt_dict)
 
-        self.requestUiMessages('getMessages')
+        self.requestUiMessages("getMessages")
 
         if vim_var is None:
             return _sortBuildMessages(messages)
 
         for msg in _sortBuildMessages(messages):
-            vim_helpers.toVimDict(msg, '_dict')
-            vim.command("let {0} += [{1}]".format(vim_var, '_dict'))
+            vim_helpers.toVimDict(msg, "_dict")
+            vim.command("let {0} += [{1}]".format(vim_var, "_dict"))
             vim.command("unlet! _dict")
 
     def requestUiMessages(self, event):
         """Retrieves UI messages from the server and post them with the
         appropriate severity level"""
-        self._logger.info("Handling event '%s'. Filetype is %s",
-                          event, vim.eval('&filetype'))
+        self._logger.info(
+            "Handling event '%s'. Filetype is %s", event, vim.eval("&filetype")
+        )
         self._postQueuedMessages()
 
         if not self._isServerAlive():
@@ -291,7 +341,7 @@ class VimhdlClient:  #pylint: disable=too-many-instance-attributes
 
     def getVimhdlInfo(self):
         """
-        Gets info about the current project and hdlcc server
+        Gets info about the current project and hdl_checker server
         """
         project_file = vim_helpers.getProjectFile()
         request = RequestHdlccInfo(project_file=project_file)
@@ -300,23 +350,31 @@ class VimhdlClient:  #pylint: disable=too-many-instance-attributes
 
         if response is not None:
             # The server has responded something, so just print it
-            self._logger.info("Response: %s", str(response.json()['info']))
+            self._logger.info("Response: %s", str(response.json()["info"]))
 
             return "\n".join(
-                ["- %s" % x for x in
-                 ["vimhdl version: %s\n" % vimhdl.__version__] +
-                 response.json()['info']])
+                [
+                    "- %s" % x
+                    for x in ["vimhdl version: %s\n" % vimhdl.__version__]
+                    + response.json()["info"]
+                ]
+            )
 
         return "\n".join(
-            ["- %s" % x for x in
-             ["vimhdl version: %s\n" % vimhdl.__version__,
-              "hdlcc server is not running"]])
+            [
+                "- %s" % x
+                for x in [
+                    "vimhdl version: %s\n" % vimhdl.__version__,
+                    "hdl_checker server is not running",
+                ]
+            ]
+        )
 
     def rebuildProject(self):
         """
         Rebuilds the current project
         """
-        if vim.eval('&filetype') not in ('vhdl', 'verilog', 'systemverilog'):
+        if vim.eval("&filetype") not in ("vhdl", "verilog", "systemverilog"):
             vim_helpers.postVimWarning("Not a VHDL file, can't rebuild")
             return
 
@@ -327,43 +385,9 @@ class VimhdlClient:  #pylint: disable=too-many-instance-attributes
         response = request.sendRequest()
 
         if response is None:
-            return "hdlcc server is not running"
+            return "hdl_checker server is not running"
 
         self._logger.info("Response: %s", repr(response))
-
-    def onBufferVisit(self):
-        """
-        Notifies the hdlcc server that Vim user has entered the current
-        buffer
-        """
-        self._postQueuedMessages()
-
-        if not self._isServerAlive():
-            return
-
-        project_file = vim_helpers.getProjectFile()
-
-        request = OnBufferVisit(project_file=project_file,
-                                path=vim.current.buffer.name)
-
-        request.sendRequestAsync(self._handleAsyncRequest)
-
-    def onBufferLeave(self):
-        """
-        Notifies the hdlcc server that Vim user has left the current
-        buffer
-        """
-        self._postQueuedMessages()
-
-        if not self._isServerAlive():
-            return
-
-        project_file = vim_helpers.getProjectFile()
-
-        request = OnBufferLeave(project_file=project_file,
-                                path=vim.current.buffer.name)
-
-        request.sendRequestAsync(self._handleAsyncRequest)
 
     def getDependencies(self):
         """
@@ -376,16 +400,18 @@ class VimhdlClient:  #pylint: disable=too-many-instance-attributes
 
         project_file = vim_helpers.getProjectFile()
 
-        request = GetDependencies(project_file=project_file,
-                                  path=vim.current.buffer.name)
+        request = GetDependencies(
+            project_file=project_file, path=vim.current.buffer.name
+        )
 
         response = request.sendRequest()
         if response is not None:
-            self._logger.debug("Response: %s", str(response.json()['dependencies']))
+            self._logger.debug("Response: %s", str(response.json()["dependencies"]))
 
             return "\n".join(
-                ["Dependencies for %s" % vim.current.buffer.name] +
-                ["- %s" % x for x in response.json()['dependencies']])
+                ["Dependencies for %s" % vim.current.buffer.name]
+                + ["- %s" % x for x in sorted(response.json()["dependencies"])]
+            )
 
         return "Source has no dependencies"
 
@@ -400,20 +426,23 @@ class VimhdlClient:  #pylint: disable=too-many-instance-attributes
 
         project_file = vim_helpers.getProjectFile()
 
-        request = GetBuildSequence(project_file=project_file,
-                                   path=vim.current.buffer.name)
+        request = GetBuildSequence(
+            project_file=project_file, path=vim.current.buffer.name
+        )
 
         response = request.sendRequest()
         if response is not None:
-            self._logger.debug("Response: %s", str(response.json()['sequence']))
+            self._logger.debug("Response: %s", str(response.json()["sequence"]))
 
-            sequence = response.json()['sequence']
+            sequence = response.json()["sequence"]
             if sequence:
                 i = 1
                 msg = ["Build sequence for %s\n" % vim.current.buffer.name]
-                for i in range(len(sequence)):  # pylint:disable=consider-using-enumerate
+                for i in range(
+                    len(sequence)
+                ):  # pylint:disable=consider-using-enumerate
                     msg += ["%d: %s" % (i, sequence[i])]
-                return '\n'.join(msg)
+                return "\n".join(msg)
 
             return "Build sequence is empty"
 
@@ -424,11 +453,11 @@ class VimhdlClient:  #pylint: disable=too-many-instance-attributes
         Requests the config file content from the server and return the wrapper
         class
         """
-        paths = vim.eval('b:local_arg') or ['.', ]
+        paths = vim.eval("b:local_arg") or ["."]
 
-        request = RunConfigGenerator(generator='SimpleFinder', paths=paths)
+        request = RunConfigGenerator(generator="SimpleFinder", paths=paths)
         response = request.sendRequest()
         if response is None:
             return
 
-        self.helper_wrapper.run(response.json()['content'])
+        self.helper_wrapper.run(response.json()["content"])
