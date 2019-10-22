@@ -13,6 +13,15 @@ helpers to VHDL development:
   [Syntastic][Syntastic])
 * [Style checking](#style-checking)
 
+---
+
+**[HDL Checker][hdl_checker] HTTP interface used by vim-hdl is being deprecated
+in favor of [Language Server Protocol][LSP]. See [HDL Checker supported
+editors][hdl_checker_editor_support] for help setting up**
+
+---
+
+
 ![vim-hdl screenshot](http://i.imgur.com/2hZox5r.gif)
 
 ---
@@ -137,7 +146,9 @@ mentioned or used by this software.
 [GHDL]: https://github.com/tgingold/ghdl
 [gpl]: http://www.gnu.org/copyleft/gpl.html
 [hdl_checker]: https://github.com/suoto/hdl_checker
+[hdl_checker_editor_support]: https://github.com/suoto/hdl_checker#editor-support
 [hdl_checker_issue_tracker]: https://github.com/suoto/hdl_checker/issues
+[LSP]: https://en.wikipedia.org/wiki/Language_Server_Protocol
 [Mentor_msim]: http://www.mentor.com/products/fv/modelsim/
 [pathogen]: https://github.com/tpope/vim-pathogen
 [Syntastic]: https://github.com/scrooloose/syntastic
@@ -145,4 +156,3 @@ mentioned or used by this software.
 [vimhdl_issue_tracker]: https://github.com/suoto/vim-hdl/issues
 [vundle]: https://github.com/VundleVim/Vundle.vim
 [Xilinx_Vivado]: http://www.xilinx.com/products/design-tools/vivado/vivado-webpack.html
-

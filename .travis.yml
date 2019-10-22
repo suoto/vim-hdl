@@ -63,8 +63,8 @@ before_script:
   - mkdir -p ${CACHE}
 
   - cd ${TRAVIS_BUILD_DIR}
-  - git clone --quiet --recursive --depth 1 https://github.com/suoto/hdlcc_ci ../hdlcc_ci
-  - pushd ../hdlcc_ci/hdl_lib && git checkout hdlcc_ci && popd
+  - git clone --quiet --recursive --depth 1 --branch=hdlcc_ci
+    https://github.com/suoto/hdlcc_ci ../hdlcc_ci
 
   - ./dependencies/hdlcc/.ci/scripts/setup_ghdl.sh
   - ./.ci/setup_ghdl.sh
