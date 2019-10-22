@@ -5,8 +5,8 @@
 [![Join the chat at https://gitter.im/suoto/vim-hdl](https://badges.gitter.im/suoto/vim-hdl.svg)](https://gitter.im/suoto/vim-hdl?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 [![Analytics](https://ga-beacon.appspot.com/UA-68153177-3/vim-hdl/README.md?pixel)](https://github.com/suoto/vim-hdl)
 
-vim-hdl is a Vim plugin that uses [`hdlcc`][hdlcc] to provide some helpers to
-VHDL development:
+vim-hdl is a Vim plugin that uses [HDL Checker][hdl_checker] to provide some
+helpers to VHDL development:
 
 * Syntax checking (using
   [third-party-compilers](#supported-third-party-compilers) +
@@ -59,7 +59,7 @@ the configuration file
 :VimhdlCreateProjectFile <optional/path/to/files>
 ```
 
-See the [wiki](https://github.com/suoto/hdlcc/wiki) for details on how to write
+See the [wiki](https://github.com/suoto/hdl_checker/wiki) for details on how to write
 it.
 
 Any other [Syntastic][Syntastic] option should work as well.
@@ -109,11 +109,11 @@ idelay_ctrl_u : idelay_ctrl
 * [vim-hdl issue tracker][vimhdl_issue_tracker] should be used for bugs, feature
   requests, etc related to the Vim client itself (something that only happens
   with Vim)
-* [hdlcc issue tracker][hdlcc_issue_tracker] should be used for bugs, feature
-  requests, etc related to the code checker backend.
+* [HDL Checker issue tracker][hdl_checker_issue_tracker] should be used for bugs,
+  feature requests, etc related to the code checker backend.
 
 If unsure, use [vim-hdl issue tracker][vimhdl_issue_tracker], it will be moved to
-[hdlcc issue tracker][hdlcc_issue_tracker] if applicable.
+[HDL Checker issue tracker][hdl_checker_issue_tracker] if applicable.
 
 ## License
 
@@ -132,17 +132,17 @@ Xilinx® and its logo is a trademark or registered trademark of Xilinx, Inc.
 vim-hdl's author has no connection or affiliation to any of the trademarks
 mentioned or used by this software.
 
-[Syntastic]: https://github.com/scrooloose/syntastic
-[Mentor_msim]: http://www.mentor.com/products/fv/modelsim/
 [Altera_msim]: https://www.altera.com/downloads/download-center.html
-[Xilinx_Vivado]: http://www.xilinx.com/products/design-tools/vivado/vivado-webpack.html
-[pathogen]: https://github.com/tpope/vim-pathogen
-[vundle]: https://github.com/VundleVim/Vundle.vim
 [ConfigParser]: https://docs.python.org/2/library/configparser.html
-[vim-hdl-examples]: https://github.com/suoto/vim-hdl-examples
-[gpl]: http://www.gnu.org/copyleft/gpl.html
-[vimhdl_issue_tracker]: https://github.com/suoto/vim-hdl/issues
-[hdlcc_issue_tracker]: https://github.com/suoto/hdlcc/issues
-[hdlcc]: https://github.com/suoto/hdlcc
 [GHDL]: https://github.com/tgingold/ghdl
+[gpl]: http://www.gnu.org/copyleft/gpl.html
+[hdl_checker]: https://github.com/suoto/hdl_checker
+[hdl_checker_issue_tracker]: https://github.com/suoto/hdl_checker/issues
+[Mentor_msim]: http://www.mentor.com/products/fv/modelsim/
+[pathogen]: https://github.com/tpope/vim-pathogen
+[Syntastic]: https://github.com/scrooloose/syntastic
+[vim-hdl-examples]: https://github.com/suoto/vim-hdl-examples
+[vimhdl_issue_tracker]: https://github.com/suoto/vim-hdl/issues
+[vundle]: https://github.com/VundleVim/Vundle.vim
+[Xilinx_Vivado]: http://www.xilinx.com/products/design-tools/vivado/vivado-webpack.html
 
