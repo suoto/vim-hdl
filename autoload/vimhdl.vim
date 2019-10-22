@@ -48,7 +48,9 @@ endfunction "}
 " { s:setupPython() Setup Vim's Python environment to call vim-hdl within Vim
 " ============================================================================
 function! s:setupPython() abort
-    let l:python = s:using_python2 ? 'python2' : 'python3'
+    let l:log_level = get(g:, 'vimhdl_log_level', 'INFO')
+    let l:log_file = get(g:, 'vimhdl_log_file', v:null)
+
     exec s:python_until_eof
 import sys
 if 'vimhdl' not in sys.modules:
@@ -61,8 +63,7 @@ if 'vimhdl' not in sys.modules:
     logging.root.addHandler(logging.NullHandler())
 
     _logger = logging.getLogger(__name__)
-    for path in (p.join(vim.eval('s:vimhdl_path'), 'python'),
-                 p.join(vim.eval('s:vimhdl_path'), 'dependencies', 'hdlcc')):
+    for path in (p.join(vim.eval('s:vimhdl_path'), 'python'),):
         if path not in sys.path:
             path = p.abspath(path)
             if p.exists(path):
@@ -77,7 +78,10 @@ try:
     vimhdl_client
     _logger.warning("vimhdl client already exists, skiping")
 except NameError:
-    vimhdl_client = vimhdl.VimhdlClient(python=vim.eval('l:python'))
+    vimhdl_client = vimhdl.VimhdlClient(
+        log_level=vim.eval('l:log_level'),
+        log_target=vim.eval('l:log_file'),
+    )
 EOF
 
 endfunction
@@ -140,15 +144,22 @@ function! s:restartServer() abort
         return
     endif
     echom 'Restarting hdlcc server'
-    let l:python = s:using_python2 ? 'python2' : 'python3'
+
+    let l:log_level = get(g:, 'vimhdl_log_level', 'INFO')
+    let l:log_file = get(g:, 'vimhdl_log_file', v:null)
+
     exec s:python_until_eof
 _logger.info("Restarting hdlcc server")
 vimhdl_client.shutdown()
 del vimhdl_client
-vimhdl_client = vimhdl.VimhdlClient(python=vim.eval('l:python'))
-vimhdl_client.startServer()
-_logger.info("hdlcc restart done")
+vimhdl_client = vimhdl.VimhdlClient(
+    log_level=vim.eval('l:log_level'),
+    log_target=vim.eval('l:log_file'),
+)
 EOF
+    unlet! g:vimhdl_server_started
+    call s:startServer()
+
 endfunction
 " }
 " { vimhdl#getMessagesForCurrentBuffer()
@@ -196,7 +207,6 @@ function! s:createProjectFile(...) abort
     call s:startServer()
 
     let b:local_arg = a:000
-    let l:python = s:using_python2 ? 'python2' : 'python3'
     exec s:python_until_eof
 vimhdl_client.updateHelperWrapper()
 EOF
@@ -205,7 +215,6 @@ endfunction
 " { s:onVimhdlTempQuit() Handles leaving the temporary config file edit
 " ============================================================================
 function! s:onVimhdlTempQuit()
-    let l:python = s:using_python2 ? 'python2' : 'python3'
     exec s:python_until_eof
 vimhdl_client.helper_wrapper.onVimhdlTempQuit()
 EOF
@@ -236,6 +245,7 @@ function! s:startServer() abort
 
     let g:vimhdl_server_started = 1
     call s:pyEval('bool(vimhdl_client.startServer())')
+
 endfunction
 "}
 " vim: set foldmarker={,} foldlevel=0 foldmethod=marker :

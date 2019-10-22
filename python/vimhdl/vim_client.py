@@ -24,6 +24,7 @@ import sys
 import time
 from multiprocessing import Queue
 from pprint import pformat
+from tempfile import NamedTemporaryFile
 
 import vim  # pylint: disable=import-error
 import vimhdl
@@ -83,11 +84,29 @@ class VimhdlClient:  # pylint: disable=too-many-instance-attributes
 
         self._server = None
         # Store constructor args
-        self._python = options.get("python", "python")
         self._host = options.get("host", "localhost")
         self._port = options.get("port", vim_helpers.getUnusedLocalhostPort())
         self._log_level = str(options.get("log_level", "DEBUG"))
-        self._log_stream = options.get("log_target", "/tmp/hdlcc.log")
+        self._log_file = (
+            options.get("log_target", None)
+            or NamedTemporaryFile(
+                prefix="vimhdl_log_pid{}_".format(os.getpid()), suffix=".log"
+            ).name
+        )
+
+        self._stdout = (
+            options.get("stdout", None)
+            or NamedTemporaryFile(
+                prefix="vimhdl_stdout_pid{}_".format(os.getpid()), suffix=".log"
+            ).name
+        )
+
+        self._stderr = (
+            options.get("stderr", None)
+            or NamedTemporaryFile(
+                prefix="vimhdl_stderr_pid{}_".format(os.getpid()), suffix=".log"
+            ).name
+        )
 
         self._posted_notifications = []
 
@@ -129,6 +148,8 @@ class VimhdlClient:  # pylint: disable=too-many-instance-attributes
         """
         Checks if the the server is alive
         """
+        if self._server is None:
+            return False
         is_alive = self._server.poll() is None
         if not is_alive:
             self._postWarning("hdl_checker server is not running")
@@ -152,39 +173,32 @@ class VimhdlClient:  # pylint: disable=too-many-instance-attributes
 
         # Try to get the version before to catch potential issues
         try:
-            _cmd = [
-                #  "PYTHONPATH=%s" % hdl_checker_path,
-                #  self._python,
-                #  "-c",
-                #  '"import sys; print(sys.path)"'
-                hdlcc_server,
-                "--version",
-            ]
+            _cmd = [hdlcc_server, "--version"]
             self._logger.debug("Will run %s", " ".join(map(str, _cmd)))
             self._logger.info(
                 "version: %s", subp.check_output(_cmd, env=env, stderr=subp.STDOUT)
             )
-        except subp.CalledProcessError as exc:
-            self._logger.exception("Failed to run: %s", exc.output)
-            raise
+        except (subp.CalledProcessError, FileNotFoundError) as exc:
+            #  self._postError()
+            vim_helpers.postVimError("Error while starting server: {}".format(exc))
+            return
 
         cmd = [
-            #  self._python,
             hdlcc_server,
             "--host",
             self._host,
             "--port",
             str(self._port),
             "--stdout",
-            "/tmp/hdlcc-stdout.log",
+            self._stdout,
             "--stderr",
-            "/tmp/hdlcc-stderr.log",
+            self._stderr,
             "--attach-to-pid",
             str(os.getpid()),
             "--log-level",
             self._log_level,
             "--log-stream",
-            self._log_stream,
+            self._log_file,
         ]
 
         self._logger.info(
@@ -209,7 +223,7 @@ class VimhdlClient:  # pylint: disable=too-many-instance-attributes
                 )
 
             if not self._isServerAlive():
-                vim_helpers.postVimError("Failed to launch hdl_checker server")
+                self._postError("Failed to launch hdl_checker server")
         except subp.CalledProcessError:
             self._logger.exception("Error calling '%s'", " ".join(cmd))
 
@@ -348,27 +362,24 @@ class VimhdlClient:  # pylint: disable=too-many-instance-attributes
 
         response = request.sendRequest()
 
+        info = ["vimhdl version: %s" % vimhdl.__version__]
+
         if response is not None:
             # The server has responded something, so just print it
             self._logger.info("Response: %s", str(response.json()["info"]))
 
-            return "\n".join(
-                [
-                    "- %s" % x
-                    for x in ["vimhdl version: %s\n" % vimhdl.__version__]
-                    + response.json()["info"]
-                ]
-            )
+            info += response.json()["info"]
+        else:
+            info += ["hdl_checker server is not running"]
 
-        return "\n".join(
-            [
-                "- %s" % x
-                for x in [
-                    "vimhdl version: %s\n" % vimhdl.__version__,
-                    "hdl_checker server is not running",
-                ]
-            ]
-        )
+        info += [
+            "Server logs: " + self._log_file,
+            "Server stdout: " + self._stdout,
+            "Server stderr: " + self._stderr,
+        ]
+
+        _logger.info("info: %s", info)
+        return "\n".join(["- " + str(x) for x in info])
 
     def rebuildProject(self):
         """
