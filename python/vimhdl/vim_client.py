@@ -80,7 +80,7 @@ class VimhdlClient:  # pylint: disable=too-many-instance-attributes
 
     def __init__(self, **options):
         self._logger = logging.getLogger(__name__ + "." + self.__class__.__name__)
-        self._logger.info("Creating vimhdl client object...")
+        self._logger.info("Creating vimhdl client object: %s", options)
 
         self._server = None
         # Store constructor args
@@ -309,14 +309,14 @@ class VimhdlClient:  # pylint: disable=too-many-instance-attributes
             _logger.info("msg:\n%s", pformat(msg))
             text = str(msg["text"]) if msg["text"] else ""
             vim_fmt_dict = {
-                "lnum": str(msg["line_number"]) or "-1",
+                "lnum": int(msg.get("line_number", 0)) + 1,
                 "bufnr": str(vim_buffer.number),
-                "filename": str(msg["filename"]) or vim_buffer.name,
+                "filename": msg.get("filename", None) or vim_buffer.name,
                 "valid": "1",
                 "text": text,
-                "nr": str(msg["error_code"]) or "0",
-                "type": str(msg["severity"]) or "E",
-                "col": str(msg["column_number"]) or "0",
+                "nr": msg.get("error_code", None) or "0",
+                "type": msg.get("severity", None) or "E",
+                "col": int(msg.get("column_number", 0)) + 1,
             }
             try:
                 vim_fmt_dict["subtype"] = str(msg["error_subtype"])

@@ -39,5 +39,3 @@ Edit different files under the same project
   ~ 0: .*/hdl_lib/common_lib/common_pkg.vhd \(library: common_lib\) (regex)
   ~ 1: .*/hdl_lib/common_lib/synchronizer.vhd \(library: common_lib\) (regex)
   ~ 2: .*/hdl_lib/common_lib/sr_delay.vhd \(library: common_lib\) (regex)
-
-

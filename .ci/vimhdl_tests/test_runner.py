@@ -174,36 +174,12 @@ with such.A("vim-hdl test") as it:
                             'test_002_no_project_configured.vroom')
         runVroom(vroom_test)
 
-    #  @it.should("warn when unable to create the configured builder")
-    #  def test():
-    #      gitClean(p.join(HDLCC_CI, "hdl_lib"))
-    #      vroom_test = p.join(PATH_TO_TESTS,
-    #                          'test_003_with_project_without_builder.vroom')
-    #      runVroom(vroom_test)
-
-    #  @it.should("allow building via hdlcc standalone before editing")
-    #  def test():
-    #      vroom_test = p.join(PATH_TO_TESTS, 'test_004_issue_10.vroom')
-    #      cmd = ['hdlcc', HDLCC_CI + '/hdl_lib/ghdl.prj', '-cvv', '-s',
-    #             HDLCC_CI + '/hdl_lib/common_lib/edge_detector.vhd']
-
-    #      _logger.info(cmd)
-    #      exc = None
-    #      try:
-    #          output = subp.check_output(cmd).splitlines()
-    #      except subp.CalledProcessError as exc:
-    #          _logger.exception("Excepion caught while testing")
-    #          output = list(exc.output.splitlines())
-    #          raise
-
-    #      if exc is None:
-    #          for line in output:
-    #              _logger.info("> %s", line)
-    #      else:
-    #          for line in output:
-    #              _logger.warning("> %s", line)
-
-    #      runVroom(vroom_test)
+    @it.should("warn when unable to create the configured builder")
+    def test():
+        gitClean(p.join(HDLCC_CI, "hdl_lib"))
+        vroom_test = p.join(PATH_TO_TESTS,
+                            'test_003_with_project_without_builder.vroom')
+        runVroom(vroom_test)
 
     @it.should("not result on E926 when jumping from quickfix")
     def test():

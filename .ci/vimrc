@@ -39,6 +39,9 @@ let g:syntastic_check_on_wq = 1
 let g:syntastic_vhdl_vimhdl_sort = 0
 let g:vimhdl_auto_save_created_config_file = 1
 
+let g:vimhdl_log_level = 'DEBUG'
+let g:vimhdl_log_file = getcwd() . '/hdl_checker.log'
+
 " To avoid Press "ENTER..." message
 set cmdheight=15
 

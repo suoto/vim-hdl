@@ -16,12 +16,15 @@
 # along with vim-hdl.  If not, see <http://www.gnu.org/licenses/>.
 "Misc helpers for common vim-hdl operations"
 
+import json
 import logging
 import os.path as p
 import socket
-import vim                 # pylint: disable=import-error
+
+import vim  # type: ignore # pylint: disable=import-error
 
 _logger = logging.getLogger(__name__)
+
 
 def _toUnicode(value):  # pragma: no cover
     """
@@ -37,14 +40,16 @@ def _toUnicode(value):  # pragma: no cover
         return value
     if isinstance(value, bytes):
         # All incoming text should be utf8
-        return str(value, 'utf8')
+        return str(value, "utf8")
     return str(value)
+
 
 def _escapeForVim(text):
     """
     Escape text for Vim.
     """
     return _toUnicode(text.replace("'", "' . \"'\" .  '"))
+
 
 def toVimDict(obj, vim_variable):
     """
@@ -71,8 +76,10 @@ def postVimInfo(message):
     See https://github.com/Valloric/YouCompleteMe
     """
     _logger.info(message)
-    vim.command("redraw | echom '{0}' | echohl None" \
-        .format(_escapeForVim(str(message))))
+    vim.command(
+        "redraw | echom '{0}' | echohl None".format(_escapeForVim(str(message)))
+    )
+
 
 def postVimWarning(message):
     """
@@ -80,8 +87,11 @@ def postVimWarning(message):
     See https://github.com/Valloric/YouCompleteMe
     """
     _logger.warning(message)
-    vim.command("redraw | echohl WarningMsg | echom '{0}' | echohl None" \
-        .format(_escapeForVim(str(message))))
+    vim.command(
+        "redraw | echohl WarningMsg | echom '{0}' | echohl None".format(
+            _escapeForVim(str(message))
+        )
+    )
 
 def postVimError(message):
     """
@@ -89,8 +99,11 @@ def postVimError(message):
     See https://github.com/Valloric/YouCompleteMe
     """
     _logger.error(message)
-    vim.command("echohl ErrorMsg | echom '{0}' | echohl None" \
-        .format(_escapeForVim(str(message))))
+    vim.command(
+        "echohl ErrorMsg | echom '{0}' | echohl None".format(
+            _escapeForVim(str(message))
+        )
+    )
 
 def getUnusedLocalhostPort():
     """
@@ -99,12 +112,14 @@ def getUnusedLocalhostPort():
     """
     sock = socket.socket()
     # This tells the OS to give us any free port in the range [1024 - 65535]
-    sock.bind(('', 0))
+    sock.bind(("", 0))
     port = sock.getsockname()[1]
     sock.close()
     return port
 
+
 # Methods of accessing g: and b: work only with Vim 7.4+
+
 
 def _getVimGlobals(var=None):
     """
@@ -113,6 +128,7 @@ def _getVimGlobals(var=None):
     if var is None:
         return vim.vars
     return vim.vars[var]
+
 
 def _getBufferVars(vbuffer=None, var=None):
     """
@@ -124,35 +140,34 @@ def _getBufferVars(vbuffer=None, var=None):
         return vbuffer.vars
     return vbuffer.vars[var]
 
+
 def getProjectFile():
     """
     Searches for a valid hdlcc configuration file in buffer vars (i.e.,
     inside b:) then in global vars (i.e., inside g:)
     """
-    if 'vimhdl_conf_file' in _getBufferVars():
-        conf_file = p.abspath(p.expanduser(
-            _getBufferVars(var='vimhdl_conf_file')))
+    if "vimhdl_conf_file" in _getBufferVars():
+        conf_file = p.abspath(p.expanduser(_getBufferVars(var="vimhdl_conf_file")))
         if p.exists(p.dirname(conf_file)) and p.exists(conf_file):
             return conf_file
 
-        _logger.debug("Buffer config file '%s' is set but not "
-                      "readable", conf_file)
+        _logger.debug("Buffer config file '%s' is set but not " "readable", conf_file)
 
-    if 'vimhdl_conf_file' in _getVimGlobals():
-        conf_file = p.abspath(p.expanduser(
-            _getVimGlobals('vimhdl_conf_file')))
+    if "vimhdl_conf_file" in _getVimGlobals():
+        conf_file = p.abspath(p.expanduser(_getVimGlobals("vimhdl_conf_file")))
         if p.exists(p.dirname(conf_file)) and p.exists(conf_file):
             return conf_file
 
-        _logger.debug("Global config file '%s' is set but not "
-                      "readable", conf_file)
+        _logger.debug("Global config file '%s' is set but not " "readable", conf_file)
 
     _logger.info("Couldn't find a valid config file")
     return None
 
+
 # See YouCompleteMe/python/ycm/vimsupport.py
 def getIntValue(variable):
     return int(vim.eval(variable))
+
 
 # See YouCompleteMe/python/ycm/vimsupport.py
 def presentDialog(message, choices, default_choice_index=0):
@@ -181,9 +196,11 @@ def presentDialog(message, choices, default_choice_index=0):
 
     to_eval = "confirm('{0}', '{1}', {2})".format(
         _escapeForVim(_toUnicode(message)),
-        _escapeForVim(_toUnicode("\n" .join(choices))),
-        default_choice_index + 1)
+        _escapeForVim(_toUnicode("\n".join(choices))),
+        default_choice_index + 1,
+    )
     try:
         return getIntValue(to_eval) - 1
     except KeyboardInterrupt:
+        return -1
         return -1

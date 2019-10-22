@@ -10,4 +10,6 @@ __hdl_checker__version__ with their real values
   ~ - vimhdl version: __vimhdl__version__
   ~ - hdl_checker version: __hdl_checker__version__
   ~ - Server PID: .* (regex)
-
+  ~ - Server logs: .* (regex)
+  ~ - Server stdout: .* (regex)
+  ~ - Server stderr: .* (regex)
