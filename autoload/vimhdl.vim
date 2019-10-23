@@ -143,13 +143,13 @@ function! s:restartServer() abort
         call s:postWarning("Not a HDL file, can't restart server")
         return
     endif
-    echom 'Restarting hdlcc server'
+    echom 'Restarting HDL Checker server'
 
     let l:log_level = get(g:, 'vimhdl_log_level', 'INFO')
     let l:log_file = get(g:, 'vimhdl_log_file', v:null)
 
     exec s:python_until_eof
-_logger.info("Restarting hdlcc server")
+_logger.info("Restarting HDL Checker server")
 vimhdl_client.shutdown()
 del vimhdl_client
 vimhdl_client = vimhdl.VimhdlClient(
@@ -236,7 +236,7 @@ function! vimhdl#setup() abort
     endif
 endfunction
 " }
-" { s:startServer() Starts hdlcc server
+" { s:startServer() Starts HDL Checker server
 " ============================================================================
 function! s:startServer() abort
     if (exists('g:vimhdl_server_started') && g:vimhdl_server_started)

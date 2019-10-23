@@ -26,24 +26,28 @@ import requests
 
 _logger = logging.getLogger(__name__)
 
+
 class BaseRequest(object):  # pylint: disable=useless-object-inheritance
     """
     Base request object
     """
-    _meth = ''
+
+    _meth = ""
     timeout = 10
     url = None
 
     def __init__(self, **kwargs):
         self.payload = kwargs
-        _logger.debug("Creating request for '%s' with payload '%s'",
-                      self._meth, self.payload)
+        _logger.debug(
+            "Creating request for '%s' with payload '%s'", self._meth, self.payload
+        )
 
     def sendRequestAsync(self, func=None):
         """
         Processes the request in a separate thread and puts the
         received request on queue Q
         """
+
         def asyncRequest():
             """
             Simple asynchronous request wrapper
@@ -52,9 +56,10 @@ class BaseRequest(object):  # pylint: disable=useless-object-inheritance
                 result = self.sendRequest()
                 if func is not None:
                     func(result)
-            except: # pragma: no cover
+            except:  # pragma: no cover
                 _logger.exception("Error sending request")
                 raise
+
         Thread(target=asyncRequest).start()
 
     def sendRequest(self):
@@ -65,10 +70,10 @@ class BaseRequest(object):  # pylint: disable=useless-object-inheritance
         return is None
         """
         try:
-            response = requests.post(self.url + '/' + self._meth,
-                                     data=self.payload,
-                                     timeout=self.timeout)
-            if not response.ok: # pragma: no cover
+            response = requests.post(
+                self.url + "/" + self._meth, data=self.payload, timeout=self.timeout
+            )
+            if not response.ok:  # pragma: no cover
                 _logger.warning("Server response error: '%s'", response.text)
                 response = None
 
@@ -76,85 +81,98 @@ class BaseRequest(object):  # pylint: disable=useless-object-inheritance
         # on their versions, so we'll catch any exceptions for now until
         # we work out which ones actually happen
         except BaseException as exc:
-            _logger.warning("Sending request '%s' raised exception: '%s'",
-                            str(self), str(exc))
+            _logger.warning(
+                "Sending request '%s' raised exception: '%s'", str(self), str(exc)
+            )
             return None
 
         return response
+
 
 class RequestMessagesByPath(BaseRequest):
     """
     Request messages for the quickfix list
     """
-    _meth = 'get_messages_by_path'
+
+    _meth = "get_messages_by_path"
 
     def __init__(self, project_file, path):
         super(RequestMessagesByPath, self).__init__(
-            project_file=project_file, path=path)
+            project_file=project_file, path=path
+        )
+
 
 class RequestQueuedMessages(BaseRequest):
     """
     Request UI messages
     """
-    _meth = 'get_ui_messages'
+
+    _meth = "get_ui_messages"
 
     def __init__(self, project_file):
-        super(RequestQueuedMessages, self).__init__(
-            project_file=project_file)
+        super(RequestQueuedMessages, self).__init__(project_file=project_file)
 
-class RequestHdlccInfo(BaseRequest):
+
+class RequestHdlCheckerInfo(BaseRequest):
     """
     Request UI messages
     """
-    _meth = 'get_diagnose_info'
+
+    _meth = "get_diagnose_info"
 
     def __init__(self, project_file=None):
-        super(RequestHdlccInfo, self).__init__(
-            project_file=project_file)
+        super(RequestHdlCheckerInfo, self).__init__(project_file=project_file)
+
 
 class ListWorkingBuilders(BaseRequest):
     """
     Request a list of checkers that can be used
     """
-    _meth = 'get_working_builders'
+
+    _meth = "get_working_builders"
+
 
 class RequestProjectRebuild(BaseRequest):
     """
     Request UI messages
     """
-    _meth = 'rebuild_project'
+
+    _meth = "rebuild_project"
 
     def __init__(self, project_file=None):
-        super(RequestProjectRebuild, self).__init__(
-            project_file=project_file)
+        super(RequestProjectRebuild, self).__init__(project_file=project_file)
+
 
 class GetDependencies(BaseRequest):
     """
     Notifies the server that a buffer has been left
     """
-    _meth = 'get_dependencies'
+
+    _meth = "get_dependencies"
 
     def __init__(self, project_file, path):
-        super(GetDependencies, self).__init__(
-            project_file=project_file, path=path)
+        super(GetDependencies, self).__init__(project_file=project_file, path=path)
+
 
 class GetBuildSequence(BaseRequest):
     """
     Notifies the server that a buffer has been left
     """
-    _meth = 'get_build_sequence'
+
+    _meth = "get_build_sequence"
 
     def __init__(self, project_file, path):
-        super(GetBuildSequence, self).__init__(
-            project_file=project_file, path=path)
+        super(GetBuildSequence, self).__init__(project_file=project_file, path=path)
+
 
 class RunConfigGenerator(BaseRequest):
     """
     Notifies the server that a buffer has been left
     """
-    _meth = 'run_config_generator'
+
+    _meth = "run_config_generator"
 
     def __init__(self, generator, *args, **kwargs):
         super(RunConfigGenerator, self).__init__(
-            generator=generator, args=json.dumps(args),
-            kwargs=json.dumps(kwargs))
+            generator=generator, args=json.dumps(args), kwargs=json.dumps(kwargs)
+        )

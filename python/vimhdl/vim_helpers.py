@@ -70,6 +70,7 @@ def toVimDict(obj, vim_variable):
             key = _escapeForVim(key)
         vim.command("let {0}['{1}'] = '{2}'".format(vim_variable, key, value))
 
+
 def postVimInfo(message):
     """
     These were "Borrowed" from YCM.
@@ -93,6 +94,7 @@ def postVimWarning(message):
         )
     )
 
+
 def postVimError(message):
     """
     These were "Borrowed" from YCM.
@@ -104,6 +106,7 @@ def postVimError(message):
             _escapeForVim(str(message))
         )
     )
+
 
 def getUnusedLocalhostPort():
     """
@@ -143,7 +146,7 @@ def _getBufferVars(vbuffer=None, var=None):
 
 def getProjectFile():
     """
-    Searches for a valid hdlcc configuration file in buffer vars (i.e.,
+    Searches for a valid HDL Checker configuration file in buffer vars (i.e.,
     inside b:) then in global vars (i.e., inside g:)
     """
     if "vimhdl_conf_file" in _getBufferVars():

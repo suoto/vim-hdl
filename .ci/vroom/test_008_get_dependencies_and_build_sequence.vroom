@@ -34,8 +34,9 @@ Edit different files under the same project
   ~ - common_lib.synchronizer
   ~ - ieee.std_logic_1164
 
+Order doesn't really matter
   :VimhdlViewBuildSequence
   ~ Build sequence for .*/edge_detector.vhd (regex)
-  ~ 0: .*/hdl_lib/common_lib/common_pkg.vhd \(library: common_lib\) (regex)
-  ~ 1: .*/hdl_lib/common_lib/synchronizer.vhd \(library: common_lib\) (regex)
-  ~ 2: .*/hdl_lib/common_lib/sr_delay.vhd \(library: common_lib\) (regex)
+  ~ 1: .*/hdl_lib/common_lib/(common_pkg|synchronizer|sr_delay).vhd \(library: common_lib\) (regex)
+  ~ 2: .*/hdl_lib/common_lib/(common_pkg|synchronizer|sr_delay).vhd \(library: common_lib\) (regex)
+  ~ 3: .*/hdl_lib/common_lib/(common_pkg|synchronizer|sr_delay).vhd \(library: common_lib\) (regex)

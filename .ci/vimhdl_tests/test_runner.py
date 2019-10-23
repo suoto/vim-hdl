@@ -33,7 +33,6 @@ _logger = logging.getLogger(__name__)
 
 PATH_TO_TESTS = p.abspath(p.join(".ci", "vroom"))
 HDLCC_CI = p.abspath(p.join("..", "hdlcc_ci"))
-PATH_TO_HDLCC = p.join("dependencies", "hdlcc")
 ON_CI = os.environ.get("CI", None) is not None
 NEOVIM_TARGET = os.environ.get("CI_TARGET", "vim") == "neovim"
 VROOM_EXTRA_ARGS = os.environ.get("VROOM_EXTRA_ARGS", None)
@@ -128,7 +127,7 @@ with such.A("vim-hdl test") as it:
         runShell(["git", "status", "--porcelain"], cwd=p.join(HDLCC_CI, "hdl_lib"))
 
     def pipInstallHdlcc():
-        cmd = ["pip", "install", "-e", PATH_TO_HDLCC, "-U"]
+        cmd = ["pip", "install", "hdl_checker", "-U"]
         _logger.debug("Installing HDLCC via pip with command:")
         runShell(cmd)
 

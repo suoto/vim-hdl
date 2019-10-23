@@ -16,6 +16,7 @@
 # along with vim-hdl.  If not, see <http://www.gnu.org/licenses/>.
 "Wrapper for vim-hdl usage within Vim's Python interpreter"
 
+import atexit
 import logging
 import os
 import os.path as p
@@ -30,7 +31,7 @@ import vim  # pylint: disable=import-error
 import vimhdl
 import vimhdl.vim_helpers as vim_helpers
 from vimhdl.base_requests import (BaseRequest, GetBuildSequence,
-                                  GetDependencies, RequestHdlccInfo,
+                                  GetDependencies, RequestHdlCheckerInfo,
                                   RequestMessagesByPath, RequestProjectRebuild,
                                   RequestQueuedMessages, RunConfigGenerator)
 from vimhdl.config_gen_wrapper import ConfigGenWrapper
@@ -124,8 +125,6 @@ class VimhdlClient:  # pylint: disable=too-many-instance-attributes
         self._startServerProcess()
         self._waitForServerSetup()
 
-        import atexit
-
         atexit.register(self.shutdown)
 
     def _postError(self, msg):
@@ -161,22 +160,14 @@ class VimhdlClient:  # pylint: disable=too-many-instance-attributes
         """
         self._logger.info("Running vim_hdl client setup")
 
-        vimhdl_path = p.abspath(p.join(p.dirname(__file__), "..", ".."))
-
-        hdl_checker_path = p.join(vimhdl_path, "dependencies", "hdlcc")
-
-        env = os.environ.copy()
-        env["PYTHONPATH"] = hdl_checker_path
-
-        #  hdlcc_server = p.join(hdl_checker_path, "hdl_checker", "server.py")
-        hdlcc_server = "hdl_checker"
+        hdl_checker_executable = "hdl_checker"
 
         # Try to get the version before to catch potential issues
         try:
-            _cmd = [hdlcc_server, "--version"]
+            _cmd = [hdl_checker_executable, "--version"]
             self._logger.debug("Will run %s", " ".join(map(str, _cmd)))
             self._logger.info(
-                "version: %s", subp.check_output(_cmd, env=env, stderr=subp.STDOUT)
+                "version: %s", subp.check_output(_cmd, stderr=subp.STDOUT)
             )
         except (subp.CalledProcessError, FileNotFoundError) as exc:
             #  self._postError()
@@ -184,7 +175,7 @@ class VimhdlClient:  # pylint: disable=too-many-instance-attributes
             return
 
         cmd = [
-            hdlcc_server,
+            hdl_checker_executable,
             "--host",
             self._host,
             "--port",
@@ -219,7 +210,6 @@ class VimhdlClient:  # pylint: disable=too-many-instance-attributes
                     stdout=subp.PIPE,
                     stderr=subp.PIPE,
                     preexec_fn=os.setpgrp,
-                    env=env,
                 )
 
             if not self._isServerAlive():
@@ -233,7 +223,7 @@ class VimhdlClient:  # pylint: disable=too-many-instance-attributes
         """
         for _ in range(10):
             time.sleep(0.2)
-            request = RequestHdlccInfo()
+            request = RequestHdlCheckerInfo()
             response = request.sendRequest()
             self._logger.debug(response)
             if response:
@@ -358,7 +348,7 @@ class VimhdlClient:  # pylint: disable=too-many-instance-attributes
         Gets info about the current project and hdl_checker server
         """
         project_file = vim_helpers.getProjectFile()
-        request = RequestHdlccInfo(project_file=project_file)
+        request = RequestHdlCheckerInfo(project_file=project_file)
 
         response = request.sendRequest()
 
@@ -449,10 +439,8 @@ class VimhdlClient:  # pylint: disable=too-many-instance-attributes
             if sequence:
                 i = 1
                 msg = ["Build sequence for %s\n" % vim.current.buffer.name]
-                for i in range(
-                    len(sequence)
-                ):  # pylint:disable=consider-using-enumerate
-                    msg += ["%d: %s" % (i, sequence[i])]
+                for i, item in enumerate(sequence, 1):
+                    msg += ["%d: %s" % (i, item)]
                 return "\n".join(msg)
 
             return "Build sequence is empty"
