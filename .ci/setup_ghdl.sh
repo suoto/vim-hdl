@@ -1,15 +1,23 @@
 #!/usr/bin/env bash
 
 set -x
+set +e
 
-# Save the folder travis expects us to start
-if [ ! -f "${CACHE}/ghdl/bin/ghdl" ]; then
-  mkdir -p "${CACHE}/ghdl"
+CACHE_DIR="${HOME}/cache/"
+GHDL_TAR_GZ="${CACHE_DIR}/ghdl.tar.gz"
+INSTALLATION_DIR="${HOME}/builders/ghdl/"
 
-  # Setup GHDL
-  pushd "${CACHE}/ghdl" || exit
-  wget --quiet "${GHDL_URL}" -O ghdl.tar.gz
-  tar zxvf ghdl.tar.gz
-  popd || exit
+mkdir -p "${CACHE_DIR}"
+mkdir -p "${INSTALLATION_DIR}"
+# CWD=$(pwd)
 
+if [ ! -f "${GHDL_TAR_GZ}" ]; then
+  wget "${GHDL_URL}" -O "${GHDL_TAR_GZ}"
 fi
+
+if [ ! -d "${INSTALLATION_DIR}/bin" ]; then
+  mkdir -p "${INSTALLATION_DIR}"
+  tar zxvf "${GHDL_TAR_GZ}" --directory "${INSTALLATION_DIR}"
+fi
+
+"${INSTALLATION_DIR}"/bin/ghdl --version

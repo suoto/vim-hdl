@@ -66,7 +66,6 @@ before_script:
   - git clone --quiet --recursive --depth 1 --branch=hdlcc_ci
     https://github.com/suoto/hdlcc_ci ../hdlcc_ci
 
-  - ./dependencies/hdlcc/.ci/scripts/setup_ghdl.sh
   - ./.ci/setup_ghdl.sh
   - if [ "${CI_TARGET}" == "vim" ]; then source ./.ci/setup_vim.sh; fi
   - if [ "${CI_TARGET}" == "neovim" ]; then source ./.ci/setup_nvim.sh; fi
