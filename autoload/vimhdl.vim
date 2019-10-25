@@ -49,7 +49,7 @@ endfunction "}
 " ============================================================================
 function! s:setupPython() abort
     let l:log_level = get(g:, 'vimhdl_log_level', 'INFO')
-    let l:log_file = get(g:, 'vimhdl_log_file', v:null)
+    let l:log_file = get(g:, 'vimhdl_log_file', '')
 
     exec s:python_until_eof
 import sys
