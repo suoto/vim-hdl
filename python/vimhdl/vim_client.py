@@ -27,7 +27,7 @@ from multiprocessing import Queue
 from pprint import pformat
 from tempfile import NamedTemporaryFile
 
-import vim  # pylint: disable=import-error
+import vim  # type: ignore # pylint: disable=import-error
 import vimhdl
 import vimhdl.vim_helpers as vim_helpers
 from vimhdl.base_requests import (BaseRequest, GetBuildSequence,

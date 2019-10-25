@@ -1,5 +1,26 @@
 # vim-hdl
 
+## May I have your attention please?
+
+**[HDL Checker][hdl_checker] implements the core functionality of `vim-hdl` and
+because it now supports [Language Server Protocol][LSP], `vim-hdl` is being
+deprecated**
+
+### How to continue using HDL Checker
+
+Any [LSP client][LSP_clients] should work, be it on Vim or other editors.
+
+Have a look at [HDL Checker supported editors][hdl_checker_editor_support] to
+check some examples of how to set it up.
+
+### Rationale
+
+Back when vim-hdl started, Vim did not have the widespread support for LSP it has
+today and with it I can actually focus in the core functionality and support more
+platforms at the same time. This last update is likely the last one!
+
+---
+
 [![Build Status](https://travis-ci.org/suoto/vim-hdl.svg?branch=master)](https://travis-ci.org/suoto/vim-hdl)
 [![codecov](https://codecov.io/gh/suoto/vim-hdl/branch/master/graph/badge.svg)](https://codecov.io/gh/suoto/vim-hdl)
 [![Join the chat at https://gitter.im/suoto/vim-hdl](https://badges.gitter.im/suoto/vim-hdl.svg)](https://gitter.im/suoto/vim-hdl?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
@@ -14,13 +35,6 @@ helpers to VHDL development:
 * [Style checking](#style-checking)
 
 ---
-
-**[HDL Checker][hdl_checker] HTTP interface used by vim-hdl is being deprecated
-in favor of [Language Server Protocol][LSP]. See [HDL Checker supported
-editors][hdl_checker_editor_support] for help setting up**
-
----
-
 
 ![vim-hdl screenshot](http://i.imgur.com/2hZox5r.gif)
 
@@ -156,3 +170,4 @@ mentioned or used by this software.
 [vimhdl_issue_tracker]: https://github.com/suoto/vim-hdl/issues
 [vundle]: https://github.com/VundleVim/Vundle.vim
 [Xilinx_Vivado]: http://www.xilinx.com/products/design-tools/vivado/vivado-webpack.html
+[LSP_clients]: https://microsoft.github.io/language-server-protocol/implementors/tools/
