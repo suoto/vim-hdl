@@ -11,13 +11,14 @@ mkdir -p "${CACHE_DIR}"
 mkdir -p "${INSTALLATION_DIR}"
 # CWD=$(pwd)
 
-if [ ! -f "${GHDL_TAR_GZ}" ]; then
-  wget "${GHDL_URL}" -O "${GHDL_TAR_GZ}"
-fi
-
 if [ ! -d "${INSTALLATION_DIR}/bin" ]; then
+  if [ ! -f "${GHDL_TAR_GZ}" ]; then
+    wget "${GHDL_URL}" -O "${GHDL_TAR_GZ}"
+  fi
+
   mkdir -p "${INSTALLATION_DIR}"
   tar zxvf "${GHDL_TAR_GZ}" --directory "${INSTALLATION_DIR}"
+  rm "${GHDL_TAR_GZ}"
 fi
 
 "${INSTALLATION_DIR}"/bin/ghdl --version

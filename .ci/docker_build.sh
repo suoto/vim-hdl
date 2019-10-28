@@ -23,4 +23,4 @@ PATH_TO_THIS_SCRIPT=$(readlink -f "$(dirname "$0")")
 DOCKERFILE=$PATH_TO_THIS_SCRIPT/Dockerfile
 CONTEXT=$(git -C "$(PATH_TO_THIS_SCRIPT)" rev-parse --show-toplevel)
 
-docker build -t suoto/hdl_checker_test:"$DOCKER_TAG" -f "$DOCKERFILE" "$CONTEXT"
+docker build -t suoto/vim_hdl_test:"$DOCKER_TAG" -f "$DOCKERFILE" "$CONTEXT"

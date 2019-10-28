@@ -4,8 +4,8 @@ colorama
 coverage
 coveralls
 futures
-git+https://github.com/suoto/rainbow_logging_handler
 greenlet
+hdl-checker
 logutils
 mock
 msgpack-python
@@ -13,6 +13,7 @@ neovim
 nose2
 nose2-cov
 prettytable
+rainbow_logging_handler
 requests==v2.20.0
 six
 testfixtures
